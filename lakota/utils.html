@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>lakota.utils API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lakota.utils</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import bisect
+import logging
+import sys
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
+from hashlib import sha1
+from itertools import islice
+from pathlib import PosixPath
+from time import perf_counter, time
+
+from numpy import arange
+
+default_hash = sha1
+hexhash_len = 40
+head = lambda it, n=1: list(islice(it, 0, n))
+tail = lambda it, n=1: deque(it, maxlen=n)
+skip = lambda it, n: list(islice(it, n, None))
+FLAGS = {}
+
+fmt = &#34;%(levelname)s:%(asctime).19s: %(message)s&#34;
+logging.basicConfig(format=fmt)
+logger = logging.getLogger(&#34;lakota&#34;)
+DEBUG = False
+
+
+# Global settings
+@dataclass
+class Settings:
+    threaded: bool
+
+
+settings = Settings(threaded=True)
+
+
+def chunky(collection, size=100):
+    it = iter(collection)
+    while True:
+        chunk = head(it, size)
+        if not chunk:
+            break
+        yield chunk
+
+
+def hexdigest(*data):
+    digest = default_hash()
+    for datum in data:
+        digest.update(datum)
+    return digest.hexdigest()
+
+
+def hextime(timestamp=None):
+    &#34;&#34;&#34;
+    hex representation of current UTC time (rounded to millisecond)
+    &#34;&#34;&#34;
+    timestamp = timestamp or time()
+    return hex(int(timestamp * 1000))[2:]
+
+
+def encoder(*items):
+    &#34;Auto-encode all items&#34;
+    for item in items:
+        yield item.encode()
+
+
+def strpt(time_str):
+    if isinstance(time_str, datetime):
+        return time_str
+    if not time_str:
+        return None
+    return datetime.fromisoformat(time_str)
+
+
+def drange(start, end, delta, right_closed=False):
+    start = strpt(start)
+    end = strpt(end)
+    return arange(start, end, delta).astype(&#34;M8[s]&#34;)
+
+
+def hashed_path(digest, depth=2):
+    &#34;&#34;&#34;
+    Pair-wise hashing of the `digest` string, example:
+    12345678 -&gt; (Path(12/34), &#34;5678&#34;) (with depth = 2)
+    &#34;&#34;&#34;
+    assert len(digest) &gt; 2 * depth
+    folder = PosixPath(&#34;.&#34;)
+    for _ in range(depth):
+        prefix, digest = digest[:2], digest[2:]
+        folder = folder / prefix
+
+    return folder, digest
+
+
+def pretty_nb(number):
+    prefixes = &#34;yzafpnum_kMGTPEZY&#34;
+    factors = [1000 ** i for i in range(-8, 8)]
+    if number == 0:
+        return 0
+    if number &lt; 0:
+        return &#34;-&#34; + pretty_nb(-number)
+    idx = bisect.bisect_right(factors, number) - 1
+    prefix = prefixes[idx]
+    return &#34;%.2f%s&#34; % (number / factors[idx], &#34;&#34; if prefix == &#34;_&#34; else prefix)
+
+
+@contextmanager
+def timeit(title=&#34;&#34;):
+    start = perf_counter()
+    yield
+    delta = perf_counter() - start
+    print(title, pretty_nb(delta) + &#34;s&#34;, file=sys.stderr)
+
+
+def memoize(fn):
+    fn = fn
+    cache = {}
+
+    def wrapper(*a, **kw):
+        key = a + tuple(kw.keys()) + tuple(kw.values())
+        if key in cache:
+            return cache[key]
+        res = fn(*a, **kw)
+        cache[key] = res
+        return res
+
+    return wrapper
+
+
+class Pool:
+    &#34;&#34;&#34;
+    Threadpoolexecutor wrapper to simplify it&#39;s usage
+    &#34;&#34;&#34;
+
+    def __init__(self, nb_threads=2):
+        self.nb_threads = nb_threads
+        self.futures = []
+        self.results = []
+        self.pool = None
+
+    def __enter__(self):
+        if settings.threaded:
+            self.pool = ThreadPoolExecutor(self.nb_threads)
+        return self
+
+    def submit(self, fn, *a, **kw):
+        if settings.threaded:
+            self.futures.append(self.pool.submit(fn, *a, **kw))
+        else:
+            self.results.append(fn(*a, **kw))
+
+    def __exit__(self, type, value, traceback):
+        if settings.threaded:
+            self.results = [fut.result() for fut in self.futures]
+
+
+def profile_object(*roots):
+    &#34;&#34;&#34;
+    Usage:
+
+    profiler = profile_object(SomeClass_or_some_object)
+    ... run code
+    profiler.print_stats()
+
+    &#34;&#34;&#34;
+    # Monkey patch functions in module to add profiling decorator
+    from inspect import isfunction
+
+    import line_profiler
+
+    profiler = line_profiler.LineProfiler()
+    for root in roots:
+        for key, item in root.__dict__.items():
+            if isfunction(item):
+                print(f&#34;Enable profiler on {item.__name__} &#34; f&#34;in {root.__name__}&#34;)
+                setattr(root, key, profiler(item))
+    return profiler
+
+
+def floor(arr, unit):
+    &#34;&#34;&#34;
+    Floor the datetime array to the selected unit.
+    unit can be &#39;Y&#39;, &#39;M&#39;, &#39;D&#39;, &#39;h&#39;, &#39;m&#39; or &#39;s&#39;.
+    &#34;&#34;&#34;
+    if unit == &#34;W&#34;:
+        ...  # TODO
+    assert unit in &#34;YMDhms&#34;
+    return arr.astype(f&#34;M8[{unit}]&#34;)
+
+
+def day_of_week_num(arr):
+    # see https://stackoverflow.com/a/54264187: &#34;takes advantage of
+    # the fact that numpy.datetime64s are relative to the unix epoch,
+    # which was a Thursday.&#34;
+    return (arr.astype(&#34;M8[D]&#34;).view(&#34;int64&#34;) - 4) % 7
+
+
+def yaml_load(stream):
+    import yaml
+
+    class OrderedLoader(yaml.SafeLoader):
+        pass
+
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        return dict(loader.construct_pairs(node))
+
+    OrderedLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping
+    )
+    return yaml.load(stream, OrderedLoader)
+
+
+class Interval:
+    labels = [&#34;m&#34;, &#34;h&#34;, &#34;D&#34;, &#34;W&#34;, &#34;M&#34;, &#34;Y&#34;, None]
+    durations = [
+        60,  # a minute
+        3600,  # h: 60*60
+        86_400,  # D: 3600 * 24
+        604_800,  # W: 604800 * 7
+        2_592_000,  # M: 604800 * 30
+        31_536_000,  # Y: 604800 * 365
+    ]
+
+    @classmethod
+    def bisect(cls, nb_seconds):
+        idx = bisect.bisect_right(cls.durations, nb_seconds)
+        label = cls.labels[idx]
+        return label</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="lakota.utils.chunky"><code class="name flex">
+<span>def <span class="ident">chunky</span></span>(<span>collection, size=100)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def chunky(collection, size=100):
+    it = iter(collection)
+    while True:
+        chunk = head(it, size)
+        if not chunk:
+            break
+        yield chunk</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.day_of_week_num"><code class="name flex">
+<span>def <span class="ident">day_of_week_num</span></span>(<span>arr)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def day_of_week_num(arr):
+    # see https://stackoverflow.com/a/54264187: &#34;takes advantage of
+    # the fact that numpy.datetime64s are relative to the unix epoch,
+    # which was a Thursday.&#34;
+    return (arr.astype(&#34;M8[D]&#34;).view(&#34;int64&#34;) - 4) % 7</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.drange"><code class="name flex">
+<span>def <span class="ident">drange</span></span>(<span>start, end, delta, right_closed=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def drange(start, end, delta, right_closed=False):
+    start = strpt(start)
+    end = strpt(end)
+    return arange(start, end, delta).astype(&#34;M8[s]&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.encoder"><code class="name flex">
+<span>def <span class="ident">encoder</span></span>(<span>*items)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Auto-encode all items</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def encoder(*items):
+    &#34;Auto-encode all items&#34;
+    for item in items:
+        yield item.encode()</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.floor"><code class="name flex">
+<span>def <span class="ident">floor</span></span>(<span>arr, unit)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Floor the datetime array to the selected unit.
+unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def floor(arr, unit):
+    &#34;&#34;&#34;
+    Floor the datetime array to the selected unit.
+    unit can be &#39;Y&#39;, &#39;M&#39;, &#39;D&#39;, &#39;h&#39;, &#39;m&#39; or &#39;s&#39;.
+    &#34;&#34;&#34;
+    if unit == &#34;W&#34;:
+        ...  # TODO
+    assert unit in &#34;YMDhms&#34;
+    return arr.astype(f&#34;M8[{unit}]&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.hashed_path"><code class="name flex">
+<span>def <span class="ident">hashed_path</span></span>(<span>digest, depth=2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pair-wise hashing of the <code>digest</code> string, example:
+12345678 -&gt; (Path(12/34), "5678") (with depth = 2)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def hashed_path(digest, depth=2):
+    &#34;&#34;&#34;
+    Pair-wise hashing of the `digest` string, example:
+    12345678 -&gt; (Path(12/34), &#34;5678&#34;) (with depth = 2)
+    &#34;&#34;&#34;
+    assert len(digest) &gt; 2 * depth
+    folder = PosixPath(&#34;.&#34;)
+    for _ in range(depth):
+        prefix, digest = digest[:2], digest[2:]
+        folder = folder / prefix
+
+    return folder, digest</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.head"><code class="name flex">
+<span>def <span class="ident">head</span></span>(<span>it, n=1)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">head = lambda it, n=1: list(islice(it, 0, n))</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.hexdigest"><code class="name flex">
+<span>def <span class="ident">hexdigest</span></span>(<span>*data)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def hexdigest(*data):
+    digest = default_hash()
+    for datum in data:
+        digest.update(datum)
+    return digest.hexdigest()</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.hextime"><code class="name flex">
+<span>def <span class="ident">hextime</span></span>(<span>timestamp=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>hex representation of current UTC time (rounded to millisecond)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def hextime(timestamp=None):
+    &#34;&#34;&#34;
+    hex representation of current UTC time (rounded to millisecond)
+    &#34;&#34;&#34;
+    timestamp = timestamp or time()
+    return hex(int(timestamp * 1000))[2:]</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.memoize"><code class="name flex">
+<span>def <span class="ident">memoize</span></span>(<span>fn)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def memoize(fn):
+    fn = fn
+    cache = {}
+
+    def wrapper(*a, **kw):
+        key = a + tuple(kw.keys()) + tuple(kw.values())
+        if key in cache:
+            return cache[key]
+        res = fn(*a, **kw)
+        cache[key] = res
+        return res
+
+    return wrapper</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.pretty_nb"><code class="name flex">
+<span>def <span class="ident">pretty_nb</span></span>(<span>number)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pretty_nb(number):
+    prefixes = &#34;yzafpnum_kMGTPEZY&#34;
+    factors = [1000 ** i for i in range(-8, 8)]
+    if number == 0:
+        return 0
+    if number &lt; 0:
+        return &#34;-&#34; + pretty_nb(-number)
+    idx = bisect.bisect_right(factors, number) - 1
+    prefix = prefixes[idx]
+    return &#34;%.2f%s&#34; % (number / factors[idx], &#34;&#34; if prefix == &#34;_&#34; else prefix)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.profile_object"><code class="name flex">
+<span>def <span class="ident">profile_object</span></span>(<span>*roots)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Usage:</p>
+<p>profiler = profile_object(SomeClass_or_some_object)
+&hellip; run code
+profiler.print_stats()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def profile_object(*roots):
+    &#34;&#34;&#34;
+    Usage:
+
+    profiler = profile_object(SomeClass_or_some_object)
+    ... run code
+    profiler.print_stats()
+
+    &#34;&#34;&#34;
+    # Monkey patch functions in module to add profiling decorator
+    from inspect import isfunction
+
+    import line_profiler
+
+    profiler = line_profiler.LineProfiler()
+    for root in roots:
+        for key, item in root.__dict__.items():
+            if isfunction(item):
+                print(f&#34;Enable profiler on {item.__name__} &#34; f&#34;in {root.__name__}&#34;)
+                setattr(root, key, profiler(item))
+    return profiler</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.skip"><code class="name flex">
+<span>def <span class="ident">skip</span></span>(<span>it, n)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">skip = lambda it, n: list(islice(it, n, None))</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.strpt"><code class="name flex">
+<span>def <span class="ident">strpt</span></span>(<span>time_str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def strpt(time_str):
+    if isinstance(time_str, datetime):
+        return time_str
+    if not time_str:
+        return None
+    return datetime.fromisoformat(time_str)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.tail"><code class="name flex">
+<span>def <span class="ident">tail</span></span>(<span>it, n=1)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">tail = lambda it, n=1: deque(it, maxlen=n)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.timeit"><code class="name flex">
+<span>def <span class="ident">timeit</span></span>(<span>title='')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def timeit(title=&#34;&#34;):
+    start = perf_counter()
+    yield
+    delta = perf_counter() - start
+    print(title, pretty_nb(delta) + &#34;s&#34;, file=sys.stderr)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.yaml_load"><code class="name flex">
+<span>def <span class="ident">yaml_load</span></span>(<span>stream)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def yaml_load(stream):
+    import yaml
+
+    class OrderedLoader(yaml.SafeLoader):
+        pass
+
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        return dict(loader.construct_pairs(node))
+
+    OrderedLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping
+    )
+    return yaml.load(stream, OrderedLoader)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="lakota.utils.Interval"><code class="flex name class">
+<span>class <span class="ident">Interval</span></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Interval:
+    labels = [&#34;m&#34;, &#34;h&#34;, &#34;D&#34;, &#34;W&#34;, &#34;M&#34;, &#34;Y&#34;, None]
+    durations = [
+        60,  # a minute
+        3600,  # h: 60*60
+        86_400,  # D: 3600 * 24
+        604_800,  # W: 604800 * 7
+        2_592_000,  # M: 604800 * 30
+        31_536_000,  # Y: 604800 * 365
+    ]
+
+    @classmethod
+    def bisect(cls, nb_seconds):
+        idx = bisect.bisect_right(cls.durations, nb_seconds)
+        label = cls.labels[idx]
+        return label</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="lakota.utils.Interval.durations"><code class="name">var <span class="ident">durations</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Interval.labels"><code class="name">var <span class="ident">labels</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="lakota.utils.Interval.bisect"><code class="name flex">
+<span>def <span class="ident">bisect</span></span>(<span>nb_seconds)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def bisect(cls, nb_seconds):
+    idx = bisect.bisect_right(cls.durations, nb_seconds)
+    label = cls.labels[idx]
+    return label</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="lakota.utils.Pool"><code class="flex name class">
+<span>class <span class="ident">Pool</span></span>
+<span>(</span><span>nb_threads=2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Threadpoolexecutor wrapper to simplify it's usage</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Pool:
+    &#34;&#34;&#34;
+    Threadpoolexecutor wrapper to simplify it&#39;s usage
+    &#34;&#34;&#34;
+
+    def __init__(self, nb_threads=2):
+        self.nb_threads = nb_threads
+        self.futures = []
+        self.results = []
+        self.pool = None
+
+    def __enter__(self):
+        if settings.threaded:
+            self.pool = ThreadPoolExecutor(self.nb_threads)
+        return self
+
+    def submit(self, fn, *a, **kw):
+        if settings.threaded:
+            self.futures.append(self.pool.submit(fn, *a, **kw))
+        else:
+            self.results.append(fn(*a, **kw))
+
+    def __exit__(self, type, value, traceback):
+        if settings.threaded:
+            self.results = [fut.result() for fut in self.futures]</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.utils.Pool.submit"><code class="name flex">
+<span>def <span class="ident">submit</span></span>(<span>self, fn, *a, **kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def submit(self, fn, *a, **kw):
+    if settings.threaded:
+        self.futures.append(self.pool.submit(fn, *a, **kw))
+    else:
+        self.results.append(fn(*a, **kw))</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="lakota.utils.Settings"><code class="flex name class">
+<span>class <span class="ident">Settings</span></span>
+<span>(</span><span>threaded: bool)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Settings(threaded: bool)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Settings:
+    threaded: bool</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="lakota.utils.Settings.threaded"><code class="name">var <span class="ident">threaded</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="lakota.utils.chunky" href="#lakota.utils.chunky">chunky</a></code></li>
+<li><code><a title="lakota.utils.day_of_week_num" href="#lakota.utils.day_of_week_num">day_of_week_num</a></code></li>
+<li><code><a title="lakota.utils.drange" href="#lakota.utils.drange">drange</a></code></li>
+<li><code><a title="lakota.utils.encoder" href="#lakota.utils.encoder">encoder</a></code></li>
+<li><code><a title="lakota.utils.floor" href="#lakota.utils.floor">floor</a></code></li>
+<li><code><a title="lakota.utils.hashed_path" href="#lakota.utils.hashed_path">hashed_path</a></code></li>
+<li><code><a title="lakota.utils.head" href="#lakota.utils.head">head</a></code></li>
+<li><code><a title="lakota.utils.hexdigest" href="#lakota.utils.hexdigest">hexdigest</a></code></li>
+<li><code><a title="lakota.utils.hextime" href="#lakota.utils.hextime">hextime</a></code></li>
+<li><code><a title="lakota.utils.memoize" href="#lakota.utils.memoize">memoize</a></code></li>
+<li><code><a title="lakota.utils.pretty_nb" href="#lakota.utils.pretty_nb">pretty_nb</a></code></li>
+<li><code><a title="lakota.utils.profile_object" href="#lakota.utils.profile_object">profile_object</a></code></li>
+<li><code><a title="lakota.utils.skip" href="#lakota.utils.skip">skip</a></code></li>
+<li><code><a title="lakota.utils.strpt" href="#lakota.utils.strpt">strpt</a></code></li>
+<li><code><a title="lakota.utils.tail" href="#lakota.utils.tail">tail</a></code></li>
+<li><code><a title="lakota.utils.timeit" href="#lakota.utils.timeit">timeit</a></code></li>
+<li><code><a title="lakota.utils.yaml_load" href="#lakota.utils.yaml_load">yaml_load</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="lakota.utils.Interval" href="#lakota.utils.Interval">Interval</a></code></h4>
+<ul class="">
+<li><code><a title="lakota.utils.Interval.bisect" href="#lakota.utils.Interval.bisect">bisect</a></code></li>
+<li><code><a title="lakota.utils.Interval.durations" href="#lakota.utils.Interval.durations">durations</a></code></li>
+<li><code><a title="lakota.utils.Interval.labels" href="#lakota.utils.Interval.labels">labels</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.utils.Pool" href="#lakota.utils.Pool">Pool</a></code></h4>
+<ul class="">
+<li><code><a title="lakota.utils.Pool.submit" href="#lakota.utils.Pool.submit">submit</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.utils.Settings" href="#lakota.utils.Settings">Settings</a></code></h4>
+<ul class="">
+<li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

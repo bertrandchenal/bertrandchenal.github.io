@@ -1,0 +1,1601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>lakota.cli API documentation</title>
+<meta name="description" content="Example usage …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lakota.cli</code></h1>
+</header>
+<section id="section-intro">
+<h1 id="example-usage">Example usage</h1>
+<p>Create a collection, and a first series:</p>
+<pre><code class="language-shell">$ # Create a collection &quot;temperature&quot; with columns &quot;timestamp&quot; and &quot;value&quot;
+$ lakota create temperature &quot;timestamp timestamp*&quot; &quot;value float&quot;
+$ ls .lakota/ # the default repository is the .lakota directory
+00 2e 6d
+$ cat input.csv # Some input data that contains some timestamps and values
+2020-06-22,25
+2020-06-23,24
+2020-06-24,27
+2020-06-25,31
+2020-06-26,32
+2020-06-27,30
+$ # Write into a series &quot;Brussels&quot;
+$ cat input.csv | lakota write temperature/Brussels
+</code></pre>
+<p>Read the data back:</p>
+<pre><code class="language-shell">$ lakota ls # list collections
+collection
+temperature
+$ lakota ls temperature # list series
+series
+Brussels
+$ lakota read temperature/Brussels # read series
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.0
+2020-06-24T00:00:00,27.0
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.0
+2020-06-27T00:00:00,30.0
+$ lakota -P read temperature/Brussels # with pretty-print
+timestamp              value
+-------------------  -------
+2020-06-22T00:00:00       25
+2020-06-23T00:00:00       24
+2020-06-24T00:00:00       27
+2020-06-25T00:00:00       31
+2020-06-26T00:00:00       32
+2020-06-27T00:00:00       30
+</code></pre>
+<p>Update the series:</p>
+<pre><code class="language-shell">$ cat input-corrected.csv # New values
+2020-06-23,24.2
+2020-06-24,27.9
+2020-06-25,31.0
+2020-06-26,32.5
+2020-06-27,30.1
+2020-06-28,29.2
+$ cat input-corrected.csv | lakota write temperature/Brussels
+$ lakota read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+</code></pre>
+<p>Show revisions and clean history:</p>
+<pre><code class="language-shell">$ lakota rev temperature  # show revisions
+
+Revision: 00000000000-0000000000000000000000000000000000000000.176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620
+Date: 2020-12-14 15:03:10.961000
+
+Revision: 176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661929034-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 15:06:03.828000
+
+$ lakota squash temperature # squash all revisions into one
+$ lakota rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.176619478d1-425a9d4eaa62dad4e560875834ed79a17238c6a6*
+Date: 2020-12-14 15:08:08.913000
+</code></pre>
+<p>Read supports basic group-by operations and filters:</p>
+<pre><code class="language-shell">$ # compute max value on group by month
+$ lakota read temperature/Brussels &quot;(floor self.timestamp 'M')&quot; &quot;(max self.value)&quot;
+(floor self.timestamp 'M'),(max self.value)
+2020-06-01T00:00:00,32.5
+$ lakota read temperature/Brussels  --mask &quot;(&lt; self.value 28)&quot;
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+</code></pre>
+<p>But <code>--mask</code> and group-by/aggregate are not compatible (yet).</p>
+<p>Built-in help:</p>
+<pre><code class="language-shell">$ lakota  --help
+usage: lakota [-h] [--repo REPO] [--timing] [--pretty] [--verbose]
+              {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+              ...
+
+positional arguments:
+  {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --repo REPO, -r REPO  Lakota repo (default: file://.lakota
+  --timing, -t          Enable timing
+  --pretty, -P          Tabulate output
+  --verbose, -v         Increase verbosity
+$ lakota  read --help
+usage: lakota read [-h] [--limit LIMIT] [--offset OFFSET]
+                   [--paginate PAGINATE] [--before BEFORE] [--mask MASK]
+                   [--greater-than GREATER_THAN [GREATER_THAN ...]]
+                   [--less-than LESS_THAN [LESS_THAN ...]]
+                   label [columns [columns ...]]
+
+positional arguments:
+  label
+  columns
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --limit LIMIT, -l LIMIT
+  --offset OFFSET, -o OFFSET
+  --paginate PAGINATE, -p PAGINATE
+  --before BEFORE, -B BEFORE
+  --mask MASK, -m MASK
+  --greater-than GREATER_THAN [GREATER_THAN ...], --gt GREATER_THAN [GREATER_THAN ...]
+                        Keep rows where index is bigger the given value
+  --less-than LESS_THAN [LESS_THAN ...], --lt LESS_THAN [LESS_THAN ...]
+                        Keep rows where index is less than given value
+</code></pre>
+<p>Most sub commands come with extra doc:</p>
+<pre><code>$ lakota help ls
+
+    List collections in a repo
+    ```
+    $ lakota ls
+    ```
+
+    List series in a collection
+    ```
+    $ lakota ls my_collection
+    ```
+</code></pre>
+<h1 id="push-pull">Push &amp; pull</h1>
+<p>Create two repo and write in both:</p>
+<pre><code class="language-shell">$ lakota -r repo_A create temperature &quot;timestamp timestamp*&quot; &quot;value float&quot;
+$ lakota -r repo_B create temperature &quot;timestamp timestamp*&quot; &quot;value float&quot;
+$ cat input.csv | lakota -r repo_A write temperature/Brussels
+$ cat input-corrected.csv | lakota -r repo_B write temperature/Brussels
+$ lakota -r repo_A read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.0
+2020-06-24T00:00:00,27.0
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.0
+2020-06-27T00:00:00,30.0
+$ lakota -r repo_B read temperature/Brussels
+timestamp,value
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+</code></pre>
+<p>Pull and compare revisions:</p>
+<pre><code class="language-shell">$ lakota -r repo_A pull repo_B
+$ lakota -r repo_A rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620*
+Date: 2020-12-14 16:38:55.797000
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b*
+Date: 2020-12-14 16:39:05.643000
+$ lakota -r repo_B rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b*
+Date: 2020-12-14 16:39:05.643000
+</code></pre>
+<p>Merge and check merged data:</p>
+<pre><code class="language-shell">$ lakota -r repo_A merge temperature
+$ lakota -r repo_A rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620
+Date: 2020-12-14 16:38:55.797000
+
+Revision: 17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661ec08ee-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 16:43:47.438000
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b
+Date: 2020-12-14 16:39:05.643000
+
+Revision: 17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b.17661ec08ef-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 16:43:47.439000
+$ lakota -r repo_A read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#39;&#39;&#39;
+# Example usage
+
+Create a collection, and a first series:
+
+```shell
+$ # Create a collection &#34;temperature&#34; with columns &#34;timestamp&#34; and &#34;value&#34;
+$ lakota create temperature &#34;timestamp timestamp*&#34; &#34;value float&#34;
+$ ls .lakota/ # the default repository is the .lakota directory
+00 2e 6d
+$ cat input.csv # Some input data that contains some timestamps and values
+2020-06-22,25
+2020-06-23,24
+2020-06-24,27
+2020-06-25,31
+2020-06-26,32
+2020-06-27,30
+$ # Write into a series &#34;Brussels&#34;
+$ cat input.csv | lakota write temperature/Brussels
+```
+
+Read the data back:
+
+```shell
+$ lakota ls # list collections
+collection
+temperature
+$ lakota ls temperature # list series
+series
+Brussels
+$ lakota read temperature/Brussels # read series
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.0
+2020-06-24T00:00:00,27.0
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.0
+2020-06-27T00:00:00,30.0
+$ lakota -P read temperature/Brussels # with pretty-print
+timestamp              value
+-------------------  -------
+2020-06-22T00:00:00       25
+2020-06-23T00:00:00       24
+2020-06-24T00:00:00       27
+2020-06-25T00:00:00       31
+2020-06-26T00:00:00       32
+2020-06-27T00:00:00       30
+```
+
+Update the series:
+
+```shell
+$ cat input-corrected.csv # New values
+2020-06-23,24.2
+2020-06-24,27.9
+2020-06-25,31.0
+2020-06-26,32.5
+2020-06-27,30.1
+2020-06-28,29.2
+$ cat input-corrected.csv | lakota write temperature/Brussels
+$ lakota read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+```
+
+Show revisions and clean history:
+
+```shell
+$ lakota rev temperature  # show revisions
+
+Revision: 00000000000-0000000000000000000000000000000000000000.176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620
+Date: 2020-12-14 15:03:10.961000
+
+Revision: 176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661929034-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 15:06:03.828000
+
+$ lakota squash temperature # squash all revisions into one
+$ lakota rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.176619478d1-425a9d4eaa62dad4e560875834ed79a17238c6a6*
+Date: 2020-12-14 15:08:08.913000
+```
+
+Read supports basic group-by operations and filters:
+
+```shell
+$ # compute max value on group by month
+$ lakota read temperature/Brussels &#34;(floor self.timestamp &#39;M&#39;)&#34; &#34;(max self.value)&#34;
+(floor self.timestamp &#39;M&#39;),(max self.value)
+2020-06-01T00:00:00,32.5
+$ lakota read temperature/Brussels  --mask &#34;(&lt; self.value 28)&#34;
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+```
+
+But `--mask` and group-by/aggregate are not compatible (yet).
+
+Built-in help:
+
+```shell
+$ lakota  --help
+usage: lakota [-h] [--repo REPO] [--timing] [--pretty] [--verbose]
+              {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+              ...
+
+positional arguments:
+  {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --repo REPO, -r REPO  Lakota repo (default: file://.lakota
+  --timing, -t          Enable timing
+  --pretty, -P          Tabulate output
+  --verbose, -v         Increase verbosity
+$ lakota  read --help
+usage: lakota read [-h] [--limit LIMIT] [--offset OFFSET]
+                   [--paginate PAGINATE] [--before BEFORE] [--mask MASK]
+                   [--greater-than GREATER_THAN [GREATER_THAN ...]]
+                   [--less-than LESS_THAN [LESS_THAN ...]]
+                   label [columns [columns ...]]
+
+positional arguments:
+  label
+  columns
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --limit LIMIT, -l LIMIT
+  --offset OFFSET, -o OFFSET
+  --paginate PAGINATE, -p PAGINATE
+  --before BEFORE, -B BEFORE
+  --mask MASK, -m MASK
+  --greater-than GREATER_THAN [GREATER_THAN ...], --gt GREATER_THAN [GREATER_THAN ...]
+                        Keep rows where index is bigger the given value
+  --less-than LESS_THAN [LESS_THAN ...], --lt LESS_THAN [LESS_THAN ...]
+                        Keep rows where index is less than given value
+```
+
+Most sub commands come with extra doc:
+```
+$ lakota help ls
+
+    List collections in a repo
+    ```
+    $ lakota ls
+    ```
+
+    List series in a collection
+    ```
+    $ lakota ls my_collection
+    ```
+```
+
+
+
+
+# Push &amp; pull
+
+Create two repo and write in both:
+
+```shell
+$ lakota -r repo_A create temperature &#34;timestamp timestamp*&#34; &#34;value float&#34;
+$ lakota -r repo_B create temperature &#34;timestamp timestamp*&#34; &#34;value float&#34;
+$ cat input.csv | lakota -r repo_A write temperature/Brussels
+$ cat input-corrected.csv | lakota -r repo_B write temperature/Brussels
+$ lakota -r repo_A read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.0
+2020-06-24T00:00:00,27.0
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.0
+2020-06-27T00:00:00,30.0
+$ lakota -r repo_B read temperature/Brussels
+timestamp,value
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+```
+
+Pull and compare revisions:
+
+```shell
+$ lakota -r repo_A pull repo_B
+$ lakota -r repo_A rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620*
+Date: 2020-12-14 16:38:55.797000
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b*
+Date: 2020-12-14 16:39:05.643000
+$ lakota -r repo_B rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b*
+Date: 2020-12-14 16:39:05.643000
+```
+
+Merge and check merged data:
+
+```shell
+$ lakota -r repo_A merge temperature
+$ lakota -r repo_A rev temperature
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620
+Date: 2020-12-14 16:38:55.797000
+
+Revision: 17661e795b5-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661ec08ee-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 16:43:47.438000
+
+Revision: 00000000000-0000000000000000000000000000000000000000.17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b
+Date: 2020-12-14 16:39:05.643000
+
+Revision: 17661e7bc2b-8fb3766613e5f5a9e9556178c371e0ea3695930b.17661ec08ef-08d4cd873f7900d89d78e589acdbf54524da45c7*
+Date: 2020-12-14 16:43:47.439000
+$ lakota -r repo_A read temperature/Brussels
+timestamp,value
+2020-06-22T00:00:00,25.0
+2020-06-23T00:00:00,24.2
+2020-06-24T00:00:00,27.9
+2020-06-25T00:00:00,31.0
+2020-06-26T00:00:00,32.5
+2020-06-27T00:00:00,30.1
+2020-06-28T00:00:00,29.2
+```
+
+&#39;&#39;&#39;
+
+
+import argparse
+import csv
+import os
+import sys
+from datetime import datetime
+
+from tabulate import tabulate
+
+from . import __version__
+from .repo import Repo
+from .schema import Schema
+from .utils import hextime, logger, strpt, timeit
+
+
+def get_repo(args):
+    return Repo(args.repo)
+
+
+def get_series(args):
+    repo = get_repo(args)
+    if not &#34;/&#34; in args.label:
+        exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
+    c_label, s_label = args.label.split(&#34;/&#34;, 1)
+    collection = repo / c_label
+    if collection is None:
+        exit(f&#34;Collection &#39;{c_label}&#39; not found&#34;)
+    series = collection / s_label
+    if series is None:
+        exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
+    return series
+
+
+def read(args):
+    &#39;&#39;&#39;
+    Basic usage:
+    ```
+    $ lakota read my_collection/my_series
+    $ lakota read my_collection/my_series --limit 10 --offset 10
+    $ lakota read my_collection/my_series --greater-than 2020-01-01
+    ```
+
+    Group-by and aggregate
+    ```
+    $ lakota read my_collection/my_series &#39;(floor self.timestamp &#34;Y&#34;)&#39; &#34;(max self.value)&#34;
+    ```
+
+    Explore past revisions
+    ```
+    $ lakota read my_collection/my_series--before  2021-01-01
+    ```
+
+    Filter results
+    ```
+    lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
+    ```
+    &#39;&#39;&#39;
+
+    series = get_series(args)
+    reduce = False
+    if not args.columns:
+        columns = list(series.schema.columns)
+    elif any(&#34;(&#34; in c for c in args.columns):
+        columns = list(series.schema.columns)
+        reduce = True
+    else:
+        columns = args.columns
+    before = strpt(args.before)
+    before = before and hextime(before.timestamp())
+    query = series[columns][args.greater_than : args.less_than] @ {
+        &#34;limit&#34;: args.limit,
+        &#34;offset&#34;: args.offset,
+        &#34;before&#34;: before,
+    }
+    if args.paginate:
+        frames = query.paginate(args.paginate)
+    else:
+        frames = [query.frame()]
+
+    if reduce:
+        kw = {c: c for c in args.columns}
+        columns = args.columns
+        frames = (f.reduce(**kw) for f in frames)
+
+    if args.pretty:
+        for frm in frames:
+            if args.mask:
+                frm = frm.mask(args.mask)
+                if frm.empty:
+                    continue
+            rows = zip(*(frm[col] for col in columns))
+            if len(frm) == 0:
+                print(tabulate([], headers=columns))
+            else:
+                print(tabulate(rows, headers=columns))
+    else:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(columns)
+        for frm in frames:
+            if args.mask:
+                frm = frm.mask(args.mask)
+                if frm.empty:
+                    continue
+            rows = zip(*(frm[col] for col in columns))
+            writer.writerows(rows)
+
+
+def length(args):
+    &#39;&#39;&#39;
+    Show total length of a collection/series
+    ```
+    $ lakota len my_collection
+    $ lakota len my_collection/my_series
+    ```
+    &#39;&#39;&#39;
+    if &#34;/&#34; in args.label:
+        series = [get_series(args)]
+    else:
+        repo = get_repo(args)
+        clc = repo / args.label
+        if clc is None:
+            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        series = [clc / name for name in clc]
+    print(sum(len(s) for s in series))
+
+
+def rev(args):
+    &#39;&#39;&#39;
+    Show Revision
+    ```
+    $ lakota rev my_collection # -e for extended output
+    ```
+
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = None
+    collection = repo / args.label
+    if collection is None:
+        exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+
+    fmt = lambda a: &#34; / &#34;.join(map(str, a))
+    for rev in collection.changelog.log():
+        timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
+        print(
+            f&#34;&#34;&#34;
+Revision: {rev.path}{&#34;*&#34; if rev.is_leaf else &#34;&#34;}
+Date: {timestamp}&#34;&#34;&#34;
+        )
+        if not args.extended:
+            continue
+        ci = rev.commit(collection)
+        starts = list(map(fmt, zip(*ci.start.values())))
+        stops = list(map(fmt, zip(*ci.stop.values())))
+        digests = list(map(fmt, zip(*ci.digest.values())))
+        rows = zip(ci.label, starts, stops, ci.length, digests)
+        print(tabulate(rows, headers=&#34;label start stop length digests&#34;.split()))
+        print()
+
+
+def ls(args):
+    &#39;&#39;&#39;
+    List collections in a repo
+    ```
+    $ lakota ls
+    ```
+
+    List series in a collection
+    ```
+    $ lakota ls my_collection
+    ```
+
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    if args.label:
+        collection = repo / args.label
+        if collection is None:
+            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        header = &#34;series&#34;
+    else:
+        collection = repo
+        header = &#34;collection&#34;
+
+    rows = [[label] for label in collection.ls()]
+    if args.pretty:
+        print(tabulate(rows, headers=[header]))
+    else:
+        writer = csv.writer(sys.stdout)
+        writer.writerow([header])
+        writer.writerows(rows)
+
+
+def create(args):
+    &#39;&#39;&#39;
+    Create a collection, the `*` indicate the index columns
+    ```
+    $ lakota create my_collection &#34;timestamp timestamp*&#34; &#34;value float&#34;
+    $ lakota create another_collection &#34;timestamp timestamp*&#34; &#34;category str*&#34; &#34;value float&#34;
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = args.label
+
+    schema = Schema(args.columns)
+    repo.create_collection(schema, collection)
+
+
+def write(args):
+    &#39;&#39;&#39;
+    Write is done through stdin
+    ```
+    $ cat some_file.csv | lakota write my_collection/my_series
+    ```
+    &#39;&#39;&#39;
+    series = get_series(args)
+    reader = csv.reader(sys.stdin)
+    columns = zip(*reader)
+    schema = series.schema
+    df = dict(zip(schema.columns, columns))
+    series.write(df)
+
+def merge(args):
+    &#39;&#39;&#39;
+    Merge a collection
+    ```
+    $ lakota merge my_collection
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = repo / args.label
+    if not collection:
+        exit(f&#39;Collection {args.label} not found&#39;)
+    collection.merge()
+
+
+def squash(args):
+    &#34;&#34;&#34;
+    Squash changelog of given series. If not series is given, squash
+    repo changelog.
+    &#34;&#34;&#34;
+    repo = get_repo(args)
+    if args.labels:
+        for label in args.labels:
+            collection = repo / label
+            if not collection:
+                exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
+            collection.squash()
+    else:
+        repo.registry.squash()
+
+
+def push(args):
+    &#39;&#39;&#39;
+    Push (the local repo in `.lakota`) to a remote repo
+    ```
+    $ lakota push some_remote_repo
+    ```
+
+    Push `some_repo` to `another_repo`
+    ```
+    $ lakota -r some_repo push another_repo
+    ```
+    &#39;&#39;&#39;
+    reg = get_repo(args)
+    remote_reg = Repo(args.remote)
+    reg.push(remote_reg, *args.labels)
+
+
+def pull(args):
+    &#39;&#39;&#39;
+    Similar to `push`, but with direction inversed
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    remote_reg = Repo(args.remote)
+    repo.pull(remote_reg, *args.labels)
+
+
+def delete(args):
+    &#39;&#39;&#39;
+    Delete a series
+    ```
+    $ lakota delete my_collection/my_series
+    ```
+
+    Delete a collection
+    ```
+    $ lakota delete my_collection
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    if &#34;/&#34; in args.label:
+        collection, series = args.label.split(&#34;/&#34;, 1)
+        clct = repo / collection
+        clct.delete(series)
+    else:
+        repo.delete(args.label)
+
+
+def gc(args):
+    &#39;&#39;&#39;
+    Garbage-collec a repository
+    ```
+    $ lakota gc
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    cnt = repo.gc()
+    print(f&#34;{cnt} segments deleted&#34;)
+
+
+def print_help(parser, args):
+    cmd = args.help_cmd and globals().get(args.help_cmd)
+    if cmd and cmd.__doc__:
+        print(cmd.__doc__)
+    parser.parse_args([args.help_cmd, &#34;-h&#34;])
+
+
+def run():
+
+    # Take default repo from env variable, fallback to .lakota in current dir
+    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file://.lakota&#34;)
+
+    # top-level parser
+    parser = argparse.ArgumentParser(
+        prog=&#34;lakota&#34;,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        &#34;--repo&#34;,
+        &#34;-r&#34;,
+        default=default_repo,
+        help=f&#34;Lakota repo (default: {default_repo}&#34;,
+    )
+    parser.add_argument(&#34;--timing&#34;, &#34;-t&#34;, action=&#34;store_true&#34;, help=&#34;Enable timing&#34;)
+    parser.add_argument(&#34;--pretty&#34;, &#34;-P&#34;, action=&#34;store_true&#34;, help=&#34;Tabulate output&#34;)
+    parser.add_argument(
+        &#34;--verbose&#34;, &#34;-v&#34;, action=&#34;count&#34;, help=&#34;Increase verbosity&#34;, default=0
+    )
+    subparsers = parser.add_subparsers(dest=&#34;command&#34;)
+
+    # Add read command
+    parser_read = subparsers.add_parser(&#34;read&#34;)
+    parser_read.add_argument(&#34;label&#34;)
+    parser_read.add_argument(&#34;columns&#34;, nargs=&#34;*&#34;)
+    parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None)
+    parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
+    parser_read.add_argument(
+        &#34;--greater-than&#34;,
+        &#34;--gt&#34;,
+        nargs=&#34;+&#34;,
+        help=&#34;Keep rows where index is bigger the given value&#34;,
+    )
+    parser_read.add_argument(
+        &#34;--less-than&#34;,
+        &#34;--lt&#34;,
+        nargs=&#34;+&#34;,
+        help=&#34;Keep rows where index is less than given value&#34;,
+    )
+    parser_read.set_defaults(func=read)
+
+    # Add len command
+    parser_len = subparsers.add_parser(&#34;length&#34;, aliases=[&#34;len&#34;])
+    parser_len.add_argument(&#34;label&#34;)
+    parser_len.set_defaults(func=length)
+
+    # Add rev command
+    parser_rev = subparsers.add_parser(&#34;rev&#34;)
+    parser_rev.add_argument(&#34;label&#34;)
+    parser_rev.add_argument(
+        &#34;-e&#34;, &#34;--extended&#34;, action=&#34;store_true&#34;, help=&#34;Extended output&#34;
+    )
+    parser_rev.set_defaults(func=rev)
+
+    # Add len command
+    parser_ls = subparsers.add_parser(&#34;ls&#34;)
+    parser_ls.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
+    parser_ls.set_defaults(func=ls)
+
+    # Add squash command
+    parser_squash = subparsers.add_parser(&#34;squash&#34;)
+    parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.set_defaults(func=squash)
+
+    # Add push command
+    parser_push = subparsers.add_parser(&#34;push&#34;)
+    parser_push.add_argument(&#34;remote&#34;)
+    parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.set_defaults(func=push)
+
+    # Add pull command
+    parser_pull = subparsers.add_parser(&#34;pull&#34;)
+    parser_pull.add_argument(&#34;remote&#34;)
+    parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.set_defaults(func=pull)
+
+    # Add create command
+    parser_create = subparsers.add_parser(&#34;create&#34;)
+    parser_create.add_argument(&#34;label&#34;)
+    parser_create.add_argument(&#34;columns&#34;, nargs=&#34;+&#34;)
+    parser_create.set_defaults(func=create)
+
+    # Add write command
+    parser_write = subparsers.add_parser(&#34;write&#34;)
+    parser_write.add_argument(&#34;label&#34;)
+    parser_write.set_defaults(func=write)
+
+    # Add merge command
+    parser_write = subparsers.add_parser(&#34;merge&#34;)
+    parser_write.add_argument(&#34;label&#34;)
+    parser_write.set_defaults(func=merge)
+
+    # Add delete command
+    parser_delete = subparsers.add_parser(&#34;delete&#34;)
+    parser_delete.add_argument(&#34;label&#34;, help=&#34;collection or series to delete&#34;)
+    parser_delete.set_defaults(func=delete)
+
+    # Add gc command
+    parser_gc = subparsers.add_parser(&#34;gc&#34;)
+    parser_gc.set_defaults(func=gc)
+
+    # Add help command
+    parser_help = subparsers.add_parser(&#34;help&#34;)
+    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#39;?&#39;)
+    parser_help.set_defaults(func=lambda args: print_help(parser, args))
+
+    # Add version command
+    parser_len = subparsers.add_parser(&#34;version&#34;)
+    parser_len.set_defaults(func=lambda *a: print(__version__))
+
+    # Parse args
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        return
+    # Enable logging
+    if args.verbose == 1:
+        logger.setLevel(&#34;INFO&#34;)
+    elif args.verbose &gt; 1:
+        logger.setLevel(&#34;DEBUG&#34;)
+
+    # Execute command
+    try:
+        if args.timing:
+            with timeit(f&#34;Timing ({args.command}):&#34;):
+                args.func(args)
+        else:
+            args.func(args)
+
+    except (BrokenPipeError, KeyboardInterrupt):
+        pass</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="lakota.cli.create"><code class="name flex">
+<span>def <span class="ident">create</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create a collection, the <code>*</code> indicate the index columns</p>
+<pre><code>$ lakota create my_collection &quot;timestamp timestamp*&quot; &quot;value float&quot;
+$ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;category str*&quot; &quot;value float&quot;
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create(args):
+    &#39;&#39;&#39;
+    Create a collection, the `*` indicate the index columns
+    ```
+    $ lakota create my_collection &#34;timestamp timestamp*&#34; &#34;value float&#34;
+    $ lakota create another_collection &#34;timestamp timestamp*&#34; &#34;category str*&#34; &#34;value float&#34;
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = args.label
+
+    schema = Schema(args.columns)
+    repo.create_collection(schema, collection)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Delete a series</p>
+<pre><code>$ lakota delete my_collection/my_series
+</code></pre>
+<p>Delete a collection</p>
+<pre><code>$ lakota delete my_collection
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(args):
+    &#39;&#39;&#39;
+    Delete a series
+    ```
+    $ lakota delete my_collection/my_series
+    ```
+
+    Delete a collection
+    ```
+    $ lakota delete my_collection
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    if &#34;/&#34; in args.label:
+        collection, series = args.label.split(&#34;/&#34;, 1)
+        clct = repo / collection
+        clct.delete(series)
+    else:
+        repo.delete(args.label)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.gc"><code class="name flex">
+<span>def <span class="ident">gc</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Garbage-collec a repository</p>
+<pre><code>$ lakota gc
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gc(args):
+    &#39;&#39;&#39;
+    Garbage-collec a repository
+    ```
+    $ lakota gc
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    cnt = repo.gc()
+    print(f&#34;{cnt} segments deleted&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.get_repo"><code class="name flex">
+<span>def <span class="ident">get_repo</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_repo(args):
+    return Repo(args.repo)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.get_series"><code class="name flex">
+<span>def <span class="ident">get_series</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_series(args):
+    repo = get_repo(args)
+    if not &#34;/&#34; in args.label:
+        exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
+    c_label, s_label = args.label.split(&#34;/&#34;, 1)
+    collection = repo / c_label
+    if collection is None:
+        exit(f&#34;Collection &#39;{c_label}&#39; not found&#34;)
+    series = collection / s_label
+    if series is None:
+        exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
+    return series</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.length"><code class="name flex">
+<span>def <span class="ident">length</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Show total length of a collection/series</p>
+<pre><code>$ lakota len my_collection
+$ lakota len my_collection/my_series
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def length(args):
+    &#39;&#39;&#39;
+    Show total length of a collection/series
+    ```
+    $ lakota len my_collection
+    $ lakota len my_collection/my_series
+    ```
+    &#39;&#39;&#39;
+    if &#34;/&#34; in args.label:
+        series = [get_series(args)]
+    else:
+        repo = get_repo(args)
+        clc = repo / args.label
+        if clc is None:
+            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        series = [clc / name for name in clc]
+    print(sum(len(s) for s in series))</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.ls"><code class="name flex">
+<span>def <span class="ident">ls</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>List collections in a repo</p>
+<pre><code>$ lakota ls
+</code></pre>
+<p>List series in a collection</p>
+<pre><code>$ lakota ls my_collection
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls(args):
+    &#39;&#39;&#39;
+    List collections in a repo
+    ```
+    $ lakota ls
+    ```
+
+    List series in a collection
+    ```
+    $ lakota ls my_collection
+    ```
+
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    if args.label:
+        collection = repo / args.label
+        if collection is None:
+            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        header = &#34;series&#34;
+    else:
+        collection = repo
+        header = &#34;collection&#34;
+
+    rows = [[label] for label in collection.ls()]
+    if args.pretty:
+        print(tabulate(rows, headers=[header]))
+    else:
+        writer = csv.writer(sys.stdout)
+        writer.writerow([header])
+        writer.writerows(rows)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.merge"><code class="name flex">
+<span>def <span class="ident">merge</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Merge a collection</p>
+<pre><code>$ lakota merge my_collection
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def merge(args):
+    &#39;&#39;&#39;
+    Merge a collection
+    ```
+    $ lakota merge my_collection
+    ```
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = repo / args.label
+    if not collection:
+        exit(f&#39;Collection {args.label} not found&#39;)
+    collection.merge()</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.print_help"><code class="name flex">
+<span>def <span class="ident">print_help</span></span>(<span>parser, args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def print_help(parser, args):
+    cmd = args.help_cmd and globals().get(args.help_cmd)
+    if cmd and cmd.__doc__:
+        print(cmd.__doc__)
+    parser.parse_args([args.help_cmd, &#34;-h&#34;])</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.pull"><code class="name flex">
+<span>def <span class="ident">pull</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Similar to <code><a title="lakota.cli.push" href="#lakota.cli.push">push()</a></code>, but with direction inversed</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pull(args):
+    &#39;&#39;&#39;
+    Similar to `push`, but with direction inversed
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    remote_reg = Repo(args.remote)
+    repo.pull(remote_reg, *args.labels)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.push"><code class="name flex">
+<span>def <span class="ident">push</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Push (the local repo in <code>.<a title="lakota" href="index.html">lakota</a></code>) to a remote repo</p>
+<pre><code>$ lakota push some_remote_repo
+</code></pre>
+<p>Push <code>some_repo</code> to <code>another_repo</code></p>
+<pre><code>$ lakota -r some_repo push another_repo
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def push(args):
+    &#39;&#39;&#39;
+    Push (the local repo in `.lakota`) to a remote repo
+    ```
+    $ lakota push some_remote_repo
+    ```
+
+    Push `some_repo` to `another_repo`
+    ```
+    $ lakota -r some_repo push another_repo
+    ```
+    &#39;&#39;&#39;
+    reg = get_repo(args)
+    remote_reg = Repo(args.remote)
+    reg.push(remote_reg, *args.labels)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.read"><code class="name flex">
+<span>def <span class="ident">read</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Basic usage:</p>
+<pre><code>$ lakota read my_collection/my_series
+$ lakota read my_collection/my_series --limit 10 --offset 10
+$ lakota read my_collection/my_series --greater-than 2020-01-01
+</code></pre>
+<p>Group-by and aggregate</p>
+<pre><code>$ lakota read my_collection/my_series '(floor self.timestamp &quot;Y&quot;)' &quot;(max self.value)&quot;
+</code></pre>
+<p>Explore past revisions</p>
+<pre><code>$ lakota read my_collection/my_series--before  2021-01-01
+</code></pre>
+<p>Filter results</p>
+<pre><code>lakota read my_collection/my_series --mask &quot;(&lt; self.some_field 42)
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read(args):
+    &#39;&#39;&#39;
+    Basic usage:
+    ```
+    $ lakota read my_collection/my_series
+    $ lakota read my_collection/my_series --limit 10 --offset 10
+    $ lakota read my_collection/my_series --greater-than 2020-01-01
+    ```
+
+    Group-by and aggregate
+    ```
+    $ lakota read my_collection/my_series &#39;(floor self.timestamp &#34;Y&#34;)&#39; &#34;(max self.value)&#34;
+    ```
+
+    Explore past revisions
+    ```
+    $ lakota read my_collection/my_series--before  2021-01-01
+    ```
+
+    Filter results
+    ```
+    lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
+    ```
+    &#39;&#39;&#39;
+
+    series = get_series(args)
+    reduce = False
+    if not args.columns:
+        columns = list(series.schema.columns)
+    elif any(&#34;(&#34; in c for c in args.columns):
+        columns = list(series.schema.columns)
+        reduce = True
+    else:
+        columns = args.columns
+    before = strpt(args.before)
+    before = before and hextime(before.timestamp())
+    query = series[columns][args.greater_than : args.less_than] @ {
+        &#34;limit&#34;: args.limit,
+        &#34;offset&#34;: args.offset,
+        &#34;before&#34;: before,
+    }
+    if args.paginate:
+        frames = query.paginate(args.paginate)
+    else:
+        frames = [query.frame()]
+
+    if reduce:
+        kw = {c: c for c in args.columns}
+        columns = args.columns
+        frames = (f.reduce(**kw) for f in frames)
+
+    if args.pretty:
+        for frm in frames:
+            if args.mask:
+                frm = frm.mask(args.mask)
+                if frm.empty:
+                    continue
+            rows = zip(*(frm[col] for col in columns))
+            if len(frm) == 0:
+                print(tabulate([], headers=columns))
+            else:
+                print(tabulate(rows, headers=columns))
+    else:
+        writer = csv.writer(sys.stdout)
+        writer.writerow(columns)
+        for frm in frames:
+            if args.mask:
+                frm = frm.mask(args.mask)
+                if frm.empty:
+                    continue
+            rows = zip(*(frm[col] for col in columns))
+            writer.writerows(rows)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.rev"><code class="name flex">
+<span>def <span class="ident">rev</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Show Revision</p>
+<pre><code>$ lakota rev my_collection # -e for extended output
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rev(args):
+    &#39;&#39;&#39;
+    Show Revision
+    ```
+    $ lakota rev my_collection # -e for extended output
+    ```
+
+    &#39;&#39;&#39;
+    repo = get_repo(args)
+    collection = None
+    collection = repo / args.label
+    if collection is None:
+        exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+
+    fmt = lambda a: &#34; / &#34;.join(map(str, a))
+    for rev in collection.changelog.log():
+        timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
+        print(
+            f&#34;&#34;&#34;
+Revision: {rev.path}{&#34;*&#34; if rev.is_leaf else &#34;&#34;}
+Date: {timestamp}&#34;&#34;&#34;
+        )
+        if not args.extended:
+            continue
+        ci = rev.commit(collection)
+        starts = list(map(fmt, zip(*ci.start.values())))
+        stops = list(map(fmt, zip(*ci.stop.values())))
+        digests = list(map(fmt, zip(*ci.digest.values())))
+        rows = zip(ci.label, starts, stops, ci.length, digests)
+        print(tabulate(rows, headers=&#34;label start stop length digests&#34;.split()))
+        print()</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.run"><code class="name flex">
+<span>def <span class="ident">run</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def run():
+
+    # Take default repo from env variable, fallback to .lakota in current dir
+    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file://.lakota&#34;)
+
+    # top-level parser
+    parser = argparse.ArgumentParser(
+        prog=&#34;lakota&#34;,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        &#34;--repo&#34;,
+        &#34;-r&#34;,
+        default=default_repo,
+        help=f&#34;Lakota repo (default: {default_repo}&#34;,
+    )
+    parser.add_argument(&#34;--timing&#34;, &#34;-t&#34;, action=&#34;store_true&#34;, help=&#34;Enable timing&#34;)
+    parser.add_argument(&#34;--pretty&#34;, &#34;-P&#34;, action=&#34;store_true&#34;, help=&#34;Tabulate output&#34;)
+    parser.add_argument(
+        &#34;--verbose&#34;, &#34;-v&#34;, action=&#34;count&#34;, help=&#34;Increase verbosity&#34;, default=0
+    )
+    subparsers = parser.add_subparsers(dest=&#34;command&#34;)
+
+    # Add read command
+    parser_read = subparsers.add_parser(&#34;read&#34;)
+    parser_read.add_argument(&#34;label&#34;)
+    parser_read.add_argument(&#34;columns&#34;, nargs=&#34;*&#34;)
+    parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None)
+    parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
+    parser_read.add_argument(
+        &#34;--greater-than&#34;,
+        &#34;--gt&#34;,
+        nargs=&#34;+&#34;,
+        help=&#34;Keep rows where index is bigger the given value&#34;,
+    )
+    parser_read.add_argument(
+        &#34;--less-than&#34;,
+        &#34;--lt&#34;,
+        nargs=&#34;+&#34;,
+        help=&#34;Keep rows where index is less than given value&#34;,
+    )
+    parser_read.set_defaults(func=read)
+
+    # Add len command
+    parser_len = subparsers.add_parser(&#34;length&#34;, aliases=[&#34;len&#34;])
+    parser_len.add_argument(&#34;label&#34;)
+    parser_len.set_defaults(func=length)
+
+    # Add rev command
+    parser_rev = subparsers.add_parser(&#34;rev&#34;)
+    parser_rev.add_argument(&#34;label&#34;)
+    parser_rev.add_argument(
+        &#34;-e&#34;, &#34;--extended&#34;, action=&#34;store_true&#34;, help=&#34;Extended output&#34;
+    )
+    parser_rev.set_defaults(func=rev)
+
+    # Add len command
+    parser_ls = subparsers.add_parser(&#34;ls&#34;)
+    parser_ls.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
+    parser_ls.set_defaults(func=ls)
+
+    # Add squash command
+    parser_squash = subparsers.add_parser(&#34;squash&#34;)
+    parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.set_defaults(func=squash)
+
+    # Add push command
+    parser_push = subparsers.add_parser(&#34;push&#34;)
+    parser_push.add_argument(&#34;remote&#34;)
+    parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.set_defaults(func=push)
+
+    # Add pull command
+    parser_pull = subparsers.add_parser(&#34;pull&#34;)
+    parser_pull.add_argument(&#34;remote&#34;)
+    parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.set_defaults(func=pull)
+
+    # Add create command
+    parser_create = subparsers.add_parser(&#34;create&#34;)
+    parser_create.add_argument(&#34;label&#34;)
+    parser_create.add_argument(&#34;columns&#34;, nargs=&#34;+&#34;)
+    parser_create.set_defaults(func=create)
+
+    # Add write command
+    parser_write = subparsers.add_parser(&#34;write&#34;)
+    parser_write.add_argument(&#34;label&#34;)
+    parser_write.set_defaults(func=write)
+
+    # Add merge command
+    parser_write = subparsers.add_parser(&#34;merge&#34;)
+    parser_write.add_argument(&#34;label&#34;)
+    parser_write.set_defaults(func=merge)
+
+    # Add delete command
+    parser_delete = subparsers.add_parser(&#34;delete&#34;)
+    parser_delete.add_argument(&#34;label&#34;, help=&#34;collection or series to delete&#34;)
+    parser_delete.set_defaults(func=delete)
+
+    # Add gc command
+    parser_gc = subparsers.add_parser(&#34;gc&#34;)
+    parser_gc.set_defaults(func=gc)
+
+    # Add help command
+    parser_help = subparsers.add_parser(&#34;help&#34;)
+    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#39;?&#39;)
+    parser_help.set_defaults(func=lambda args: print_help(parser, args))
+
+    # Add version command
+    parser_len = subparsers.add_parser(&#34;version&#34;)
+    parser_len.set_defaults(func=lambda *a: print(__version__))
+
+    # Parse args
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        return
+    # Enable logging
+    if args.verbose == 1:
+        logger.setLevel(&#34;INFO&#34;)
+    elif args.verbose &gt; 1:
+        logger.setLevel(&#34;DEBUG&#34;)
+
+    # Execute command
+    try:
+        if args.timing:
+            with timeit(f&#34;Timing ({args.command}):&#34;):
+                args.func(args)
+        else:
+            args.func(args)
+
+    except (BrokenPipeError, KeyboardInterrupt):
+        pass</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.squash"><code class="name flex">
+<span>def <span class="ident">squash</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Squash changelog of given series. If not series is given, squash
+repo changelog.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def squash(args):
+    &#34;&#34;&#34;
+    Squash changelog of given series. If not series is given, squash
+    repo changelog.
+    &#34;&#34;&#34;
+    repo = get_repo(args)
+    if args.labels:
+        for label in args.labels:
+            collection = repo / label
+            if not collection:
+                exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
+            collection.squash()
+    else:
+        repo.registry.squash()</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Write is done through stdin</p>
+<pre><code>$ cat some_file.csv | lakota write my_collection/my_series
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(args):
+    &#39;&#39;&#39;
+    Write is done through stdin
+    ```
+    $ cat some_file.csv | lakota write my_collection/my_series
+    ```
+    &#39;&#39;&#39;
+    series = get_series(args)
+    reader = csv.reader(sys.stdin)
+    columns = zip(*reader)
+    schema = series.schema
+    df = dict(zip(schema.columns, columns))
+    series.write(df)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#example-usage">Example usage</a></li>
+<li><a href="#push-pull">Push &amp; pull</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="lakota.cli.create" href="#lakota.cli.create">create</a></code></li>
+<li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
+<li><code><a title="lakota.cli.gc" href="#lakota.cli.gc">gc</a></code></li>
+<li><code><a title="lakota.cli.get_repo" href="#lakota.cli.get_repo">get_repo</a></code></li>
+<li><code><a title="lakota.cli.get_series" href="#lakota.cli.get_series">get_series</a></code></li>
+<li><code><a title="lakota.cli.length" href="#lakota.cli.length">length</a></code></li>
+<li><code><a title="lakota.cli.ls" href="#lakota.cli.ls">ls</a></code></li>
+<li><code><a title="lakota.cli.merge" href="#lakota.cli.merge">merge</a></code></li>
+<li><code><a title="lakota.cli.print_help" href="#lakota.cli.print_help">print_help</a></code></li>
+<li><code><a title="lakota.cli.pull" href="#lakota.cli.pull">pull</a></code></li>
+<li><code><a title="lakota.cli.push" href="#lakota.cli.push">push</a></code></li>
+<li><code><a title="lakota.cli.read" href="#lakota.cli.read">read</a></code></li>
+<li><code><a title="lakota.cli.rev" href="#lakota.cli.rev">rev</a></code></li>
+<li><code><a title="lakota.cli.run" href="#lakota.cli.run">run</a></code></li>
+<li><code><a title="lakota.cli.squash" href="#lakota.cli.squash">squash</a></code></li>
+<li><code><a title="lakota.cli.write" href="#lakota.cli.write">write</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

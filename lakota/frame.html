@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>lakota.frame API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lakota.frame</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">from bisect import bisect_left, bisect_right
+from collections import defaultdict
+from functools import lru_cache
+
+from numpy import argsort, array_equal, asarray, concatenate, ndarray, rec, unique
+
+from .schema import Schema
+from .sexpr import AST
+from .utils import Pool, floor, hashed_path, pretty_nb
+
+try:
+    from pandas import DataFrame
+except ImportError:
+    DataFrame = None
+
+__all__ = [&#39;Frame&#39;]
+
+
+class Frame:
+    &#34;&#34;&#34;
+    DataFrame-like object
+    &#34;&#34;&#34;
+
+    def __init__(self, schema, columns=None):
+        self.schema = schema
+        if DataFrame is not None and isinstance(columns, DataFrame):
+            columns = {c: columns[c].values for c in columns}
+        else:
+            columns = schema.cast(columns)
+        self.columns = columns
+
+    @classmethod
+    def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
+        if not segments:
+            return Frame(schema)
+        select = select or schema.columns
+        with Pool() as pool:
+            for name in schema.columns:
+                if name not in select:
+                    continue
+                pool.submit(
+                    Frame.read_segments, segments, name, limit=limit, offset=offset
+                )
+
+        res = dict(pool.results)
+        return Frame(schema, res)
+
+    @classmethod
+    def read_segments(cls, segments, name, limit=None, offset=None):
+        arrays = []
+        start = offset or 0
+        stop = None if limit is None else start + limit
+
+        for sgm in segments:
+            if stop == 0:
+                break
+            if start &gt;= len(sgm):
+                start = max(start - len(sgm), 0)
+                if stop is not None:
+                    stop = max(stop - len(sgm), 0)
+                continue
+            arr = sgm.read(name, start=start, stop=stop)
+            start = max(start - len(sgm), 0)
+            if stop is not None:
+                stop = max(stop - len(sgm), 0)
+            arrays.append(arr)
+
+        return name, concatenate(arrays) if arrays else []
+
+    def df(self, *columns):
+        if DataFrame is None:
+            raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
+        return DataFrame({c: self[c] for c in self.schema.columns})
+
+    def argsort(self):
+        idx_cols = list(self.schema.idx)
+        arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+        # Mergesort is faster on pre-sorted arrays
+        return argsort(arr, kind=&#34;mergesort&#34;)
+
+    @classmethod
+    def concat(cls, *frames):
+        # Corner cases
+        if len(frames) == 0:
+            return None
+        if len(frames) == 1:
+            return frames[0]
+
+        # General cases
+        schema = frames[0].schema
+        cols = defaultdict(list)
+        # Build dict of list
+        for frm in frames:
+            if not frm.schema == schema:
+                raise ValueError(&#34;Unable to concat frames with different schema&#34;)
+            for name in schema:
+                arr = frm[name]
+                if len(arr) == 0:
+                    continue
+                cols[name].append(arr)
+        # Concatenate all lists
+        for name in schema:
+            cols[name] = concatenate(cols[name])
+        # Create frame and sort it
+        return Frame(schema, cols).sorted()
+
+    def sorted(self):
+        return self.mask(self.argsort())
+
+    def mask(self, mask):
+        # if mask is a string, eval it first
+        if isinstance(mask, str):
+            mask = self.eval(mask)
+        cols = {}
+        # Apply mask to each column
+        for name in self.columns:
+            arr = self.columns[name]
+            if len(arr) == 0:
+                continue
+            cols[name] = arr[mask]
+        # Return new frame
+        return Frame(self.schema, cols)
+
+    def eval(self, expr):
+        # See also https://github.com/mapbox/snuggs
+        ast = AST.parse(expr)
+        env = self.eval_env()
+        res = ast.eval(env)
+        return res
+
+    def eval_env(self):
+        return {
+            &#34;self&#34;: self,
+            &#34;floor&#34;: floor,
+            &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
+        }
+
+    @property
+    def empty(self):
+        return len(self) == 0
+
+    def rowdict(self, *idx):
+        pos = self.index(self.schema.deserialize(idx), right=False)
+        values = self.schema.row(self, pos)
+        return dict(zip(self.schema.columns, values))
+
+    def rows(self):
+        for pos in range(len(self)):
+            values = self.schema.row(pos)
+            yield dict(zip(self.schema.columns, values))
+
+    def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+        &#34;&#34;&#34;
+        Slice between two index value. `closed` can be &#34;left&#34; (default),
+        &#34;right&#34; or &#34;both&#34;.
+        &#34;&#34;&#34;
+        idx_start = idx_stop = None
+        if start:
+            right = closed in (&#34;right&#34;, None)
+            idx_start = self.index(start, right=right)
+        if stop:
+            right = closed in (&#34;both&#34;, &#34;right&#34;)
+            idx_stop = self.index(stop, right=right)
+        return idx_start, idx_stop
+
+    def index(self, values, right=False):
+        if not values:
+            return None
+        lo = 0
+        hi = len(self)
+        for name, val in zip(self.schema.idx, values):
+            arr = self.columns[name]
+            lo = bisect_left(arr, val, lo=lo, hi=hi)
+            hi = bisect_right(arr, val, lo=lo, hi=hi)
+
+        if right:
+            return hi
+        return lo
+
+    def slice(self, start=None, stop=None):
+        &#34;&#34;&#34;
+        Slice between both position start and stop
+        &#34;&#34;&#34;
+        # Replace None by actual values
+        slc = slice(*(slice(start, stop).indices(len(self))))
+        # Build new frame
+        cols = {}
+        for name in self.columns:
+            cols[name] = self.columns[name][slc]
+        return Frame(self.schema, cols)
+
+    def __eq__(self, other):
+        return all(array_equal(self[c], other[c]) for c in self.schema.columns)
+
+    def __contains__(self, column):
+        return column in self.columns
+
+    def __len__(self):
+        if not self.columns:
+            return 0
+        values, *_ = self.columns.values()
+        return len(values)
+
+    def keys(self):
+        return iter(self.columns)
+
+    def start(self):
+        return self.schema.row(self, pos=0, full=False)
+
+    def stop(self):
+        return self.schema.row(self, pos=-1, full=False)
+
+    def __setitem__(self, name, arr):
+        # Make sure we have a numpy array
+        arr = self.schema[name].cast(arr)
+        if len(arr) != len(self):
+            raise ValueError(&#34;Lenght mismatch&#34;)
+        self.columns[name] = arr
+
+    def reduce(self, *col_list, **col_dict):
+        &#34;&#34;&#34;
+        Return a new frame containing the choosen columns. A column can be
+        one of the existing column or an s-expression that we be automatically
+        evaluated.
+        &#34;&#34;&#34;
+
+        # Merge all args in one dict
+        columns = dict(zip(col_list, col_list))
+        columns.update(col_dict)
+
+        # Detect aggregations
+        all_ast = {}
+        for alias, expr in columns.items():
+            if expr.startswith(&#34;(&#34;):
+                all_ast[alias] = AST.parse(expr)
+        agg_ast = {}
+        other_ast = {}
+        for alias, ast in all_ast.items():
+            if ast.is_aggregate():
+                agg_ast[alias] = ast
+            else:
+                other_ast[alias] = ast
+
+        # Eval non-aggregated columns
+        env = self.eval_env()
+        non_agg = {}
+        for alias, expr in columns.items():
+            if alias in agg_ast:
+                continue
+            ast = other_ast.get(alias)
+            if ast:
+                arr = ast.eval(env=env)
+            else:
+                arr = self.columns[expr]
+            non_agg[alias] = arr
+
+        # Early exit if we don&#39;t need to compute aggregates
+        if not agg_ast:
+            schema = Schema.from_frame(non_agg, idx_columns=list(non_agg))
+            return Frame(schema, non_agg)
+
+        res = {}
+        if non_agg:
+            # Compute binning
+            records = rec.fromarrays(non_agg.values(), names=list(non_agg))
+            keys, bins = unique(records, return_inverse=True)
+            # Build resulting columns
+            for alias in non_agg:
+                res[alias] = keys[alias]
+            env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
+
+        # Compute aggregates
+        for alias, expr in agg_ast.items():
+            arr = expr.eval(env)
+            # Without bins, eval will return a scalar value
+            res[alias] = arr if non_agg else asarray([arr])
+        schema = Schema.from_frame(res, idx_columns=list(non_agg))
+        return Frame(schema, res)
+
+    def __getitem__(self, by):
+        # By slice -&gt; return a frame
+        if isinstance(by, slice):
+            start = by.start and self.schema.deserialize(by.start)
+            stop = by.stop and self.schema.deserialize(by.stop)
+            return self.slice(*self.index_slice(start, stop))
+        # By mask -&gt; return a frame
+        if isinstance(by, ndarray):
+            return self.mask(by)
+        # By list -&gt; return a frame with the corresponding columns
+        if isinstance(by, list):
+            cols = [self[c] for c in by]
+            sch = Schema.from_frame(cols)
+            return Frame(sch, cols)
+        # By column name -&gt; return an array
+        if by in self.columns:
+            return self.columns[by]
+        return self.schema[by].cast([])
+
+    def drop(self, *columns):
+        keep_columns = (c for c in self.columns if c not in columns)
+        return self.select(*keep_columns)
+
+    def __iter__(self):
+        return iter(self.columns)
+
+    def select(self, keep):
+        cols = {k: v for k, v in self.columns.items() if k in keep}
+        return Frame(self.schema, cols)
+
+    def __repr__(self):
+        res = []
+        for name in self:
+            res.append(name + &#34;-&gt; &#34; + str(self[name]))
+        return &#34;\n&#34;.join(res)
+
+
+class ShallowSegment:
+    def __init__(self, schema, pod, digests, start, stop, length):
+        self.schema = schema
+        self.pod = pod
+        self.start = start
+        self.stop = stop
+        self.length = length
+        self.digest = dict(zip(schema, digests))
+        self._read = lru_cache(len(schema.columns))(self._read)
+
+    def slice(self, start, stop, closed=&#34;left&#34;):
+        assert stop &gt;= start
+        # empty_test contains any condition that would result in an empty segment
+        empty_test = [
+            start &gt; self.stop,
+            stop &lt; self.start,
+            start == self.stop and closed not in (&#34;both&#34;, &#34;left&#34;),
+            stop == self.start and closed not in (&#34;both&#34;, &#34;right&#34;),
+        ]
+        if any(empty_test):
+            return EmptySegment(start, stop, self.schema)
+
+        # skip_tests list contains all the tests that have to be true to
+        # _not_ do the slice and return self
+        skip_tests = (
+            [start &lt;= self.start]
+            if closed in (&#34;both&#34;, &#34;left&#34;)
+            else [start &lt; self.start]
+        )
+        skip_tests.append(
+            stop &gt;= self.stop if closed in (&#34;both&#34;, &#34;right&#34;) else stop &gt; self.stop
+        )
+        if all(skip_tests):
+            return self
+        else:
+            # Materialize arrays
+            frm = Frame(
+                self.schema,
+                {name: self.read(name) for name in self.schema},
+            )
+            # Compute slice and apply it
+            frm = frm.slice(*frm.index_slice(start, stop, closed=closed))
+            return Segment(start, stop, frm)
+
+    def __len__(self):
+        return self.length
+
+    def _read(self, name):
+        folder, filename = hashed_path(self.digest[name])
+        data = self.pod.cd(folder).read(filename)
+        return data
+
+    def read(self, name, start=None, stop=None):
+        data = self._read(name)
+        arr = self.schema[name].codec.decode(data)
+        if start is stop is None:
+            return arr
+        return arr[start:stop]
+
+    @property
+    def empty(self):
+        return self.length == 0
+
+
+class Segment:
+    def __init__(self, start, stop, frm):
+        self.start = start
+        self.stop = stop
+        self.frm = frm
+
+    def __len__(self):
+        return len(self.frm)
+
+    def read(self, name, start, stop):
+        return self.frm[name][start:stop]
+
+
+class EmptySegment:
+    def __init__(self, start, stop, schema):
+        self.start = start
+        self.stop = stop
+        self.schema = schema
+
+    def __len__(self):
+        return 0
+
+    def read(self, name, start, stop):
+        return self.schema[name].cast([])
+
+    @property
+    def empty(self):
+        return True</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="lakota.frame.Frame"><code class="flex name class">
+<span>class <span class="ident">Frame</span></span>
+<span>(</span><span>schema, columns=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>DataFrame-like object</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Frame:
+    &#34;&#34;&#34;
+    DataFrame-like object
+    &#34;&#34;&#34;
+
+    def __init__(self, schema, columns=None):
+        self.schema = schema
+        if DataFrame is not None and isinstance(columns, DataFrame):
+            columns = {c: columns[c].values for c in columns}
+        else:
+            columns = schema.cast(columns)
+        self.columns = columns
+
+    @classmethod
+    def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
+        if not segments:
+            return Frame(schema)
+        select = select or schema.columns
+        with Pool() as pool:
+            for name in schema.columns:
+                if name not in select:
+                    continue
+                pool.submit(
+                    Frame.read_segments, segments, name, limit=limit, offset=offset
+                )
+
+        res = dict(pool.results)
+        return Frame(schema, res)
+
+    @classmethod
+    def read_segments(cls, segments, name, limit=None, offset=None):
+        arrays = []
+        start = offset or 0
+        stop = None if limit is None else start + limit
+
+        for sgm in segments:
+            if stop == 0:
+                break
+            if start &gt;= len(sgm):
+                start = max(start - len(sgm), 0)
+                if stop is not None:
+                    stop = max(stop - len(sgm), 0)
+                continue
+            arr = sgm.read(name, start=start, stop=stop)
+            start = max(start - len(sgm), 0)
+            if stop is not None:
+                stop = max(stop - len(sgm), 0)
+            arrays.append(arr)
+
+        return name, concatenate(arrays) if arrays else []
+
+    def df(self, *columns):
+        if DataFrame is None:
+            raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
+        return DataFrame({c: self[c] for c in self.schema.columns})
+
+    def argsort(self):
+        idx_cols = list(self.schema.idx)
+        arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+        # Mergesort is faster on pre-sorted arrays
+        return argsort(arr, kind=&#34;mergesort&#34;)
+
+    @classmethod
+    def concat(cls, *frames):
+        # Corner cases
+        if len(frames) == 0:
+            return None
+        if len(frames) == 1:
+            return frames[0]
+
+        # General cases
+        schema = frames[0].schema
+        cols = defaultdict(list)
+        # Build dict of list
+        for frm in frames:
+            if not frm.schema == schema:
+                raise ValueError(&#34;Unable to concat frames with different schema&#34;)
+            for name in schema:
+                arr = frm[name]
+                if len(arr) == 0:
+                    continue
+                cols[name].append(arr)
+        # Concatenate all lists
+        for name in schema:
+            cols[name] = concatenate(cols[name])
+        # Create frame and sort it
+        return Frame(schema, cols).sorted()
+
+    def sorted(self):
+        return self.mask(self.argsort())
+
+    def mask(self, mask):
+        # if mask is a string, eval it first
+        if isinstance(mask, str):
+            mask = self.eval(mask)
+        cols = {}
+        # Apply mask to each column
+        for name in self.columns:
+            arr = self.columns[name]
+            if len(arr) == 0:
+                continue
+            cols[name] = arr[mask]
+        # Return new frame
+        return Frame(self.schema, cols)
+
+    def eval(self, expr):
+        # See also https://github.com/mapbox/snuggs
+        ast = AST.parse(expr)
+        env = self.eval_env()
+        res = ast.eval(env)
+        return res
+
+    def eval_env(self):
+        return {
+            &#34;self&#34;: self,
+            &#34;floor&#34;: floor,
+            &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
+        }
+
+    @property
+    def empty(self):
+        return len(self) == 0
+
+    def rowdict(self, *idx):
+        pos = self.index(self.schema.deserialize(idx), right=False)
+        values = self.schema.row(self, pos)
+        return dict(zip(self.schema.columns, values))
+
+    def rows(self):
+        for pos in range(len(self)):
+            values = self.schema.row(pos)
+            yield dict(zip(self.schema.columns, values))
+
+    def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+        &#34;&#34;&#34;
+        Slice between two index value. `closed` can be &#34;left&#34; (default),
+        &#34;right&#34; or &#34;both&#34;.
+        &#34;&#34;&#34;
+        idx_start = idx_stop = None
+        if start:
+            right = closed in (&#34;right&#34;, None)
+            idx_start = self.index(start, right=right)
+        if stop:
+            right = closed in (&#34;both&#34;, &#34;right&#34;)
+            idx_stop = self.index(stop, right=right)
+        return idx_start, idx_stop
+
+    def index(self, values, right=False):
+        if not values:
+            return None
+        lo = 0
+        hi = len(self)
+        for name, val in zip(self.schema.idx, values):
+            arr = self.columns[name]
+            lo = bisect_left(arr, val, lo=lo, hi=hi)
+            hi = bisect_right(arr, val, lo=lo, hi=hi)
+
+        if right:
+            return hi
+        return lo
+
+    def slice(self, start=None, stop=None):
+        &#34;&#34;&#34;
+        Slice between both position start and stop
+        &#34;&#34;&#34;
+        # Replace None by actual values
+        slc = slice(*(slice(start, stop).indices(len(self))))
+        # Build new frame
+        cols = {}
+        for name in self.columns:
+            cols[name] = self.columns[name][slc]
+        return Frame(self.schema, cols)
+
+    def __eq__(self, other):
+        return all(array_equal(self[c], other[c]) for c in self.schema.columns)
+
+    def __contains__(self, column):
+        return column in self.columns
+
+    def __len__(self):
+        if not self.columns:
+            return 0
+        values, *_ = self.columns.values()
+        return len(values)
+
+    def keys(self):
+        return iter(self.columns)
+
+    def start(self):
+        return self.schema.row(self, pos=0, full=False)
+
+    def stop(self):
+        return self.schema.row(self, pos=-1, full=False)
+
+    def __setitem__(self, name, arr):
+        # Make sure we have a numpy array
+        arr = self.schema[name].cast(arr)
+        if len(arr) != len(self):
+            raise ValueError(&#34;Lenght mismatch&#34;)
+        self.columns[name] = arr
+
+    def reduce(self, *col_list, **col_dict):
+        &#34;&#34;&#34;
+        Return a new frame containing the choosen columns. A column can be
+        one of the existing column or an s-expression that we be automatically
+        evaluated.
+        &#34;&#34;&#34;
+
+        # Merge all args in one dict
+        columns = dict(zip(col_list, col_list))
+        columns.update(col_dict)
+
+        # Detect aggregations
+        all_ast = {}
+        for alias, expr in columns.items():
+            if expr.startswith(&#34;(&#34;):
+                all_ast[alias] = AST.parse(expr)
+        agg_ast = {}
+        other_ast = {}
+        for alias, ast in all_ast.items():
+            if ast.is_aggregate():
+                agg_ast[alias] = ast
+            else:
+                other_ast[alias] = ast
+
+        # Eval non-aggregated columns
+        env = self.eval_env()
+        non_agg = {}
+        for alias, expr in columns.items():
+            if alias in agg_ast:
+                continue
+            ast = other_ast.get(alias)
+            if ast:
+                arr = ast.eval(env=env)
+            else:
+                arr = self.columns[expr]
+            non_agg[alias] = arr
+
+        # Early exit if we don&#39;t need to compute aggregates
+        if not agg_ast:
+            schema = Schema.from_frame(non_agg, idx_columns=list(non_agg))
+            return Frame(schema, non_agg)
+
+        res = {}
+        if non_agg:
+            # Compute binning
+            records = rec.fromarrays(non_agg.values(), names=list(non_agg))
+            keys, bins = unique(records, return_inverse=True)
+            # Build resulting columns
+            for alias in non_agg:
+                res[alias] = keys[alias]
+            env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
+
+        # Compute aggregates
+        for alias, expr in agg_ast.items():
+            arr = expr.eval(env)
+            # Without bins, eval will return a scalar value
+            res[alias] = arr if non_agg else asarray([arr])
+        schema = Schema.from_frame(res, idx_columns=list(non_agg))
+        return Frame(schema, res)
+
+    def __getitem__(self, by):
+        # By slice -&gt; return a frame
+        if isinstance(by, slice):
+            start = by.start and self.schema.deserialize(by.start)
+            stop = by.stop and self.schema.deserialize(by.stop)
+            return self.slice(*self.index_slice(start, stop))
+        # By mask -&gt; return a frame
+        if isinstance(by, ndarray):
+            return self.mask(by)
+        # By list -&gt; return a frame with the corresponding columns
+        if isinstance(by, list):
+            cols = [self[c] for c in by]
+            sch = Schema.from_frame(cols)
+            return Frame(sch, cols)
+        # By column name -&gt; return an array
+        if by in self.columns:
+            return self.columns[by]
+        return self.schema[by].cast([])
+
+    def drop(self, *columns):
+        keep_columns = (c for c in self.columns if c not in columns)
+        return self.select(*keep_columns)
+
+    def __iter__(self):
+        return iter(self.columns)
+
+    def select(self, keep):
+        cols = {k: v for k, v in self.columns.items() if k in keep}
+        return Frame(self.schema, cols)
+
+    def __repr__(self):
+        res = []
+        for name in self:
+            res.append(name + &#34;-&gt; &#34; + str(self[name]))
+        return &#34;\n&#34;.join(res)</code></pre>
+</details>
+<h3>Static methods</h3>
+<dl>
+<dt id="lakota.frame.Frame.concat"><code class="name flex">
+<span>def <span class="ident">concat</span></span>(<span>*frames)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def concat(cls, *frames):
+    # Corner cases
+    if len(frames) == 0:
+        return None
+    if len(frames) == 1:
+        return frames[0]
+
+    # General cases
+    schema = frames[0].schema
+    cols = defaultdict(list)
+    # Build dict of list
+    for frm in frames:
+        if not frm.schema == schema:
+            raise ValueError(&#34;Unable to concat frames with different schema&#34;)
+        for name in schema:
+            arr = frm[name]
+            if len(arr) == 0:
+                continue
+            cols[name].append(arr)
+    # Concatenate all lists
+    for name in schema:
+        cols[name] = concatenate(cols[name])
+    # Create frame and sort it
+    return Frame(schema, cols).sorted()</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.from_segments"><code class="name flex">
+<span>def <span class="ident">from_segments</span></span>(<span>schema, segments, limit=None, offset=None, select=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
+    if not segments:
+        return Frame(schema)
+    select = select or schema.columns
+    with Pool() as pool:
+        for name in schema.columns:
+            if name not in select:
+                continue
+            pool.submit(
+                Frame.read_segments, segments, name, limit=limit, offset=offset
+            )
+
+    res = dict(pool.results)
+    return Frame(schema, res)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.read_segments"><code class="name flex">
+<span>def <span class="ident">read_segments</span></span>(<span>segments, name, limit=None, offset=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def read_segments(cls, segments, name, limit=None, offset=None):
+    arrays = []
+    start = offset or 0
+    stop = None if limit is None else start + limit
+
+    for sgm in segments:
+        if stop == 0:
+            break
+        if start &gt;= len(sgm):
+            start = max(start - len(sgm), 0)
+            if stop is not None:
+                stop = max(stop - len(sgm), 0)
+            continue
+        arr = sgm.read(name, start=start, stop=stop)
+        start = max(start - len(sgm), 0)
+        if stop is not None:
+            stop = max(stop - len(sgm), 0)
+        arrays.append(arr)
+
+    return name, concatenate(arrays) if arrays else []</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="lakota.frame.Frame.empty"><code class="name">var <span class="ident">empty</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def empty(self):
+    return len(self) == 0</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.frame.Frame.argsort"><code class="name flex">
+<span>def <span class="ident">argsort</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def argsort(self):
+    idx_cols = list(self.schema.idx)
+    arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+    # Mergesort is faster on pre-sorted arrays
+    return argsort(arr, kind=&#34;mergesort&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.df"><code class="name flex">
+<span>def <span class="ident">df</span></span>(<span>self, *columns)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def df(self, *columns):
+    if DataFrame is None:
+        raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
+    return DataFrame({c: self[c] for c in self.schema.columns})</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.drop"><code class="name flex">
+<span>def <span class="ident">drop</span></span>(<span>self, *columns)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def drop(self, *columns):
+    keep_columns = (c for c in self.columns if c not in columns)
+    return self.select(*keep_columns)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.eval"><code class="name flex">
+<span>def <span class="ident">eval</span></span>(<span>self, expr)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def eval(self, expr):
+    # See also https://github.com/mapbox/snuggs
+    ast = AST.parse(expr)
+    env = self.eval_env()
+    res = ast.eval(env)
+    return res</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.eval_env"><code class="name flex">
+<span>def <span class="ident">eval_env</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def eval_env(self):
+    return {
+        &#34;self&#34;: self,
+        &#34;floor&#34;: floor,
+        &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
+    }</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.index"><code class="name flex">
+<span>def <span class="ident">index</span></span>(<span>self, values, right=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def index(self, values, right=False):
+    if not values:
+        return None
+    lo = 0
+    hi = len(self)
+    for name, val in zip(self.schema.idx, values):
+        arr = self.columns[name]
+        lo = bisect_left(arr, val, lo=lo, hi=hi)
+        hi = bisect_right(arr, val, lo=lo, hi=hi)
+
+    if right:
+        return hi
+    return lo</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.index_slice"><code class="name flex">
+<span>def <span class="ident">index_slice</span></span>(<span>self, start=None, stop=None, closed='left')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Slice between two index value. <code>closed</code> can be "left" (default),
+"right" or "both".</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+    &#34;&#34;&#34;
+    Slice between two index value. `closed` can be &#34;left&#34; (default),
+    &#34;right&#34; or &#34;both&#34;.
+    &#34;&#34;&#34;
+    idx_start = idx_stop = None
+    if start:
+        right = closed in (&#34;right&#34;, None)
+        idx_start = self.index(start, right=right)
+    if stop:
+        right = closed in (&#34;both&#34;, &#34;right&#34;)
+        idx_stop = self.index(stop, right=right)
+    return idx_start, idx_stop</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.keys"><code class="name flex">
+<span>def <span class="ident">keys</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def keys(self):
+    return iter(self.columns)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.mask"><code class="name flex">
+<span>def <span class="ident">mask</span></span>(<span>self, mask)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mask(self, mask):
+    # if mask is a string, eval it first
+    if isinstance(mask, str):
+        mask = self.eval(mask)
+    cols = {}
+    # Apply mask to each column
+    for name in self.columns:
+        arr = self.columns[name]
+        if len(arr) == 0:
+            continue
+        cols[name] = arr[mask]
+    # Return new frame
+    return Frame(self.schema, cols)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.reduce"><code class="name flex">
+<span>def <span class="ident">reduce</span></span>(<span>self, *col_list, **col_dict)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return a new frame containing the choosen columns. A column can be
+one of the existing column or an s-expression that we be automatically
+evaluated.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reduce(self, *col_list, **col_dict):
+    &#34;&#34;&#34;
+    Return a new frame containing the choosen columns. A column can be
+    one of the existing column or an s-expression that we be automatically
+    evaluated.
+    &#34;&#34;&#34;
+
+    # Merge all args in one dict
+    columns = dict(zip(col_list, col_list))
+    columns.update(col_dict)
+
+    # Detect aggregations
+    all_ast = {}
+    for alias, expr in columns.items():
+        if expr.startswith(&#34;(&#34;):
+            all_ast[alias] = AST.parse(expr)
+    agg_ast = {}
+    other_ast = {}
+    for alias, ast in all_ast.items():
+        if ast.is_aggregate():
+            agg_ast[alias] = ast
+        else:
+            other_ast[alias] = ast
+
+    # Eval non-aggregated columns
+    env = self.eval_env()
+    non_agg = {}
+    for alias, expr in columns.items():
+        if alias in agg_ast:
+            continue
+        ast = other_ast.get(alias)
+        if ast:
+            arr = ast.eval(env=env)
+        else:
+            arr = self.columns[expr]
+        non_agg[alias] = arr
+
+    # Early exit if we don&#39;t need to compute aggregates
+    if not agg_ast:
+        schema = Schema.from_frame(non_agg, idx_columns=list(non_agg))
+        return Frame(schema, non_agg)
+
+    res = {}
+    if non_agg:
+        # Compute binning
+        records = rec.fromarrays(non_agg.values(), names=list(non_agg))
+        keys, bins = unique(records, return_inverse=True)
+        # Build resulting columns
+        for alias in non_agg:
+            res[alias] = keys[alias]
+        env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
+
+    # Compute aggregates
+    for alias, expr in agg_ast.items():
+        arr = expr.eval(env)
+        # Without bins, eval will return a scalar value
+        res[alias] = arr if non_agg else asarray([arr])
+    schema = Schema.from_frame(res, idx_columns=list(non_agg))
+    return Frame(schema, res)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.rowdict"><code class="name flex">
+<span>def <span class="ident">rowdict</span></span>(<span>self, *idx)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rowdict(self, *idx):
+    pos = self.index(self.schema.deserialize(idx), right=False)
+    values = self.schema.row(self, pos)
+    return dict(zip(self.schema.columns, values))</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.rows"><code class="name flex">
+<span>def <span class="ident">rows</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rows(self):
+    for pos in range(len(self)):
+        values = self.schema.row(pos)
+        yield dict(zip(self.schema.columns, values))</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.select"><code class="name flex">
+<span>def <span class="ident">select</span></span>(<span>self, keep)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def select(self, keep):
+    cols = {k: v for k, v in self.columns.items() if k in keep}
+    return Frame(self.schema, cols)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.slice"><code class="name flex">
+<span>def <span class="ident">slice</span></span>(<span>self, start=None, stop=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Slice between both position start and stop</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def slice(self, start=None, stop=None):
+    &#34;&#34;&#34;
+    Slice between both position start and stop
+    &#34;&#34;&#34;
+    # Replace None by actual values
+    slc = slice(*(slice(start, stop).indices(len(self))))
+    # Build new frame
+    cols = {}
+    for name in self.columns:
+        cols[name] = self.columns[name][slc]
+    return Frame(self.schema, cols)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.sorted"><code class="name flex">
+<span>def <span class="ident">sorted</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sorted(self):
+    return self.mask(self.argsort())</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.start"><code class="name flex">
+<span>def <span class="ident">start</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def start(self):
+    return self.schema.row(self, pos=0, full=False)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.stop"><code class="name flex">
+<span>def <span class="ident">stop</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def stop(self):
+    return self.schema.row(self, pos=-1, full=False)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="lakota.frame.Frame" href="#lakota.frame.Frame">Frame</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.frame.Frame.argsort" href="#lakota.frame.Frame.argsort">argsort</a></code></li>
+<li><code><a title="lakota.frame.Frame.concat" href="#lakota.frame.Frame.concat">concat</a></code></li>
+<li><code><a title="lakota.frame.Frame.df" href="#lakota.frame.Frame.df">df</a></code></li>
+<li><code><a title="lakota.frame.Frame.drop" href="#lakota.frame.Frame.drop">drop</a></code></li>
+<li><code><a title="lakota.frame.Frame.empty" href="#lakota.frame.Frame.empty">empty</a></code></li>
+<li><code><a title="lakota.frame.Frame.eval" href="#lakota.frame.Frame.eval">eval</a></code></li>
+<li><code><a title="lakota.frame.Frame.eval_env" href="#lakota.frame.Frame.eval_env">eval_env</a></code></li>
+<li><code><a title="lakota.frame.Frame.from_segments" href="#lakota.frame.Frame.from_segments">from_segments</a></code></li>
+<li><code><a title="lakota.frame.Frame.index" href="#lakota.frame.Frame.index">index</a></code></li>
+<li><code><a title="lakota.frame.Frame.index_slice" href="#lakota.frame.Frame.index_slice">index_slice</a></code></li>
+<li><code><a title="lakota.frame.Frame.keys" href="#lakota.frame.Frame.keys">keys</a></code></li>
+<li><code><a title="lakota.frame.Frame.mask" href="#lakota.frame.Frame.mask">mask</a></code></li>
+<li><code><a title="lakota.frame.Frame.read_segments" href="#lakota.frame.Frame.read_segments">read_segments</a></code></li>
+<li><code><a title="lakota.frame.Frame.reduce" href="#lakota.frame.Frame.reduce">reduce</a></code></li>
+<li><code><a title="lakota.frame.Frame.rowdict" href="#lakota.frame.Frame.rowdict">rowdict</a></code></li>
+<li><code><a title="lakota.frame.Frame.rows" href="#lakota.frame.Frame.rows">rows</a></code></li>
+<li><code><a title="lakota.frame.Frame.select" href="#lakota.frame.Frame.select">select</a></code></li>
+<li><code><a title="lakota.frame.Frame.slice" href="#lakota.frame.Frame.slice">slice</a></code></li>
+<li><code><a title="lakota.frame.Frame.sorted" href="#lakota.frame.Frame.sorted">sorted</a></code></li>
+<li><code><a title="lakota.frame.Frame.start" href="#lakota.frame.Frame.start">start</a></code></li>
+<li><code><a title="lakota.frame.Frame.stop" href="#lakota.frame.Frame.stop">stop</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

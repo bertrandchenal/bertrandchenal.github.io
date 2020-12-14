@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>lakota.collection API documentation</title>
+<meta name="description" content="A collection is instantiated from a `lakota.repo.Repo` object (see `lakota.repo`):
+```python
+clct = repo / &#39;my_collection&#39;
+``` …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lakota.collection</code></h1>
+</header>
+<section id="section-intro">
+<p>A collection is instantiated from a <code><a title="lakota.repo.Repo" href="repo.html#lakota.repo.Repo">Repo</a></code> object (see <code><a title="lakota.repo" href="repo.html">lakota.repo</a></code>):</p>
+<pre><code class="language-python">clct = repo / 'my_collection'
+</code></pre>
+<p>Series instantiation</p>
+<pre><code class="language-python">all_series = clct.ls()
+
+my_series = clct.series('my_series')
+# or
+my_series = clct.series / 'my_series'
+</code></pre>
+<p>See <code><a title="lakota.series" href="series.html">lakota.series</a></code> on how to use <code><a title="lakota.series.Series" href="series.html#lakota.series.Series">Series</a></code>.</p>
+<p>The <code><a title="lakota.collection.Collection.batch" href="#lakota.collection.Collection.batch">Collection.batch()</a></code> method returns a contect manager that will provide atomic
+(and faster) writes across several series</p>
+<pre><code class="language-python">with clct.batch() as batch:
+    for label, df in ...:
+        series = clct / label
+        series.write(df, batch=batch)
+</code></pre>
+<p>Collections can also be pushed/pulled and merged.</p>
+<pre><code class="language-python">clct = local_repo / 'my_collection'
+remote_clct = remote_repo / 'my_collection'
+clct.pull(remote_clct)
+clct.merge()
+</code></pre>
+<p>Squash remove past revisions</p>
+<pre><code class="language-python">clct.squash()
+</code></pre>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#39;&#39;&#39;
+A collection is instantiated from a `lakota.repo.Repo` object (see `lakota.repo`):
+```python
+clct = repo / &#39;my_collection&#39;
+```
+
+Series instantiation
+
+```python
+all_series = clct.ls()
+
+my_series = clct.series(&#39;my_series&#39;)
+# or
+my_series = clct.series / &#39;my_series&#39;
+```
+
+See `lakota.series` on how to use `lakota.series.Series`.
+
+The `lakota.collection.Collection.batch` method returns a contect manager that will provide atomic
+(and faster) writes across several series
+```python
+with clct.batch() as batch:
+    for label, df in ...:
+        series = clct / label
+        series.write(df, batch=batch)
+```
+
+Collections can also be pushed/pulled and merged.
+
+```python
+clct = local_repo / &#39;my_collection&#39;
+remote_clct = remote_repo / &#39;my_collection&#39;
+clct.pull(remote_clct)
+clct.merge()
+```
+
+Squash remove past revisions
+```python
+clct.squash()
+```
+&#39;&#39;&#39;
+
+from collections import defaultdict
+from contextlib import contextmanager
+from itertools import chain
+
+from .changelog import Changelog, phi
+from .series import Commit, KVSeries, Series
+from .utils import Pool, hashed_path, logger
+
+__all__ = [&#39;Collection&#39;, &#39;Batch&#39;]
+
+class Collection:
+    def __init__(self, label, schema, path, repo):
+        self.repo = repo
+        self.pod = repo.pod
+        self.schema = schema
+        self.label = label
+        self.changelog = Changelog(self.pod / path)
+
+    def series(self, label):
+        label = label.strip()
+        if len(label) == 0:
+            raise ValueError(f&#34;Invalid label&#34;)
+        cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
+        return cls(label, self)
+
+    def __truediv__(self, name):
+        return self.series(name)
+
+    def __iter__(self):
+        return iter(self.ls())
+
+    def ls(self):
+        rev = self.changelog.leaf()
+        if rev is None:
+            return []
+        payload = rev.read()
+        ci = Commit.decode(self.schema, payload)
+        return sorted(set(ci.label))
+
+    def delete(self, *labels):
+        leaf_rev = self.changelog.leaf()
+        if not leaf_rev:
+            return
+
+        ci = leaf_rev.commit(self)
+        ci = ci.delete_labels(labels)
+        parent = leaf_rev.child
+        payload = ci.encode()
+        return self.changelog.commit(payload, parents=[parent])
+
+    def refresh(self):
+        self.changelog.refresh()
+
+    def push(self, remote, *labels):
+        return remote.pull(self, *labels)
+
+    def pull(self, remote):
+        &#34;&#34;&#34;
+        Pull remote series into self
+        &#34;&#34;&#34;
+        assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
+
+        # TODO use local storage as cache for remote (when reading revisions)
+        local_digs = set()
+        local_digs.update(self.digests())
+        self.changelog.pull(remote.changelog)
+        self.refresh()
+        # XXX optionaly isolate local path not detected in the loop
+        # here-under (and return them at the end to let Repo.pull do
+        # the deletions) (but what about local history?)
+        sync = lambda path: self.pod.write(path, remote.pod.read(path))
+        with Pool() as pool:
+            for dig in self.digests():
+                if dig in local_digs:
+                    continue
+                folder, filename = hashed_path(dig)
+                path = folder / filename
+                pool.submit(sync, path)
+
+    def merge(self, *heads):
+        revisions = list(self.changelog.log())
+        # Corner cases
+        if not revisions:
+            return
+        if not heads:
+            heads = [r for r in revisions if r.is_leaf]
+
+        if len(heads) &lt; 2:
+            return
+
+        # Reorganise revision as child-&gt;parents dict
+        ch2pr = defaultdict(list)
+        for r in revisions:
+            ch2pr[r.child].append(r)
+
+        # Find common root
+        root = None
+        first_parents, *other_parents = [
+            list(self._find_parents(h, ch2pr)) for h in heads
+        ]
+        for root in first_parents:
+            if all(root in op for op in other_parents):
+                break
+
+        # Reify commits
+        first_ci, *other_ci = [h.commit(self) for h in heads]
+        root_ci = root.commit(self) if root else []
+        # Pile all rows for all other commit into the first one
+        for ci in other_ci:
+            for pos in range(len(ci)):
+                row = ci.at(pos)
+                if row in first_ci or row in root_ci:
+                    continue
+                first_ci = first_ci.update(**row)
+
+        # encode and commit
+        payload = first_ci.encode()
+        revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+        return revs
+
+    @staticmethod
+    def _find_parents(rev, ch2pr):
+        queue = ch2pr[rev.child][:]
+        while queue:
+            rev = queue.pop()
+            # Append children
+            parents = ch2pr[rev.parent]
+            queue.extend(parents)
+            yield rev
+
+    def squash(self, archive=False):
+        &#34;&#34;&#34;
+        Remove all past revisions, collapse history into one or few large
+        frames.
+        &#34;&#34;&#34;
+        step = 500_000
+        all_labels = self.ls()
+        # TODO run in parallel
+        with self.batch(phi) as batch:
+            for label in all_labels:
+                logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
+                # Re-write each series
+                series = self / label
+                for frm in series.paginate(step):
+                    series.write(frm, batch=batch)
+
+        if not batch.revs:
+            return
+
+        # if archive:
+        #     # TODO prefix/suffix schema with an _wtime column to keep
+        #     # trace of revisions (to be able to write larger segments
+        #     # and squash changelog)
+        #     archive_pod = self.repo.archive(self).changelog.pod
+        #     for path in self.changelog:
+        #         if path == batch.commit.path:
+        #             continue
+        #         data = self.changelog.pod.read(path)
+        #         archive_pod.write(path, data)
+
+        skip = (r.path for r in batch.revs)
+        self.changelog.pod.clear(*skip)
+        return batch.revs
+
+    def digests(self):
+        for rev in self.changelog.log():
+            ci = rev.commit(self)
+            yield from chain.from_iterable(ci.digest.values())
+
+    @contextmanager
+    def batch(self, force_parent=None):
+        b = Batch(self, force_parent)
+        yield b
+        b.flush()
+
+
+class Batch:
+    def __init__(self, collection, root=False):
+        self.collection = collection
+        self._ci_info = []
+        self.revs = None
+        self.root = root
+
+    def append(self, ci_info):
+        self._ci_info.append(ci_info)
+
+    def extend(self, *other_batches):
+        for b in other_batches:
+            self._ci_info.extend(b._ci_info)
+
+    def flush(self):
+        if len(self._ci_info) == 0:
+            return
+
+        changelog = self.collection.changelog
+        leaf_rev = None if self.root else changelog.leaf()
+        all_ci_info = iter(self._ci_info)
+
+        # Combine with last commit
+        if leaf_rev:
+            last_ci = leaf_rev.commit(self.collection)
+        else:
+            label, start, stop, all_dig, length = next(all_ci_info)
+            last_ci = Commit.one(
+                self.collection.schema, label, start, stop, all_dig, length
+            )
+        for label, start, stop, all_dig, length in all_ci_info:
+            last_ci = last_ci.update(label, start, stop, all_dig, length)
+
+        # Save it
+        payload = last_ci.encode()
+        parent = leaf_rev.child if leaf_rev else phi
+        self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="lakota.collection.Batch"><code class="flex name class">
+<span>class <span class="ident">Batch</span></span>
+<span>(</span><span>collection, root=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Batch:
+    def __init__(self, collection, root=False):
+        self.collection = collection
+        self._ci_info = []
+        self.revs = None
+        self.root = root
+
+    def append(self, ci_info):
+        self._ci_info.append(ci_info)
+
+    def extend(self, *other_batches):
+        for b in other_batches:
+            self._ci_info.extend(b._ci_info)
+
+    def flush(self):
+        if len(self._ci_info) == 0:
+            return
+
+        changelog = self.collection.changelog
+        leaf_rev = None if self.root else changelog.leaf()
+        all_ci_info = iter(self._ci_info)
+
+        # Combine with last commit
+        if leaf_rev:
+            last_ci = leaf_rev.commit(self.collection)
+        else:
+            label, start, stop, all_dig, length = next(all_ci_info)
+            last_ci = Commit.one(
+                self.collection.schema, label, start, stop, all_dig, length
+            )
+        for label, start, stop, all_dig, length in all_ci_info:
+            last_ci = last_ci.update(label, start, stop, all_dig, length)
+
+        # Save it
+        payload = last_ci.encode()
+        parent = leaf_rev.child if leaf_rev else phi
+        self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.collection.Batch.append"><code class="name flex">
+<span>def <span class="ident">append</span></span>(<span>self, ci_info)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def append(self, ci_info):
+    self._ci_info.append(ci_info)</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Batch.extend"><code class="name flex">
+<span>def <span class="ident">extend</span></span>(<span>self, *other_batches)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extend(self, *other_batches):
+    for b in other_batches:
+        self._ci_info.extend(b._ci_info)</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Batch.flush"><code class="name flex">
+<span>def <span class="ident">flush</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def flush(self):
+    if len(self._ci_info) == 0:
+        return
+
+    changelog = self.collection.changelog
+    leaf_rev = None if self.root else changelog.leaf()
+    all_ci_info = iter(self._ci_info)
+
+    # Combine with last commit
+    if leaf_rev:
+        last_ci = leaf_rev.commit(self.collection)
+    else:
+        label, start, stop, all_dig, length = next(all_ci_info)
+        last_ci = Commit.one(
+            self.collection.schema, label, start, stop, all_dig, length
+        )
+    for label, start, stop, all_dig, length in all_ci_info:
+        last_ci = last_ci.update(label, start, stop, all_dig, length)
+
+    # Save it
+    payload = last_ci.encode()
+    parent = leaf_rev.child if leaf_rev else phi
+    self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="lakota.collection.Collection"><code class="flex name class">
+<span>class <span class="ident">Collection</span></span>
+<span>(</span><span>label, schema, path, repo)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Collection:
+    def __init__(self, label, schema, path, repo):
+        self.repo = repo
+        self.pod = repo.pod
+        self.schema = schema
+        self.label = label
+        self.changelog = Changelog(self.pod / path)
+
+    def series(self, label):
+        label = label.strip()
+        if len(label) == 0:
+            raise ValueError(f&#34;Invalid label&#34;)
+        cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
+        return cls(label, self)
+
+    def __truediv__(self, name):
+        return self.series(name)
+
+    def __iter__(self):
+        return iter(self.ls())
+
+    def ls(self):
+        rev = self.changelog.leaf()
+        if rev is None:
+            return []
+        payload = rev.read()
+        ci = Commit.decode(self.schema, payload)
+        return sorted(set(ci.label))
+
+    def delete(self, *labels):
+        leaf_rev = self.changelog.leaf()
+        if not leaf_rev:
+            return
+
+        ci = leaf_rev.commit(self)
+        ci = ci.delete_labels(labels)
+        parent = leaf_rev.child
+        payload = ci.encode()
+        return self.changelog.commit(payload, parents=[parent])
+
+    def refresh(self):
+        self.changelog.refresh()
+
+    def push(self, remote, *labels):
+        return remote.pull(self, *labels)
+
+    def pull(self, remote):
+        &#34;&#34;&#34;
+        Pull remote series into self
+        &#34;&#34;&#34;
+        assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
+
+        # TODO use local storage as cache for remote (when reading revisions)
+        local_digs = set()
+        local_digs.update(self.digests())
+        self.changelog.pull(remote.changelog)
+        self.refresh()
+        # XXX optionaly isolate local path not detected in the loop
+        # here-under (and return them at the end to let Repo.pull do
+        # the deletions) (but what about local history?)
+        sync = lambda path: self.pod.write(path, remote.pod.read(path))
+        with Pool() as pool:
+            for dig in self.digests():
+                if dig in local_digs:
+                    continue
+                folder, filename = hashed_path(dig)
+                path = folder / filename
+                pool.submit(sync, path)
+
+    def merge(self, *heads):
+        revisions = list(self.changelog.log())
+        # Corner cases
+        if not revisions:
+            return
+        if not heads:
+            heads = [r for r in revisions if r.is_leaf]
+
+        if len(heads) &lt; 2:
+            return
+
+        # Reorganise revision as child-&gt;parents dict
+        ch2pr = defaultdict(list)
+        for r in revisions:
+            ch2pr[r.child].append(r)
+
+        # Find common root
+        root = None
+        first_parents, *other_parents = [
+            list(self._find_parents(h, ch2pr)) for h in heads
+        ]
+        for root in first_parents:
+            if all(root in op for op in other_parents):
+                break
+
+        # Reify commits
+        first_ci, *other_ci = [h.commit(self) for h in heads]
+        root_ci = root.commit(self) if root else []
+        # Pile all rows for all other commit into the first one
+        for ci in other_ci:
+            for pos in range(len(ci)):
+                row = ci.at(pos)
+                if row in first_ci or row in root_ci:
+                    continue
+                first_ci = first_ci.update(**row)
+
+        # encode and commit
+        payload = first_ci.encode()
+        revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+        return revs
+
+    @staticmethod
+    def _find_parents(rev, ch2pr):
+        queue = ch2pr[rev.child][:]
+        while queue:
+            rev = queue.pop()
+            # Append children
+            parents = ch2pr[rev.parent]
+            queue.extend(parents)
+            yield rev
+
+    def squash(self, archive=False):
+        &#34;&#34;&#34;
+        Remove all past revisions, collapse history into one or few large
+        frames.
+        &#34;&#34;&#34;
+        step = 500_000
+        all_labels = self.ls()
+        # TODO run in parallel
+        with self.batch(phi) as batch:
+            for label in all_labels:
+                logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
+                # Re-write each series
+                series = self / label
+                for frm in series.paginate(step):
+                    series.write(frm, batch=batch)
+
+        if not batch.revs:
+            return
+
+        # if archive:
+        #     # TODO prefix/suffix schema with an _wtime column to keep
+        #     # trace of revisions (to be able to write larger segments
+        #     # and squash changelog)
+        #     archive_pod = self.repo.archive(self).changelog.pod
+        #     for path in self.changelog:
+        #         if path == batch.commit.path:
+        #             continue
+        #         data = self.changelog.pod.read(path)
+        #         archive_pod.write(path, data)
+
+        skip = (r.path for r in batch.revs)
+        self.changelog.pod.clear(*skip)
+        return batch.revs
+
+    def digests(self):
+        for rev in self.changelog.log():
+            ci = rev.commit(self)
+            yield from chain.from_iterable(ci.digest.values())
+
+    @contextmanager
+    def batch(self, force_parent=None):
+        b = Batch(self, force_parent)
+        yield b
+        b.flush()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.collection.Collection.batch"><code class="name flex">
+<span>def <span class="ident">batch</span></span>(<span>self, force_parent=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def batch(self, force_parent=None):
+    b = Batch(self, force_parent)
+    yield b
+    b.flush()</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, *labels)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, *labels):
+    leaf_rev = self.changelog.leaf()
+    if not leaf_rev:
+        return
+
+    ci = leaf_rev.commit(self)
+    ci = ci.delete_labels(labels)
+    parent = leaf_rev.child
+    payload = ci.encode()
+    return self.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.digests"><code class="name flex">
+<span>def <span class="ident">digests</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def digests(self):
+    for rev in self.changelog.log():
+        ci = rev.commit(self)
+        yield from chain.from_iterable(ci.digest.values())</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.ls"><code class="name flex">
+<span>def <span class="ident">ls</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls(self):
+    rev = self.changelog.leaf()
+    if rev is None:
+        return []
+    payload = rev.read()
+    ci = Commit.decode(self.schema, payload)
+    return sorted(set(ci.label))</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.merge"><code class="name flex">
+<span>def <span class="ident">merge</span></span>(<span>self, *heads)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def merge(self, *heads):
+    revisions = list(self.changelog.log())
+    # Corner cases
+    if not revisions:
+        return
+    if not heads:
+        heads = [r for r in revisions if r.is_leaf]
+
+    if len(heads) &lt; 2:
+        return
+
+    # Reorganise revision as child-&gt;parents dict
+    ch2pr = defaultdict(list)
+    for r in revisions:
+        ch2pr[r.child].append(r)
+
+    # Find common root
+    root = None
+    first_parents, *other_parents = [
+        list(self._find_parents(h, ch2pr)) for h in heads
+    ]
+    for root in first_parents:
+        if all(root in op for op in other_parents):
+            break
+
+    # Reify commits
+    first_ci, *other_ci = [h.commit(self) for h in heads]
+    root_ci = root.commit(self) if root else []
+    # Pile all rows for all other commit into the first one
+    for ci in other_ci:
+        for pos in range(len(ci)):
+            row = ci.at(pos)
+            if row in first_ci or row in root_ci:
+                continue
+            first_ci = first_ci.update(**row)
+
+    # encode and commit
+    payload = first_ci.encode()
+    revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+    return revs</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.pull"><code class="name flex">
+<span>def <span class="ident">pull</span></span>(<span>self, remote)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pull remote series into self</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pull(self, remote):
+    &#34;&#34;&#34;
+    Pull remote series into self
+    &#34;&#34;&#34;
+    assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
+
+    # TODO use local storage as cache for remote (when reading revisions)
+    local_digs = set()
+    local_digs.update(self.digests())
+    self.changelog.pull(remote.changelog)
+    self.refresh()
+    # XXX optionaly isolate local path not detected in the loop
+    # here-under (and return them at the end to let Repo.pull do
+    # the deletions) (but what about local history?)
+    sync = lambda path: self.pod.write(path, remote.pod.read(path))
+    with Pool() as pool:
+        for dig in self.digests():
+            if dig in local_digs:
+                continue
+            folder, filename = hashed_path(dig)
+            path = folder / filename
+            pool.submit(sync, path)</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.push"><code class="name flex">
+<span>def <span class="ident">push</span></span>(<span>self, remote, *labels)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def push(self, remote, *labels):
+    return remote.pull(self, *labels)</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.refresh"><code class="name flex">
+<span>def <span class="ident">refresh</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def refresh(self):
+    self.changelog.refresh()</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.series"><code class="name flex">
+<span>def <span class="ident">series</span></span>(<span>self, label)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def series(self, label):
+    label = label.strip()
+    if len(label) == 0:
+        raise ValueError(f&#34;Invalid label&#34;)
+    cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
+    return cls(label, self)</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.squash"><code class="name flex">
+<span>def <span class="ident">squash</span></span>(<span>self, archive=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Remove all past revisions, collapse history into one or few large
+frames.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def squash(self, archive=False):
+    &#34;&#34;&#34;
+    Remove all past revisions, collapse history into one or few large
+    frames.
+    &#34;&#34;&#34;
+    step = 500_000
+    all_labels = self.ls()
+    # TODO run in parallel
+    with self.batch(phi) as batch:
+        for label in all_labels:
+            logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
+            # Re-write each series
+            series = self / label
+            for frm in series.paginate(step):
+                series.write(frm, batch=batch)
+
+    if not batch.revs:
+        return
+
+    # if archive:
+    #     # TODO prefix/suffix schema with an _wtime column to keep
+    #     # trace of revisions (to be able to write larger segments
+    #     # and squash changelog)
+    #     archive_pod = self.repo.archive(self).changelog.pod
+    #     for path in self.changelog:
+    #         if path == batch.commit.path:
+    #             continue
+    #         data = self.changelog.pod.read(path)
+    #         archive_pod.write(path, data)
+
+    skip = (r.path for r in batch.revs)
+    self.changelog.pod.clear(*skip)
+    return batch.revs</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="lakota.collection.Batch" href="#lakota.collection.Batch">Batch</a></code></h4>
+<ul class="">
+<li><code><a title="lakota.collection.Batch.append" href="#lakota.collection.Batch.append">append</a></code></li>
+<li><code><a title="lakota.collection.Batch.extend" href="#lakota.collection.Batch.extend">extend</a></code></li>
+<li><code><a title="lakota.collection.Batch.flush" href="#lakota.collection.Batch.flush">flush</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.collection.Collection.batch" href="#lakota.collection.Collection.batch">batch</a></code></li>
+<li><code><a title="lakota.collection.Collection.delete" href="#lakota.collection.Collection.delete">delete</a></code></li>
+<li><code><a title="lakota.collection.Collection.digests" href="#lakota.collection.Collection.digests">digests</a></code></li>
+<li><code><a title="lakota.collection.Collection.ls" href="#lakota.collection.Collection.ls">ls</a></code></li>
+<li><code><a title="lakota.collection.Collection.merge" href="#lakota.collection.Collection.merge">merge</a></code></li>
+<li><code><a title="lakota.collection.Collection.pull" href="#lakota.collection.Collection.pull">pull</a></code></li>
+<li><code><a title="lakota.collection.Collection.push" href="#lakota.collection.Collection.push">push</a></code></li>
+<li><code><a title="lakota.collection.Collection.refresh" href="#lakota.collection.Collection.refresh">refresh</a></code></li>
+<li><code><a title="lakota.collection.Collection.series" href="#lakota.collection.Collection.series">series</a></code></li>
+<li><code><a title="lakota.collection.Collection.squash" href="#lakota.collection.Collection.squash">squash</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

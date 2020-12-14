@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>lakota.series API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lakota.series</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">from time import time
+
+from numpy import arange, issubdtype
+
+from .changelog import phi
+from .commit import Commit
+from .frame import Frame
+from .utils import Interval, Pool, encoder, hashed_path, hexdigest
+
+__all__ = [&#39;Series&#39;, &#39;KVSeries&#39;]
+
+
+def intersect(revision, start, stop):
+    ok_start = not stop or revision[&#34;start&#34;][: len(stop)] &lt;= stop
+    ok_stop = not start or revision[&#34;stop&#34;][: len(start)] &gt;= start
+    if not (ok_start and ok_stop):
+        return None
+    # return reduced range
+    max_start = max(revision[&#34;start&#34;], start)
+    min_stop = min(revision[&#34;stop&#34;], stop) if stop else revision[&#34;stop&#34;]
+    return (max_start, min_stop)
+
+
+class Series:
+    &#34;&#34;&#34;
+    Combine a pod and a changelog to provide a versioned and
+    concurrent management of series.
+    &#34;&#34;&#34;
+
+    def __init__(self, label, collection):
+        self.collection = collection
+        self.schema = collection.schema
+        self.pod = collection.pod
+        self.changelog = collection.changelog
+        self.label = label
+
+    def refresh(self):
+        self.changelog.refresh()
+
+    def segments(
+        self,
+        start=None,
+        stop=None,
+        before=None,
+        closed=&#34;left&#34;,
+    ):
+        &#34;&#34;&#34;
+        Find matching segments
+        &#34;&#34;&#34;
+        leaf_rev = self.changelog.leaf(before=before)
+        if not leaf_rev:
+            return
+
+        leaf_ci = leaf_rev.commit(self.collection)
+        # TODO pass closed to call hereunder
+        return leaf_ci.segments(self.label, self.pod, start, stop)
+
+    def period(self, rev):
+        &#34;&#34;&#34;
+        Return average period (time delta between two tic) of a given revision
+        &#34;&#34;&#34;
+        start = self.schema.deserialize(rev[&#34;start&#34;])[0]
+        stop = self.schema.deserialize(rev[&#34;stop&#34;])[0]
+        span = stop - start
+        # span is a timedelta64
+        span = span.item().total_seconds()
+        return span / rev[&#34;len&#34;]
+
+    def interval(self, size=500_000):
+        &#34;&#34;&#34;
+        Find smallest natural partition that will fit `size` items
+        &#34;&#34;&#34;
+        schema = self.schema
+        head_col = next(iter(schema.idx))
+        assert issubdtype(schema[head_col].codec.dt, &#34;datetime64&#34;)
+
+        revisions = self.changelog.log()
+        if not revisions:
+            return None
+        min_period = min(self.period(rev) for rev in revisions)
+        target = min_period * size
+        return Interval.bisect(target)
+
+    def delete(self, root=False, batch=False):
+        rev_info = {
+            &#34;tombstone&#34;: True,
+            &#34;epoch&#34;: time(),
+            &#34;label&#34;: self.label,
+        }
+        key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
+        if batch:
+            batch.append(rev_info, key)
+
+        force_parent = phi if root else None
+        commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
+        return commit
+
+    def write(self, frame, start=None, stop=None, root=False, batch=False):
+        # Each commit is like a frame. A row in this frame represent a
+        # write (aka a segment) and contains one digest per series
+        # column + 2*N extra columns that encode start-stop values (N
+        # being the number of index columns of the series) + a column
+        # containing the series name (like that we can write all the
+        # series in one commit)
+
+        if not isinstance(frame, Frame):
+            frame = Frame(self.schema, self.schema.cast(frame))
+
+        # Make sure frame is sorted
+        sort_mask = frame.argsort()
+        assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
+
+        # TODO assert all columns have the same length
+
+        # Save segments
+        all_dig = []
+        with Pool() as pool:
+            for name in self.schema:
+                arr = self.schema[name].cast(frame[name])
+                data = self.schema[name].codec.encode(arr)
+                digest = hexdigest(data)
+                all_dig.append(digest)
+                folder, filename = hashed_path(digest)
+                pool.submit(self.pod.cd(folder).write, filename, data)
+
+        # Build commit info
+        start = start or frame.start()  # XXX Use numpy.quantile ?
+        stop = stop or frame.stop()
+        if not isinstance(start, tuple):
+            start = (start,)
+        if not isinstance(stop, tuple):
+            stop = (stop,)
+
+        # Create new digest
+        if batch:
+            ci_info = (self.label, start, stop, all_dig, len(frame))
+            batch.append(ci_info)
+            return
+        self.commit(start, stop, all_dig, len(frame), root=root)
+
+    def commit(self, start, stop, all_dig, length, root=False):
+        # root force commit on phi
+        leaf_rev = None if root else self.changelog.leaf()
+
+        # Combine with last commit
+        if leaf_rev:
+            leaf_ci = leaf_rev.commit(self.collection)
+            new_ci = leaf_ci.update(self.label, start, stop, all_dig, length)
+            # TODO early return if new_ci == leaf_ci
+        else:
+            new_ci = Commit.one(self.schema, self.label, start, stop, all_dig, length)
+
+        payload = new_ci.encode()
+        parent = leaf_rev.child if leaf_rev else phi
+        return self.changelog.commit(payload, parents=[parent])
+
+    def __getitem__(self, by):
+        return Query(self)[by]
+
+    def __matmul__(self, by):
+        return Query(self) @ by
+
+    def __len__(self):
+        return len(Query(self, select=list(self.schema.idx)))
+
+    def paginate(self, step=100_000, **kw):
+        return Query(self).paginate(step=step, **kw)
+
+    def frame(self, **kw):
+        return Query(self, **kw).frame()
+
+    def read(self, **kw):
+        return Query(self, **kw).frame()
+
+    def df(self, **kw):
+        return Query(self, **kw).df()
+
+
+class Query:
+    def __init__(self, series, **kw):
+        self.series = series
+        self.params = {
+            &#34;closed&#34;: &#34;left&#34;,
+        }
+        for k, v in kw.items():
+            self.set_param(k, v)
+
+    def set_param(self, key, value):
+        if key == &#34;closed&#34;:
+            if not value in (&#34;left&#34;, &#34;right&#34;, &#34;both&#34;, None):
+                raise ValueError(f&#34;Unsupported value {value} for closed&#34;)
+            self.params[&#34;closed&#34;] = value
+        elif key in (&#34;start&#34;, &#34;stop&#34;):
+            self.params[key] = self.series.schema.deserialize(value)
+        else:
+            if not key in (&#34;limit&#34;, &#34;offset&#34;, &#34;before&#34;, &#34;select&#34;):
+                raise ValueError(f&#34;Unsupported parameter: {key}&#34;)
+            self.params[key] = value
+
+    def __getitem__(self, by):
+        if isinstance(by, slice):
+            return self @ {&#34;start&#34;: by.start, &#34;stop&#34;: by.stop}
+        elif isinstance(by, (list, tuple, str)):
+            return self @ {&#34;select&#34;: by}
+        else:
+            raise KeyError(by)
+
+    def __matmul__(self, kw):
+        if not kw:
+            return self
+        params = self.params.copy()
+        params.update(kw)
+        return Query(self.series, **params)
+
+    def segments(self):
+        keys = (&#34;start&#34;, &#34;stop&#34;, &#34;before&#34;, &#34;closed&#34;)
+        kw = {k: self.params.get(k) for k in keys}
+        segments = self.series.segments(**kw)
+        return segments
+
+    def __len__(self):
+        return sum(len(s) for s in self.segments())
+
+    def frame(self, **kw):
+        qr = self @ kw
+        segments = qr.segments()
+        limit = qr.params.get(&#34;limit&#34;)
+        offset = qr.params.get(&#34;offset&#34;)
+        select = qr.params.get(&#34;select&#34;)
+        return Frame.from_segments(
+            qr.series.schema, segments, limit=limit, offset=offset, select=select
+        )
+
+    def df(self, **kw):
+        frm = self.frame(**kw)
+        return frm.df()
+
+    def paginate(self, step=100_000, **kw):
+        if step &lt;= 0:
+            raise ValueError(&#34;step argument must be &gt; 0&#34;)
+        qr = self @ kw
+        segments = qr.segments()
+        select = qr.params.get(&#34;select&#34;)
+        limit = qr.params.get(&#34;limit&#34;)
+        pos = qr.params.get(&#34;offset&#34;) or 0
+        while True:
+            lmt = step if limit is None else min(step, limit)
+            frm = Frame.from_segments(
+                qr.series.schema, segments, limit=lmt, offset=pos, select=select
+            )
+            if len(frm) == 0:
+                return
+            if limit is not None:
+                limit -= len(frm)
+            yield frm
+            pos += step
+
+
+class KVSeries(Series):
+    def write(self, frame, start=None, stop=None, root=False, batch=False):
+        if root or not (start is None is stop):
+            return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+
+        if not isinstance(frame, Frame):
+            frame = Frame(self.schema, frame).sorted()
+
+        start = self.schema.row(frame, pos=0, full=False)
+        stop = self.schema.row(frame, pos=-1, full=False)
+        segments = self.segments(start, stop, closed=&#34;both&#34;)
+        db_frm = Frame.from_segments(
+            self.schema, segments
+        )  # Maybe paginate on large results
+
+        if db_frm.empty:
+            return super().write(frame, batch=batch)
+
+        if db_frm == frame:
+            # Nothing to do
+            return
+
+        # Concat both frame and reduce it
+        new_frm = Frame.concat(frame, db_frm)
+        reduce_kw = {c: c for c in self.schema.idx}
+        non_idx = [c for c in self.schema if c not in self.schema.idx]
+        reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
+        new_frm = new_frm.reduce(**reduce_kw)
+        return super().write(new_frm, batch=batch)
+
+    def delete(self, *keys):
+        # XXX we have 4 delete method (on series, kvseries, collection
+        # and repo), we should get rid of some
+
+        # Create a frame with all the existing keys contained
+        # between max and min of keys
+        if not keys:
+            return
+
+        # XXX use changelog pack ?
+        start, stop = min(keys), max(keys)
+        frm = self[start:stop].frame(closed=&#34;both&#34;)
+        # Keep only keys not given as argument
+        # FIXME use frame.mask to filter it
+        items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
+        if len(items) == 0:
+            new_frm = self.schema.cast()
+        else:
+            keep_keys, keep_meta = zip(*items)
+            new_frm = {
+                &#34;label&#34;: keep_keys,
+                &#34;meta&#34;: keep_meta,
+            }
+        # Write result to db
+        self.write(new_frm, start=start, stop=stop)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="lakota.series.KVSeries"><code class="flex name class">
+<span>class <span class="ident">KVSeries</span></span>
+<span>(</span><span>label, collection)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Combine a pod and a changelog to provide a versioned and
+concurrent management of series.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class KVSeries(Series):
+    def write(self, frame, start=None, stop=None, root=False, batch=False):
+        if root or not (start is None is stop):
+            return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+
+        if not isinstance(frame, Frame):
+            frame = Frame(self.schema, frame).sorted()
+
+        start = self.schema.row(frame, pos=0, full=False)
+        stop = self.schema.row(frame, pos=-1, full=False)
+        segments = self.segments(start, stop, closed=&#34;both&#34;)
+        db_frm = Frame.from_segments(
+            self.schema, segments
+        )  # Maybe paginate on large results
+
+        if db_frm.empty:
+            return super().write(frame, batch=batch)
+
+        if db_frm == frame:
+            # Nothing to do
+            return
+
+        # Concat both frame and reduce it
+        new_frm = Frame.concat(frame, db_frm)
+        reduce_kw = {c: c for c in self.schema.idx}
+        non_idx = [c for c in self.schema if c not in self.schema.idx]
+        reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
+        new_frm = new_frm.reduce(**reduce_kw)
+        return super().write(new_frm, batch=batch)
+
+    def delete(self, *keys):
+        # XXX we have 4 delete method (on series, kvseries, collection
+        # and repo), we should get rid of some
+
+        # Create a frame with all the existing keys contained
+        # between max and min of keys
+        if not keys:
+            return
+
+        # XXX use changelog pack ?
+        start, stop = min(keys), max(keys)
+        frm = self[start:stop].frame(closed=&#34;both&#34;)
+        # Keep only keys not given as argument
+        # FIXME use frame.mask to filter it
+        items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
+        if len(items) == 0:
+            new_frm = self.schema.cast()
+        else:
+            keep_keys, keep_meta = zip(*items)
+            new_frm = {
+                &#34;label&#34;: keep_keys,
+                &#34;meta&#34;: keep_meta,
+            }
+        # Write result to db
+        self.write(new_frm, start=start, stop=stop)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="lakota.series.Series" href="#lakota.series.Series">Series</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.series.KVSeries.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, *keys)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, *keys):
+    # XXX we have 4 delete method (on series, kvseries, collection
+    # and repo), we should get rid of some
+
+    # Create a frame with all the existing keys contained
+    # between max and min of keys
+    if not keys:
+        return
+
+    # XXX use changelog pack ?
+    start, stop = min(keys), max(keys)
+    frm = self[start:stop].frame(closed=&#34;both&#34;)
+    # Keep only keys not given as argument
+    # FIXME use frame.mask to filter it
+    items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
+    if len(items) == 0:
+        new_frm = self.schema.cast()
+    else:
+        keep_keys, keep_meta = zip(*items)
+        new_frm = {
+            &#34;label&#34;: keep_keys,
+            &#34;meta&#34;: keep_meta,
+        }
+    # Write result to db
+    self.write(new_frm, start=start, stop=stop)</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.KVSeries.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False, batch=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(self, frame, start=None, stop=None, root=False, batch=False):
+    if root or not (start is None is stop):
+        return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+
+    if not isinstance(frame, Frame):
+        frame = Frame(self.schema, frame).sorted()
+
+    start = self.schema.row(frame, pos=0, full=False)
+    stop = self.schema.row(frame, pos=-1, full=False)
+    segments = self.segments(start, stop, closed=&#34;both&#34;)
+    db_frm = Frame.from_segments(
+        self.schema, segments
+    )  # Maybe paginate on large results
+
+    if db_frm.empty:
+        return super().write(frame, batch=batch)
+
+    if db_frm == frame:
+        # Nothing to do
+        return
+
+    # Concat both frame and reduce it
+    new_frm = Frame.concat(frame, db_frm)
+    reduce_kw = {c: c for c in self.schema.idx}
+    non_idx = [c for c in self.schema if c not in self.schema.idx]
+    reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
+    new_frm = new_frm.reduce(**reduce_kw)
+    return super().write(new_frm, batch=batch)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="lakota.series.Series" href="#lakota.series.Series">Series</a></b></code>:
+<ul class="hlist">
+<li><code><a title="lakota.series.Series.interval" href="#lakota.series.Series.interval">interval</a></code></li>
+<li><code><a title="lakota.series.Series.period" href="#lakota.series.Series.period">period</a></code></li>
+<li><code><a title="lakota.series.Series.segments" href="#lakota.series.Series.segments">segments</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="lakota.series.Series"><code class="flex name class">
+<span>class <span class="ident">Series</span></span>
+<span>(</span><span>label, collection)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Combine a pod and a changelog to provide a versioned and
+concurrent management of series.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Series:
+    &#34;&#34;&#34;
+    Combine a pod and a changelog to provide a versioned and
+    concurrent management of series.
+    &#34;&#34;&#34;
+
+    def __init__(self, label, collection):
+        self.collection = collection
+        self.schema = collection.schema
+        self.pod = collection.pod
+        self.changelog = collection.changelog
+        self.label = label
+
+    def refresh(self):
+        self.changelog.refresh()
+
+    def segments(
+        self,
+        start=None,
+        stop=None,
+        before=None,
+        closed=&#34;left&#34;,
+    ):
+        &#34;&#34;&#34;
+        Find matching segments
+        &#34;&#34;&#34;
+        leaf_rev = self.changelog.leaf(before=before)
+        if not leaf_rev:
+            return
+
+        leaf_ci = leaf_rev.commit(self.collection)
+        # TODO pass closed to call hereunder
+        return leaf_ci.segments(self.label, self.pod, start, stop)
+
+    def period(self, rev):
+        &#34;&#34;&#34;
+        Return average period (time delta between two tic) of a given revision
+        &#34;&#34;&#34;
+        start = self.schema.deserialize(rev[&#34;start&#34;])[0]
+        stop = self.schema.deserialize(rev[&#34;stop&#34;])[0]
+        span = stop - start
+        # span is a timedelta64
+        span = span.item().total_seconds()
+        return span / rev[&#34;len&#34;]
+
+    def interval(self, size=500_000):
+        &#34;&#34;&#34;
+        Find smallest natural partition that will fit `size` items
+        &#34;&#34;&#34;
+        schema = self.schema
+        head_col = next(iter(schema.idx))
+        assert issubdtype(schema[head_col].codec.dt, &#34;datetime64&#34;)
+
+        revisions = self.changelog.log()
+        if not revisions:
+            return None
+        min_period = min(self.period(rev) for rev in revisions)
+        target = min_period * size
+        return Interval.bisect(target)
+
+    def delete(self, root=False, batch=False):
+        rev_info = {
+            &#34;tombstone&#34;: True,
+            &#34;epoch&#34;: time(),
+            &#34;label&#34;: self.label,
+        }
+        key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
+        if batch:
+            batch.append(rev_info, key)
+
+        force_parent = phi if root else None
+        commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
+        return commit
+
+    def write(self, frame, start=None, stop=None, root=False, batch=False):
+        # Each commit is like a frame. A row in this frame represent a
+        # write (aka a segment) and contains one digest per series
+        # column + 2*N extra columns that encode start-stop values (N
+        # being the number of index columns of the series) + a column
+        # containing the series name (like that we can write all the
+        # series in one commit)
+
+        if not isinstance(frame, Frame):
+            frame = Frame(self.schema, self.schema.cast(frame))
+
+        # Make sure frame is sorted
+        sort_mask = frame.argsort()
+        assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
+
+        # TODO assert all columns have the same length
+
+        # Save segments
+        all_dig = []
+        with Pool() as pool:
+            for name in self.schema:
+                arr = self.schema[name].cast(frame[name])
+                data = self.schema[name].codec.encode(arr)
+                digest = hexdigest(data)
+                all_dig.append(digest)
+                folder, filename = hashed_path(digest)
+                pool.submit(self.pod.cd(folder).write, filename, data)
+
+        # Build commit info
+        start = start or frame.start()  # XXX Use numpy.quantile ?
+        stop = stop or frame.stop()
+        if not isinstance(start, tuple):
+            start = (start,)
+        if not isinstance(stop, tuple):
+            stop = (stop,)
+
+        # Create new digest
+        if batch:
+            ci_info = (self.label, start, stop, all_dig, len(frame))
+            batch.append(ci_info)
+            return
+        self.commit(start, stop, all_dig, len(frame), root=root)
+
+    def commit(self, start, stop, all_dig, length, root=False):
+        # root force commit on phi
+        leaf_rev = None if root else self.changelog.leaf()
+
+        # Combine with last commit
+        if leaf_rev:
+            leaf_ci = leaf_rev.commit(self.collection)
+            new_ci = leaf_ci.update(self.label, start, stop, all_dig, length)
+            # TODO early return if new_ci == leaf_ci
+        else:
+            new_ci = Commit.one(self.schema, self.label, start, stop, all_dig, length)
+
+        payload = new_ci.encode()
+        parent = leaf_rev.child if leaf_rev else phi
+        return self.changelog.commit(payload, parents=[parent])
+
+    def __getitem__(self, by):
+        return Query(self)[by]
+
+    def __matmul__(self, by):
+        return Query(self) @ by
+
+    def __len__(self):
+        return len(Query(self, select=list(self.schema.idx)))
+
+    def paginate(self, step=100_000, **kw):
+        return Query(self).paginate(step=step, **kw)
+
+    def frame(self, **kw):
+        return Query(self, **kw).frame()
+
+    def read(self, **kw):
+        return Query(self, **kw).frame()
+
+    def df(self, **kw):
+        return Query(self, **kw).df()</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="lakota.series.KVSeries" href="#lakota.series.KVSeries">KVSeries</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.series.Series.commit"><code class="name flex">
+<span>def <span class="ident">commit</span></span>(<span>self, start, stop, all_dig, length, root=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def commit(self, start, stop, all_dig, length, root=False):
+    # root force commit on phi
+    leaf_rev = None if root else self.changelog.leaf()
+
+    # Combine with last commit
+    if leaf_rev:
+        leaf_ci = leaf_rev.commit(self.collection)
+        new_ci = leaf_ci.update(self.label, start, stop, all_dig, length)
+        # TODO early return if new_ci == leaf_ci
+    else:
+        new_ci = Commit.one(self.schema, self.label, start, stop, all_dig, length)
+
+    payload = new_ci.encode()
+    parent = leaf_rev.child if leaf_rev else phi
+    return self.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, root=False, batch=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, root=False, batch=False):
+    rev_info = {
+        &#34;tombstone&#34;: True,
+        &#34;epoch&#34;: time(),
+        &#34;label&#34;: self.label,
+    }
+    key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
+    if batch:
+        batch.append(rev_info, key)
+
+    force_parent = phi if root else None
+    commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
+    return commit</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.df"><code class="name flex">
+<span>def <span class="ident">df</span></span>(<span>self, **kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def df(self, **kw):
+    return Query(self, **kw).df()</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.frame"><code class="name flex">
+<span>def <span class="ident">frame</span></span>(<span>self, **kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def frame(self, **kw):
+    return Query(self, **kw).frame()</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.interval"><code class="name flex">
+<span>def <span class="ident">interval</span></span>(<span>self, size=500000)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Find smallest natural partition that will fit <code>size</code> items</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def interval(self, size=500_000):
+    &#34;&#34;&#34;
+    Find smallest natural partition that will fit `size` items
+    &#34;&#34;&#34;
+    schema = self.schema
+    head_col = next(iter(schema.idx))
+    assert issubdtype(schema[head_col].codec.dt, &#34;datetime64&#34;)
+
+    revisions = self.changelog.log()
+    if not revisions:
+        return None
+    min_period = min(self.period(rev) for rev in revisions)
+    target = min_period * size
+    return Interval.bisect(target)</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.paginate"><code class="name flex">
+<span>def <span class="ident">paginate</span></span>(<span>self, step=100000, **kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def paginate(self, step=100_000, **kw):
+    return Query(self).paginate(step=step, **kw)</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.period"><code class="name flex">
+<span>def <span class="ident">period</span></span>(<span>self, rev)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return average period (time delta between two tic) of a given revision</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def period(self, rev):
+    &#34;&#34;&#34;
+    Return average period (time delta between two tic) of a given revision
+    &#34;&#34;&#34;
+    start = self.schema.deserialize(rev[&#34;start&#34;])[0]
+    stop = self.schema.deserialize(rev[&#34;stop&#34;])[0]
+    span = stop - start
+    # span is a timedelta64
+    span = span.item().total_seconds()
+    return span / rev[&#34;len&#34;]</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.read"><code class="name flex">
+<span>def <span class="ident">read</span></span>(<span>self, **kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read(self, **kw):
+    return Query(self, **kw).frame()</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.refresh"><code class="name flex">
+<span>def <span class="ident">refresh</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def refresh(self):
+    self.changelog.refresh()</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.segments"><code class="name flex">
+<span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='left')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Find matching segments</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def segments(
+    self,
+    start=None,
+    stop=None,
+    before=None,
+    closed=&#34;left&#34;,
+):
+    &#34;&#34;&#34;
+    Find matching segments
+    &#34;&#34;&#34;
+    leaf_rev = self.changelog.leaf(before=before)
+    if not leaf_rev:
+        return
+
+    leaf_ci = leaf_rev.commit(self.collection)
+    # TODO pass closed to call hereunder
+    return leaf_ci.segments(self.label, self.pod, start, stop)</code></pre>
+</details>
+</dd>
+<dt id="lakota.series.Series.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False, batch=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(self, frame, start=None, stop=None, root=False, batch=False):
+    # Each commit is like a frame. A row in this frame represent a
+    # write (aka a segment) and contains one digest per series
+    # column + 2*N extra columns that encode start-stop values (N
+    # being the number of index columns of the series) + a column
+    # containing the series name (like that we can write all the
+    # series in one commit)
+
+    if not isinstance(frame, Frame):
+        frame = Frame(self.schema, self.schema.cast(frame))
+
+    # Make sure frame is sorted
+    sort_mask = frame.argsort()
+    assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
+
+    # TODO assert all columns have the same length
+
+    # Save segments
+    all_dig = []
+    with Pool() as pool:
+        for name in self.schema:
+            arr = self.schema[name].cast(frame[name])
+            data = self.schema[name].codec.encode(arr)
+            digest = hexdigest(data)
+            all_dig.append(digest)
+            folder, filename = hashed_path(digest)
+            pool.submit(self.pod.cd(folder).write, filename, data)
+
+    # Build commit info
+    start = start or frame.start()  # XXX Use numpy.quantile ?
+    stop = stop or frame.stop()
+    if not isinstance(start, tuple):
+        start = (start,)
+    if not isinstance(stop, tuple):
+        stop = (stop,)
+
+    # Create new digest
+    if batch:
+        ci_info = (self.label, start, stop, all_dig, len(frame))
+        batch.append(ci_info)
+        return
+    self.commit(start, stop, all_dig, len(frame), root=root)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="lakota.series.KVSeries" href="#lakota.series.KVSeries">KVSeries</a></code></h4>
+<ul class="">
+<li><code><a title="lakota.series.KVSeries.delete" href="#lakota.series.KVSeries.delete">delete</a></code></li>
+<li><code><a title="lakota.series.KVSeries.write" href="#lakota.series.KVSeries.write">write</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.series.Series" href="#lakota.series.Series">Series</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.series.Series.commit" href="#lakota.series.Series.commit">commit</a></code></li>
+<li><code><a title="lakota.series.Series.delete" href="#lakota.series.Series.delete">delete</a></code></li>
+<li><code><a title="lakota.series.Series.df" href="#lakota.series.Series.df">df</a></code></li>
+<li><code><a title="lakota.series.Series.frame" href="#lakota.series.Series.frame">frame</a></code></li>
+<li><code><a title="lakota.series.Series.interval" href="#lakota.series.Series.interval">interval</a></code></li>
+<li><code><a title="lakota.series.Series.paginate" href="#lakota.series.Series.paginate">paginate</a></code></li>
+<li><code><a title="lakota.series.Series.period" href="#lakota.series.Series.period">period</a></code></li>
+<li><code><a title="lakota.series.Series.read" href="#lakota.series.Series.read">read</a></code></li>
+<li><code><a title="lakota.series.Series.refresh" href="#lakota.series.Series.refresh">refresh</a></code></li>
+<li><code><a title="lakota.series.Series.segments" href="#lakota.series.Series.segments">segments</a></code></li>
+<li><code><a title="lakota.series.Series.write" href="#lakota.series.Series.write">write</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
