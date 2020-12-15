@@ -62,9 +62,6 @@ class Series:
         self.changelog = collection.changelog
         self.label = label
 
-    def refresh(self):
-        self.changelog.refresh()
-
     def segments(
         self,
         start=None,
@@ -256,7 +253,7 @@ class Query:
         offset = qr.params.get(&#34;offset&#34;)
         select = qr.params.get(&#34;select&#34;)
         return Frame.from_segments(
-            qr.series.schema, segments, limit=limit, offset=offset, select=select
+            qr.series.schema, segments, limit=limit, offset=offset, select=select,
         )
 
     def df(self, **kw):
@@ -533,9 +530,6 @@ concurrent management of series.</p></div>
         self.pod = collection.pod
         self.changelog = collection.changelog
         self.label = label
-
-    def refresh(self):
-        self.changelog.refresh()
 
     def segments(
         self,
@@ -829,19 +823,6 @@ concurrent management of series.</p></div>
     return Query(self, **kw).frame()</code></pre>
 </details>
 </dd>
-<dt id="lakota.series.Series.refresh"><code class="name flex">
-<span>def <span class="ident">refresh</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def refresh(self):
-    self.changelog.refresh()</code></pre>
-</details>
-</dd>
 <dt id="lakota.series.Series.segments"><code class="name flex">
 <span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='left')</span>
 </code></dt>
@@ -959,7 +940,6 @@ concurrent management of series.</p></div>
 <li><code><a title="lakota.series.Series.paginate" href="#lakota.series.Series.paginate">paginate</a></code></li>
 <li><code><a title="lakota.series.Series.period" href="#lakota.series.Series.period">period</a></code></li>
 <li><code><a title="lakota.series.Series.read" href="#lakota.series.Series.read">read</a></code></li>
-<li><code><a title="lakota.series.Series.refresh" href="#lakota.series.Series.refresh">refresh</a></code></li>
 <li><code><a title="lakota.series.Series.segments" href="#lakota.series.Series.segments">segments</a></code></li>
 <li><code><a title="lakota.series.Series.write" href="#lakota.series.Series.write">write</a></code></li>
 </ul>

@@ -28,6 +28,8 @@
 Git. This changelog provides: historisation, concurrency control and
 ease of synchronisation across different storage backends.</p>
 <h2 id="quickstart">Quickstart</h2>
+<p>Install with <code>pip install <a title="lakota" href="#lakota">lakota</a></code></p>
+<p>You can then run:</p>
 <pre><code class="language-python">from lakota import Repo, Schema
 
 ts_schema = Schema([&quot;timestamp timestamp*&quot;, &quot;value float&quot;])
@@ -53,8 +55,12 @@ print(df)
 # 1 2020-01-02    2.0
 # 2 2020-01-03    3.0
 </code></pre>
-<p>See <code><a title="lakota.repo" href="repo.html">lakota.repo</a></code> on how to create a repository and define collections.</p>
-<p>See <code><a title="lakota.schema" href="schema.html">lakota.schema</a></code> on how to define a schema.</p>
+<p>See <code><a title="lakota.repo" href="repo.html">lakota.repo</a></code> and <code><a title="lakota.schema" href="schema.html">lakota.schema</a></code> on how to create a repository
+and define collections.</p>
+<p>See <code><a title="lakota.collection" href="collection.html">lakota.collection</a></code> and <code><a title="lakota.series" href="series.html">lakota.series</a></code> on how to create series
+and read/write data.</p>
+<p><code><a title="lakota.commit" href="commit.html">lakota.commit</a></code> and <code><a title="lakota.changelog" href="changelog.html">lakota.changelog</a></code> document how data is organised
+into files and directories.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -68,7 +74,12 @@ Lakota organises reads and writes through a changelog inspired by
 Git. This changelog provides: historisation, concurrency control and
 ease of synchronisation across different storage backends.
 
+
 ## Quickstart
+
+Install with `pip install lakota`
+
+You can then run:
 
 ``` python
 from lakota import Repo, Schema
@@ -97,10 +108,14 @@ print(df)
 # 2 2020-01-03    3.0
 ```
 
-See `lakota.repo` on how to create a repository and define collections.
+See `lakota.repo` and `lakota.schema` on how to create a repository
+and define collections.
 
-See `lakota.schema` on how to define a schema.
+See `lakota.collection` and `lakota.series` on how to create series
+and read/write data.
 
+`lakota.commit` and `lakota.changelog` document how data is organised
+into files and directories.
 &#34;&#34;&#34;
 
 from .changelog import *
@@ -127,13 +142,13 @@ __version__ = &#34;0.3&#34;</code></pre>
 </dd>
 <dt><code class="name"><a title="lakota.collection" href="collection.html">lakota.collection</a></code></dt>
 <dd>
-<div class="desc"><p>A collection is instantiated from a <code><a title="lakota.repo.Repo" href="repo.html#lakota.repo.Repo">Repo</a></code> object (see <code><a title="lakota.repo" href="repo.html">lakota.repo</a></code>):
-<code>python
-clct = repo / 'my_collection'</code> …</p></div>
+<div class="desc"><p>Read and Writes Series …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.commit" href="commit.html">lakota.commit</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>The <code>Commit</code> class is responsible to structure the content of a
+commit file. A commit is like a sorted dataframe with the following
+columns: <code>label</code>, …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.frame" href="frame.html">lakota.frame</a></code></dt>
 <dd>
@@ -145,14 +160,7 @@ clct = repo / 'my_collection'</code> …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.repo" href="repo.html">lakota.repo</a></code></dt>
 <dd>
-<div class="desc"><p>Create a <code>Repo</code> instance:
-```python
-in-memory
-repo = Repo()
-repo = Repo("memory://")
-From a local directory
-repo = Repo('some/local/path')
-repo = …</p></div>
+<div class="desc"><p>Create and access collections …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.schema" href="schema.html">lakota.schema</a></code></dt>
 <dd>

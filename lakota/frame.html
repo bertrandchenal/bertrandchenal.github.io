@@ -41,7 +41,7 @@ try:
 except ImportError:
     DataFrame = None
 
-__all__ = [&#39;Frame&#39;]
+__all__ = [&#34;Frame&#34;]
 
 
 class Frame:
@@ -339,101 +339,7 @@ class Frame:
         res = []
         for name in self:
             res.append(name + &#34;-&gt; &#34; + str(self[name]))
-        return &#34;\n&#34;.join(res)
-
-
-class ShallowSegment:
-    def __init__(self, schema, pod, digests, start, stop, length):
-        self.schema = schema
-        self.pod = pod
-        self.start = start
-        self.stop = stop
-        self.length = length
-        self.digest = dict(zip(schema, digests))
-        self._read = lru_cache(len(schema.columns))(self._read)
-
-    def slice(self, start, stop, closed=&#34;left&#34;):
-        assert stop &gt;= start
-        # empty_test contains any condition that would result in an empty segment
-        empty_test = [
-            start &gt; self.stop,
-            stop &lt; self.start,
-            start == self.stop and closed not in (&#34;both&#34;, &#34;left&#34;),
-            stop == self.start and closed not in (&#34;both&#34;, &#34;right&#34;),
-        ]
-        if any(empty_test):
-            return EmptySegment(start, stop, self.schema)
-
-        # skip_tests list contains all the tests that have to be true to
-        # _not_ do the slice and return self
-        skip_tests = (
-            [start &lt;= self.start]
-            if closed in (&#34;both&#34;, &#34;left&#34;)
-            else [start &lt; self.start]
-        )
-        skip_tests.append(
-            stop &gt;= self.stop if closed in (&#34;both&#34;, &#34;right&#34;) else stop &gt; self.stop
-        )
-        if all(skip_tests):
-            return self
-        else:
-            # Materialize arrays
-            frm = Frame(
-                self.schema,
-                {name: self.read(name) for name in self.schema},
-            )
-            # Compute slice and apply it
-            frm = frm.slice(*frm.index_slice(start, stop, closed=closed))
-            return Segment(start, stop, frm)
-
-    def __len__(self):
-        return self.length
-
-    def _read(self, name):
-        folder, filename = hashed_path(self.digest[name])
-        data = self.pod.cd(folder).read(filename)
-        return data
-
-    def read(self, name, start=None, stop=None):
-        data = self._read(name)
-        arr = self.schema[name].codec.decode(data)
-        if start is stop is None:
-            return arr
-        return arr[start:stop]
-
-    @property
-    def empty(self):
-        return self.length == 0
-
-
-class Segment:
-    def __init__(self, start, stop, frm):
-        self.start = start
-        self.stop = stop
-        self.frm = frm
-
-    def __len__(self):
-        return len(self.frm)
-
-    def read(self, name, start, stop):
-        return self.frm[name][start:stop]
-
-
-class EmptySegment:
-    def __init__(self, start, stop, schema):
-        self.start = start
-        self.stop = stop
-        self.schema = schema
-
-    def __len__(self):
-        return 0
-
-    def read(self, name, start, stop):
-        return self.schema[name].cast([])
-
-    @property
-    def empty(self):
-        return True</code></pre>
+        return &#34;\n&#34;.join(res)</code></pre>
 </details>
 </section>
 <section>

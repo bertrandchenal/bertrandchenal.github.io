@@ -37,7 +37,8 @@ zero_hextime = &#34;0&#34; * 11
 zero_hash = &#34;0&#34; * hexhash_len
 phi = f&#34;{zero_hextime}-{zero_hash}&#34;
 
-__all__ = [&#39;Changelog&#39;, &#39;Revision&#39;]
+__all__ = [&#34;Changelog&#34;, &#34;Revision&#34;]
+
 
 class Changelog:
 
@@ -47,7 +48,7 @@ class Changelog:
 
     def __init__(self, pod):
         self.pod = pod
-        self._walk_cache = None
+        self._log_cache = None
 
     def commit(self, payload, parents=None, _jitter=False):
         assert isinstance(payload, bytes)
@@ -86,7 +87,7 @@ class Changelog:
         return revs
 
     def refresh(self):
-        self._walk_cache = None
+        self._log_cache = None
 
     def __iter__(self):
         yield from self.pod.ls(missing_ok=True)
@@ -102,8 +103,16 @@ class Changelog:
 
     def log(self, before=None, from_parent=phi):
         &#34;&#34;&#34;
-        Re-Create a list of all the active revisions
+        Create a list of all the active revisions
         &#34;&#34;&#34;
+        if before is not None or from_parent != phi:
+            return self._log(before, from_parent)
+
+        if self._log_cache is None:
+            self._log_cache = list(self._log())
+        return self._log_cache
+
+    def _log(self, before=None, from_parent=phi):
         # Extract parent-&gt;children relations
         revisions = defaultdict(list)
         for name in sorted(self):
@@ -218,7 +227,7 @@ class Revision:
 
     def __init__(self, pod):
         self.pod = pod
-        self._walk_cache = None
+        self._log_cache = None
 
     def commit(self, payload, parents=None, _jitter=False):
         assert isinstance(payload, bytes)
@@ -257,7 +266,7 @@ class Revision:
         return revs
 
     def refresh(self):
-        self._walk_cache = None
+        self._log_cache = None
 
     def __iter__(self):
         yield from self.pod.ls(missing_ok=True)
@@ -273,8 +282,16 @@ class Revision:
 
     def log(self, before=None, from_parent=phi):
         &#34;&#34;&#34;
-        Re-Create a list of all the active revisions
+        Create a list of all the active revisions
         &#34;&#34;&#34;
+        if before is not None or from_parent != phi:
+            return self._log(before, from_parent)
+
+        if self._log_cache is None:
+            self._log_cache = list(self._log())
+        return self._log_cache
+
+    def _log(self, before=None, from_parent=phi):
         # Extract parent-&gt;children relations
         revisions = defaultdict(list)
         for name in sorted(self):
@@ -394,37 +411,21 @@ class Revision:
 <span>def <span class="ident">log</span></span>(<span>self, before=None, from_parent='00000000000-0000000000000000000000000000000000000000')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Re-Create a list of all the active revisions</p></div>
+<div class="desc"><p>Create a list of all the active revisions</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def log(self, before=None, from_parent=phi):
     &#34;&#34;&#34;
-    Re-Create a list of all the active revisions
+    Create a list of all the active revisions
     &#34;&#34;&#34;
-    # Extract parent-&gt;children relations
-    revisions = defaultdict(list)
-    for name in sorted(self):
-        parent, child = name.split(&#34;.&#34;)
-        if parent == child:
-            continue
-        revisions[parent].append(Revision(self, parent, child))
+    if before is not None or from_parent != phi:
+        return self._log(before, from_parent)
 
-    # Depth first traversal of the tree(see
-    # https://stackoverflow.com/a/5278667)
-    queue = list(reversed(revisions[from_parent]))
-    while queue:
-        rev = queue.pop()
-        # Append children
-        children = revisions[rev.child]
-        rev.is_leaf = not children
-        queue.extend(reversed(children))
-
-        # Yield
-        if before is not None and rev.epoch &gt;= before:
-            break
-        yield rev</code></pre>
+    if self._log_cache is None:
+        self._log_cache = list(self._log())
+    return self._log_cache</code></pre>
 </details>
 </dd>
 <dt id="lakota.changelog.Changelog.pull"><code class="name flex">
@@ -460,7 +461,7 @@ class Revision:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def refresh(self):
-    self._walk_cache = None</code></pre>
+    self._log_cache = None</code></pre>
 </details>
 </dd>
 </dl>
