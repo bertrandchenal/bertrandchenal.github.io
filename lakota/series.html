@@ -35,7 +35,7 @@ from .commit import Commit
 from .frame import Frame
 from .utils import Interval, Pool, encoder, hashed_path, hexdigest
 
-__all__ = [&#39;Series&#39;, &#39;KVSeries&#39;]
+__all__ = [&#34;Series&#34;, &#34;KVSeries&#34;]
 
 
 def intersect(revision, start, stop):
@@ -135,13 +135,16 @@ class Series:
         sort_mask = frame.argsort()
         assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
 
-        # TODO assert all columns have the same length
-
         # Save segments
         all_dig = []
+        arr_length = None
         with Pool() as pool:
             for name in self.schema:
                 arr = self.schema[name].cast(frame[name])
+                if arr_length is None:
+                    arr_length = len(arr)
+                elif len(arr) != arr_length:
+                    raise ValueError(&#34;Length mismatch&#34;)
                 data = self.schema[name].codec.encode(arr)
                 digest = hexdigest(data)
                 all_dig.append(digest)
@@ -192,9 +195,6 @@ class Series:
         return Query(self).paginate(step=step, **kw)
 
     def frame(self, **kw):
-        return Query(self, **kw).frame()
-
-    def read(self, **kw):
         return Query(self, **kw).frame()
 
     def df(self, **kw):
@@ -253,7 +253,11 @@ class Query:
         offset = qr.params.get(&#34;offset&#34;)
         select = qr.params.get(&#34;select&#34;)
         return Frame.from_segments(
-            qr.series.schema, segments, limit=limit, offset=offset, select=select,
+            qr.series.schema,
+            segments,
+            limit=limit,
+            offset=offset,
+            select=select,
         )
 
     def df(self, **kw):
@@ -604,13 +608,16 @@ concurrent management of series.</p></div>
         sort_mask = frame.argsort()
         assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
 
-        # TODO assert all columns have the same length
-
         # Save segments
         all_dig = []
+        arr_length = None
         with Pool() as pool:
             for name in self.schema:
                 arr = self.schema[name].cast(frame[name])
+                if arr_length is None:
+                    arr_length = len(arr)
+                elif len(arr) != arr_length:
+                    raise ValueError(&#34;Length mismatch&#34;)
                 data = self.schema[name].codec.encode(arr)
                 digest = hexdigest(data)
                 all_dig.append(digest)
@@ -661,9 +668,6 @@ concurrent management of series.</p></div>
         return Query(self).paginate(step=step, **kw)
 
     def frame(self, **kw):
-        return Query(self, **kw).frame()
-
-    def read(self, **kw):
         return Query(self, **kw).frame()
 
     def df(self, **kw):
@@ -810,19 +814,6 @@ concurrent management of series.</p></div>
     return span / rev[&#34;len&#34;]</code></pre>
 </details>
 </dd>
-<dt id="lakota.series.Series.read"><code class="name flex">
-<span>def <span class="ident">read</span></span>(<span>self, **kw)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def read(self, **kw):
-    return Query(self, **kw).frame()</code></pre>
-</details>
-</dd>
 <dt id="lakota.series.Series.segments"><code class="name flex">
 <span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='left')</span>
 </code></dt>
@@ -875,13 +866,16 @@ concurrent management of series.</p></div>
     sort_mask = frame.argsort()
     assert (sort_mask == arange(len(sort_mask))).all(), &#34;Dataframe is not sorted!&#34;
 
-    # TODO assert all columns have the same length
-
     # Save segments
     all_dig = []
+    arr_length = None
     with Pool() as pool:
         for name in self.schema:
             arr = self.schema[name].cast(frame[name])
+            if arr_length is None:
+                arr_length = len(arr)
+            elif len(arr) != arr_length:
+                raise ValueError(&#34;Length mismatch&#34;)
             data = self.schema[name].codec.encode(arr)
             digest = hexdigest(data)
             all_dig.append(digest)
@@ -939,7 +933,6 @@ concurrent management of series.</p></div>
 <li><code><a title="lakota.series.Series.interval" href="#lakota.series.Series.interval">interval</a></code></li>
 <li><code><a title="lakota.series.Series.paginate" href="#lakota.series.Series.paginate">paginate</a></code></li>
 <li><code><a title="lakota.series.Series.period" href="#lakota.series.Series.period">period</a></code></li>
-<li><code><a title="lakota.series.Series.read" href="#lakota.series.Series.read">read</a></code></li>
 <li><code><a title="lakota.series.Series.segments" href="#lakota.series.Series.segments">segments</a></code></li>
 <li><code><a title="lakota.series.Series.write" href="#lakota.series.Series.write">write</a></code></li>
 </ul>

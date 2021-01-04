@@ -133,7 +133,7 @@ timestamp,value
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#39;&#39;&#39;
+<pre><code class="python">&#34;&#34;&#34;
 The `Commit` class is responsible to structure the content of a
 commit file. A commit is like a sorted dataframe with the following
 columns: `label`, `start`, `stop`, `digest`, `length`, `closed`.
@@ -259,7 +259,7 @@ timestamp,value
 2020-06-27T00:00:00,30.1
 2020-06-28T00:00:00,29.2
 ```
-&#39;&#39;&#39;
+&#34;&#34;&#34;
 
 from threading import Lock
 
@@ -270,7 +270,8 @@ from .frame import Frame
 from .schema import Codec, Schema
 from .utils import hashed_path
 
-__all__ = [&#39;Commit&#39;, &#39;Segment&#39;]
+__all__ = [&#34;Commit&#34;, &#34;Segment&#34;]
+
 
 class Commit:
 
@@ -519,14 +520,14 @@ class Commit:
             arr_stop = tuple(arr[pos] for arr in self.stop.values())
             closed = self.closed[pos]
             if start:
-                if closed in (&#39;both&#39;, &#39;right&#39;) and start &gt; arr_stop:
+                if closed in (&#34;both&#34;, &#34;right&#34;) and start &gt; arr_stop:
                     continue
-                if closed in (&#39;None&#39;, &#39;left&#39;) and start &gt;= arr_stop:
+                if closed in (&#34;None&#34;, &#34;left&#34;) and start &gt;= arr_stop:
                     continue
             if stop:
-                if closed in (&#39;both&#39;, &#39;left&#39;) and stop &lt; arr_start:
+                if closed in (&#34;both&#34;, &#34;left&#34;) and stop &lt; arr_start:
                     continue
-                if closed in (None, &#39;right&#39;) and stop &lt;= arr_start:
+                if closed in (None, &#34;right&#34;) and stop &lt;= arr_start:
                     continue
 
             digest = [arr[pos] for arr in self.digest.values()]
@@ -878,14 +879,14 @@ class Segment:
             arr_stop = tuple(arr[pos] for arr in self.stop.values())
             closed = self.closed[pos]
             if start:
-                if closed in (&#39;both&#39;, &#39;right&#39;) and start &gt; arr_stop:
+                if closed in (&#34;both&#34;, &#34;right&#34;) and start &gt; arr_stop:
                     continue
-                if closed in (&#39;None&#39;, &#39;left&#39;) and start &gt;= arr_stop:
+                if closed in (&#34;None&#34;, &#34;left&#34;) and start &gt;= arr_stop:
                     continue
             if stop:
-                if closed in (&#39;both&#39;, &#39;left&#39;) and stop &lt; arr_start:
+                if closed in (&#34;both&#34;, &#34;left&#34;) and stop &lt; arr_start:
                     continue
-                if closed in (None, &#39;right&#39;) and stop &lt;= arr_start:
+                if closed in (None, &#34;right&#34;) and stop &lt;= arr_start:
                     continue
 
             digest = [arr[pos] for arr in self.digest.values()]
@@ -1148,14 +1149,14 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;both&#34;):
         arr_stop = tuple(arr[pos] for arr in self.stop.values())
         closed = self.closed[pos]
         if start:
-            if closed in (&#39;both&#39;, &#39;right&#39;) and start &gt; arr_stop:
+            if closed in (&#34;both&#34;, &#34;right&#34;) and start &gt; arr_stop:
                 continue
-            if closed in (&#39;None&#39;, &#39;left&#39;) and start &gt;= arr_stop:
+            if closed in (&#34;None&#34;, &#34;left&#34;) and start &gt;= arr_stop:
                 continue
         if stop:
-            if closed in (&#39;both&#39;, &#39;left&#39;) and stop &lt; arr_start:
+            if closed in (&#34;both&#34;, &#34;left&#34;) and stop &lt; arr_start:
                 continue
-            if closed in (None, &#39;right&#39;) and stop &lt;= arr_start:
+            if closed in (None, &#34;right&#34;) and stop &lt;= arr_start:
                 continue
 
         digest = [arr[pos] for arr in self.digest.values()]

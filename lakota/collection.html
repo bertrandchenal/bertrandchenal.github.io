@@ -55,7 +55,7 @@ clct.merge()
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#39;&#39;&#39;
+<pre><code class="python">&#34;&#34;&#34;
 ## Read and Writes Series
 
 A collection is instantiated from a `lakota.repo.Repo` object (see `lakota.repo`):
@@ -99,7 +99,7 @@ Squash remove past revisions
 ```python
 clct.squash()
 ```
-&#39;&#39;&#39;
+&#34;&#34;&#34;
 
 from collections import defaultdict
 from contextlib import contextmanager
@@ -109,7 +109,8 @@ from .changelog import Changelog, phi
 from .series import Commit, KVSeries, Series
 from .utils import Pool, hashed_path, logger
 
-__all__ = [&#39;Collection&#39;, &#39;Batch&#39;]
+__all__ = [&#34;Collection&#34;, &#34;Batch&#34;]
+
 
 class Collection:
     def __init__(self, label, schema, path, repo):
@@ -163,14 +164,13 @@ class Collection:
         &#34;&#34;&#34;
         assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
 
-        # TODO use local storage as cache for remote (when reading revisions)
         local_digs = set()
         local_digs.update(self.digests())
+        # TODO call changelog.pull _after_ the sync loop hereunder, the preserve consistency for concurrent reads
+
         self.changelog.pull(remote.changelog)
         self.refresh()
-        # XXX optionaly isolate local path not detected in the loop
-        # here-under (and return them at the end to let Repo.pull do
-        # the deletions) (but what about local history?)
+
         sync = lambda path: self.pod.write(path, remote.pod.read(path))
         with Pool() as pool:
             for dig in self.digests():
@@ -205,7 +205,8 @@ class Collection:
             if all(root in op for op in other_parents):
                 break
 
-        # Reify commits
+        # Reify commits, changelog.log is a depth first traversal, so
+        # the first head is also the oldest branch.
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
@@ -231,7 +232,7 @@ class Collection:
             queue.extend(parents)
             yield rev
 
-    def squash(self, archive=False):
+    def squash(self, archive=True):
         &#34;&#34;&#34;
         Remove all past revisions, collapse history into one or few large
         frames.
@@ -239,7 +240,7 @@ class Collection:
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch(phi) as batch:
+        with self.batch() as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -500,14 +501,13 @@ class Batch:
         &#34;&#34;&#34;
         assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
 
-        # TODO use local storage as cache for remote (when reading revisions)
         local_digs = set()
         local_digs.update(self.digests())
+        # TODO call changelog.pull _after_ the sync loop hereunder, the preserve consistency for concurrent reads
+
         self.changelog.pull(remote.changelog)
         self.refresh()
-        # XXX optionaly isolate local path not detected in the loop
-        # here-under (and return them at the end to let Repo.pull do
-        # the deletions) (but what about local history?)
+
         sync = lambda path: self.pod.write(path, remote.pod.read(path))
         with Pool() as pool:
             for dig in self.digests():
@@ -542,7 +542,8 @@ class Batch:
             if all(root in op for op in other_parents):
                 break
 
-        # Reify commits
+        # Reify commits, changelog.log is a depth first traversal, so
+        # the first head is also the oldest branch.
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
@@ -568,7 +569,7 @@ class Batch:
             queue.extend(parents)
             yield rev
 
-    def squash(self, archive=False):
+    def squash(self, archive=True):
         &#34;&#34;&#34;
         Remove all past revisions, collapse history into one or few large
         frames.
@@ -576,7 +577,7 @@ class Batch:
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch(phi) as batch:
+        with self.batch() as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -719,7 +720,8 @@ def batch(self, force_parent=None):
         if all(root in op for op in other_parents):
             break
 
-    # Reify commits
+    # Reify commits, changelog.log is a depth first traversal, so
+    # the first head is also the oldest branch.
     first_ci, *other_ci = [h.commit(self) for h in heads]
     root_ci = root.commit(self) if root else []
     # Pile all rows for all other commit into the first one
@@ -751,14 +753,13 @@ def batch(self, force_parent=None):
     &#34;&#34;&#34;
     assert isinstance(remote, Collection), &#34;A Collection instance is required&#34;
 
-    # TODO use local storage as cache for remote (when reading revisions)
     local_digs = set()
     local_digs.update(self.digests())
+    # TODO call changelog.pull _after_ the sync loop hereunder, the preserve consistency for concurrent reads
+
     self.changelog.pull(remote.changelog)
     self.refresh()
-    # XXX optionaly isolate local path not detected in the loop
-    # here-under (and return them at the end to let Repo.pull do
-    # the deletions) (but what about local history?)
+
     sync = lambda path: self.pod.write(path, remote.pod.read(path))
     with Pool() as pool:
         for dig in self.digests():
@@ -813,7 +814,7 @@ def batch(self, force_parent=None):
 </details>
 </dd>
 <dt id="lakota.collection.Collection.squash"><code class="name flex">
-<span>def <span class="ident">squash</span></span>(<span>self, archive=False)</span>
+<span>def <span class="ident">squash</span></span>(<span>self, archive=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Remove all past revisions, collapse history into one or few large
@@ -822,7 +823,7 @@ frames.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def squash(self, archive=False):
+<pre><code class="python">def squash(self, archive=True):
     &#34;&#34;&#34;
     Remove all past revisions, collapse history into one or few large
     frames.
@@ -830,7 +831,7 @@ frames.</p></div>
     step = 500_000
     all_labels = self.ls()
     # TODO run in parallel
-    with self.batch(phi) as batch:
+    with self.batch() as batch:
         for label in all_labels:
             logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
             # Re-write each series

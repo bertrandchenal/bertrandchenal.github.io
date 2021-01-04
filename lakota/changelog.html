@@ -27,6 +27,7 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">from collections import defaultdict
+from itertools import chain
 from random import random
 from time import sleep
 
@@ -101,29 +102,37 @@ class Changelog:
     def leafs(self):
         return [rev for rev in self.log() if rev.is_leaf]
 
-    def log(self, before=None, from_parent=phi):
+    def log(self, before=None):
         &#34;&#34;&#34;
         Create a list of all the active revisions
         &#34;&#34;&#34;
-        if before is not None or from_parent != phi:
-            return self._log(before, from_parent)
-
+        if before is not None:
+            return self._log(before)
         if self._log_cache is None:
             self._log_cache = list(self._log())
         return self._log_cache
 
-    def _log(self, before=None, from_parent=phi):
+    def _log(self, before=None):
         # Extract parent-&gt;children relations
         revisions = defaultdict(list)
+        all_children = set()
         for name in sorted(self):
             parent, child = name.split(&#34;.&#34;)
             if parent == child:
                 continue
+            all_children.add(child)
             revisions[parent].append(Revision(self, parent, child))
+
+        # `revision` is sorted low to high (because filled based on
+        # `sorted(self)`, so `queue` is sorted too (high to low). So
+        # the last revision to be yield is the last child of the
+        # oldest branch (aka oldest parent)
+        parent_revs = [r for r in revisions if r not in all_children]
+        first_gen = list(chain.from_iterable(revisions[p] for p in parent_revs))
+        queue = list(reversed(first_gen))
 
         # Depth first traversal of the tree(see
         # https://stackoverflow.com/a/5278667)
-        queue = list(reversed(revisions[from_parent]))
         while queue:
             rev = queue.pop()
             # Append children
@@ -135,8 +144,6 @@ class Changelog:
             if before is not None and rev.epoch &gt;= before:
                 break
             yield rev
-
-        # TODO detect dangling roots
 
     def pull(self, remote):
         new_paths = []
@@ -280,29 +287,37 @@ class Revision:
     def leafs(self):
         return [rev for rev in self.log() if rev.is_leaf]
 
-    def log(self, before=None, from_parent=phi):
+    def log(self, before=None):
         &#34;&#34;&#34;
         Create a list of all the active revisions
         &#34;&#34;&#34;
-        if before is not None or from_parent != phi:
-            return self._log(before, from_parent)
-
+        if before is not None:
+            return self._log(before)
         if self._log_cache is None:
             self._log_cache = list(self._log())
         return self._log_cache
 
-    def _log(self, before=None, from_parent=phi):
+    def _log(self, before=None):
         # Extract parent-&gt;children relations
         revisions = defaultdict(list)
+        all_children = set()
         for name in sorted(self):
             parent, child = name.split(&#34;.&#34;)
             if parent == child:
                 continue
+            all_children.add(child)
             revisions[parent].append(Revision(self, parent, child))
+
+        # `revision` is sorted low to high (because filled based on
+        # `sorted(self)`, so `queue` is sorted too (high to low). So
+        # the last revision to be yield is the last child of the
+        # oldest branch (aka oldest parent)
+        parent_revs = [r for r in revisions if r not in all_children]
+        first_gen = list(chain.from_iterable(revisions[p] for p in parent_revs))
+        queue = list(reversed(first_gen))
 
         # Depth first traversal of the tree(see
         # https://stackoverflow.com/a/5278667)
-        queue = list(reversed(revisions[from_parent]))
         while queue:
             rev = queue.pop()
             # Append children
@@ -314,8 +329,6 @@ class Revision:
             if before is not None and rev.epoch &gt;= before:
                 break
             yield rev
-
-        # TODO detect dangling roots
 
     def pull(self, remote):
         new_paths = []
@@ -408,7 +421,7 @@ class Revision:
 </details>
 </dd>
 <dt id="lakota.changelog.Changelog.log"><code class="name flex">
-<span>def <span class="ident">log</span></span>(<span>self, before=None, from_parent='00000000000-0000000000000000000000000000000000000000')</span>
+<span>def <span class="ident">log</span></span>(<span>self, before=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create a list of all the active revisions</p></div>
@@ -416,13 +429,12 @@ class Revision:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def log(self, before=None, from_parent=phi):
+<pre><code class="python">def log(self, before=None):
     &#34;&#34;&#34;
     Create a list of all the active revisions
     &#34;&#34;&#34;
-    if before is not None or from_parent != phi:
-        return self._log(before, from_parent)
-
+    if before is not None:
+        return self._log(before)
     if self._log_cache is None:
         self._log_cache = list(self._log())
     return self._log_cache</code></pre>

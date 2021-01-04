@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.9.2" />
 <title>lakota.repo API documentation</title>
-<meta name="description" content="Create and access collections …" />
+<meta name="description" content="The `Repo` class manage the organisation of a storage location. It
+provides creation and deletion of collections, synchronization with
+remote …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,7 +24,10 @@
 <h1 class="title">Module <code>lakota.repo</code></h1>
 </header>
 <section id="section-intro">
-<h2 id="create-and-access-collections">Create and access collections</h2>
+<p>The <code><a title="lakota.repo.Repo" href="#lakota.repo.Repo">Repo</a></code> class manage the organisation of a storage location. It
+provides creation and deletion of collections, synchronization with
+remote repositories and garbage collection.</p>
+<h2 id="create-repositories">Create repositories</h2>
 <p>Create a <code><a title="lakota.repo.Repo" href="#lakota.repo.Repo">Repo</a></code> instance:</p>
 <pre><code class="language-python"># in-memory
 repo = Repo()
@@ -36,6 +41,18 @@ repo = Repo('s3://my_bucket')
 repo = Repo('memory://+s3://my_bucket')
 repo = Repo('file:///tmp/local_cache+s3://my_bucket')
 </code></pre>
+<p>S3 authentication is handled by
+<a href="https://s3fs.readthedocs.io/en/latest/#credentials" title="s3fs credentials">s3fs</a>. So you can either put your credentials in a
+configuration files or in environment variables. If it's not possible,
+you can still pass them as arguments:</p>
+<pre><code class="language-python">pod = POD.from_uri('s3://bucket_name', key=key, secret=secret, token=token)
+repo = Repo(pod=pod)
+</code></pre>
+<p>Similarly, you can use a compatible service through the <code>endpoint_url</code> parameter:</p>
+<pre><code class="language-python">pod = POD.from_uri('s3://bucket_name', endpoint_url='http://127.0.0.1:5300')
+repo = Repo(pod=pod)
+</code></pre>
+<h2 id="access-collections">Access collections</h2>
 <p>Create one or several collections:</p>
 <pre><code class="language-python"># Define schema
 schema = Schema(
@@ -70,7 +87,13 @@ the <code>gc</code> method, which returns the number of deleted files.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">&#39;&#39;&#39;
-## Create and access collections
+
+The `Repo` class manage the organisation of a storage location. It
+provides creation and deletion of collections, synchronization with
+remote repositories and garbage collection.
+
+
+## Create repositories
 
 Create a `Repo` instance:
 ```python
@@ -86,6 +109,26 @@ repo = Repo(&#39;s3://my_bucket&#39;)
 repo = Repo(&#39;memory://+s3://my_bucket&#39;)
 repo = Repo(&#39;file:///tmp/local_cache+s3://my_bucket&#39;)
 ```
+
+S3 authentication is handled by
+[s3fs](https://s3fs.readthedocs.io/en/latest/#credentials &#34;s3fs
+credentials&#34;). So you can either put your credentials in a
+configuration files or in environment variables. If it&#39;s not possible,
+you can still pass them as arguments:
+
+```python
+pod = POD.from_uri(&#39;s3://bucket_name&#39;, key=key, secret=secret, token=token)
+repo = Repo(pod=pod)
+```
+
+Similarly, you can use a compatible service through the `endpoint_url` parameter:
+
+```python
+pod = POD.from_uri(&#39;s3://bucket_name&#39;, endpoint_url=&#39;http://127.0.0.1:5300&#39;)
+repo = Repo(pod=pod)
+```
+
+## Access collections
 
 Create one or several collections:
 ```python
@@ -134,29 +177,20 @@ from .pod import POD
 from .schema import Schema
 from .utils import Pool, hashed_path, hexdigest, logger
 
-__all__ = [&#39;Repo&#39;]
+__all__ = [&#34;Repo&#34;]
+
 
 class Repo:
-    &#39;&#39;&#39;
-    The `Repo` class manage the organisation of a storage location. It
-    provides creation and deletion of collections, synchronization
-    with remote repositories and garbage collection.
-    &#39;&#39;&#39;
     schema = Schema([&#34;label str*&#34;, &#34;meta O&#34;], kind=&#34;kv&#34;)
 
     def __init__(self, uri=None, pod=None):
-        &#39;&#39;&#39;
-        Usually a repo object can be created based on a uri, like this:
-        ```python
-        repo = Repo(&#39;file://some/dir&#39;)
-        ```
-        It also accept a `POD` object:
-        ```python
-        pod = POD.from_uri(&#39;s3://a-bucket-id&#39;)
-        repo = Repo(pod=pod)
-        ```
+        &#34;&#34;&#34;
+        `uri`
+        : a string representing a storage location
 
-        &#39;&#39;&#39;
+        `pod`
+        : a `lakota.pod.POD` instance
+        &#34;&#34;&#34;
         pod = pod or POD.from_uri(uri)
         folder, filename = hashed_path(zero_hash)
         self.pod = pod
@@ -170,9 +204,6 @@ class Repo:
 
     def __iter__(self):
         return iter(self.ls())
-
-    def push(self, remote, *labels):
-        return remote.pull(self, *labels)
 
     def search(self, label=None, mode=None):
         if label:
@@ -211,6 +242,16 @@ class Repo:
         return self.reify(label, meta)
 
     def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+        &#34;&#34;&#34;
+        `schema`
+        : A `lakota.schema.Schema` instance
+
+        `labels`
+        : One or more collection name
+
+        `raise_if_exists`
+        : Raise an exception if the label is already present
+        &#34;&#34;&#34;
         assert isinstance(
             schema, Schema
         ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
@@ -257,6 +298,13 @@ class Repo:
         return self.create_collection(collection.schema, label, mode=&#34;archive&#34;)
 
     def delete(self, *labels):
+        &#34;&#34;&#34;
+        Delete one or more collections
+
+        `*labels`
+        : Strings, names of the collection do delete
+
+        &#34;&#34;&#34;
         to_remove = []
         for l in labels:
             clct = self.collection(l)
@@ -273,7 +321,27 @@ class Repo:
     def refresh(self):
         self.collection_series.refresh()
 
+    def push(self, remote, *labels):
+        &#34;&#34;&#34;
+        Push local revisions (and related segments) to `remote` Repo.
+        `remote`
+        : A `lakota.repo.Repo` instance
+
+        `labels`
+        : The collections to push. If not given, all collections are pushed
+        &#34;&#34;&#34;
+        return remote.pull(self, *labels)
+
     def pull(self, remote, *labels):
+        &#34;&#34;&#34;
+        Pull revisions from `remote` Repo (and related segments).
+        `remote`
+        : A `lakota.repo.Repo` instance
+
+        `labels`
+        : The collections to pull. If not given, all collections are pulled
+        &#34;&#34;&#34;
+
         assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
         # Pull registry
         self.registry.pull(remote.registry)
@@ -297,9 +365,15 @@ class Repo:
                             &#34;incompatible meta-info.&#34;
                         )
                         raise ValueError(msg)
-                pool.submit(l_clct.pull, r_clct)
+                pool.submit(
+                    l_clct.pull, r_clct
+                )  # TODO invert the work (call collection.pull first and then self.create_collection) to show consistent state to concurrent reads
 
     def merge(self):
+        &#34;&#34;&#34;
+        Merge repository registry. Needed when collections have been created
+        or deleted concurrently.
+        &#34;&#34;&#34;
         return self.registry.merge()
 
     def gc(self):
@@ -318,11 +392,11 @@ class Repo:
         base_folders = self.pod.ls()
         with Pool(8) as pool:
             for folder in base_folders:
-                pool.submit(self.gc_folder, folder, active_digests)
+                pool.submit(self._gc_folder, folder, active_digests)
         count = sum(pool.results)
         return count
 
-    def gc_folder(self, folder, active_digests):
+    def _gc_folder(self, folder, active_digests):
         count = 0
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -347,41 +421,27 @@ class Repo:
 <span>(</span><span>uri=None, pod=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>The <code><a title="lakota.repo.Repo" href="#lakota.repo.Repo">Repo</a></code> class manage the organisation of a storage location. It
-provides creation and deletion of collections, synchronization
-with remote repositories and garbage collection.</p>
-<p>Usually a repo object can be created based on a uri, like this:</p>
-<pre><code class="language-python">repo = Repo('file://some/dir')
-</code></pre>
-<p>It also accept a <code>POD</code> object:</p>
-<pre><code class="language-python">pod = POD.from_uri('s3://a-bucket-id')
-repo = Repo(pod=pod)
-</code></pre></div>
+<div class="desc"><dl>
+<dt><code>uri</code></dt>
+<dd>a string representing a storage location</dd>
+<dt><code>pod</code></dt>
+<dd>a <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code> instance</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Repo:
-    &#39;&#39;&#39;
-    The `Repo` class manage the organisation of a storage location. It
-    provides creation and deletion of collections, synchronization
-    with remote repositories and garbage collection.
-    &#39;&#39;&#39;
     schema = Schema([&#34;label str*&#34;, &#34;meta O&#34;], kind=&#34;kv&#34;)
 
     def __init__(self, uri=None, pod=None):
-        &#39;&#39;&#39;
-        Usually a repo object can be created based on a uri, like this:
-        ```python
-        repo = Repo(&#39;file://some/dir&#39;)
-        ```
-        It also accept a `POD` object:
-        ```python
-        pod = POD.from_uri(&#39;s3://a-bucket-id&#39;)
-        repo = Repo(pod=pod)
-        ```
+        &#34;&#34;&#34;
+        `uri`
+        : a string representing a storage location
 
-        &#39;&#39;&#39;
+        `pod`
+        : a `lakota.pod.POD` instance
+        &#34;&#34;&#34;
         pod = pod or POD.from_uri(uri)
         folder, filename = hashed_path(zero_hash)
         self.pod = pod
@@ -395,9 +455,6 @@ repo = Repo(pod=pod)
 
     def __iter__(self):
         return iter(self.ls())
-
-    def push(self, remote, *labels):
-        return remote.pull(self, *labels)
 
     def search(self, label=None, mode=None):
         if label:
@@ -436,6 +493,16 @@ repo = Repo(pod=pod)
         return self.reify(label, meta)
 
     def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+        &#34;&#34;&#34;
+        `schema`
+        : A `lakota.schema.Schema` instance
+
+        `labels`
+        : One or more collection name
+
+        `raise_if_exists`
+        : Raise an exception if the label is already present
+        &#34;&#34;&#34;
         assert isinstance(
             schema, Schema
         ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
@@ -482,6 +549,13 @@ repo = Repo(pod=pod)
         return self.create_collection(collection.schema, label, mode=&#34;archive&#34;)
 
     def delete(self, *labels):
+        &#34;&#34;&#34;
+        Delete one or more collections
+
+        `*labels`
+        : Strings, names of the collection do delete
+
+        &#34;&#34;&#34;
         to_remove = []
         for l in labels:
             clct = self.collection(l)
@@ -498,7 +572,27 @@ repo = Repo(pod=pod)
     def refresh(self):
         self.collection_series.refresh()
 
+    def push(self, remote, *labels):
+        &#34;&#34;&#34;
+        Push local revisions (and related segments) to `remote` Repo.
+        `remote`
+        : A `lakota.repo.Repo` instance
+
+        `labels`
+        : The collections to push. If not given, all collections are pushed
+        &#34;&#34;&#34;
+        return remote.pull(self, *labels)
+
     def pull(self, remote, *labels):
+        &#34;&#34;&#34;
+        Pull revisions from `remote` Repo (and related segments).
+        `remote`
+        : A `lakota.repo.Repo` instance
+
+        `labels`
+        : The collections to pull. If not given, all collections are pulled
+        &#34;&#34;&#34;
+
         assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
         # Pull registry
         self.registry.pull(remote.registry)
@@ -522,9 +616,15 @@ repo = Repo(pod=pod)
                             &#34;incompatible meta-info.&#34;
                         )
                         raise ValueError(msg)
-                pool.submit(l_clct.pull, r_clct)
+                pool.submit(
+                    l_clct.pull, r_clct
+                )  # TODO invert the work (call collection.pull first and then self.create_collection) to show consistent state to concurrent reads
 
     def merge(self):
+        &#34;&#34;&#34;
+        Merge repository registry. Needed when collections have been created
+        or deleted concurrently.
+        &#34;&#34;&#34;
         return self.registry.merge()
 
     def gc(self):
@@ -543,11 +643,11 @@ repo = Repo(pod=pod)
         base_folders = self.pod.ls()
         with Pool(8) as pool:
             for folder in base_folders:
-                pool.submit(self.gc_folder, folder, active_digests)
+                pool.submit(self._gc_folder, folder, active_digests)
         count = sum(pool.results)
         return count
 
-    def gc_folder(self, folder, active_digests):
+    def _gc_folder(self, folder, active_digests):
         count = 0
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -615,12 +715,29 @@ repo = Repo(pod=pod)
 <span>def <span class="ident">create_collection</span></span>(<span>self, schema, *labels, raise_if_exists=True, mode=None)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><dl>
+<dt><code>schema</code></dt>
+<dd>A <code><a title="lakota.schema.Schema" href="schema.html#lakota.schema.Schema">Schema</a></code> instance</dd>
+<dt><code>labels</code></dt>
+<dd>One or more collection name</dd>
+<dt><code>raise_if_exists</code></dt>
+<dd>Raise an exception if the label is already present</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+    &#34;&#34;&#34;
+    `schema`
+    : A `lakota.schema.Schema` instance
+
+    `labels`
+    : One or more collection name
+
+    `raise_if_exists`
+    : Raise an exception if the label is already present
+    &#34;&#34;&#34;
     assert isinstance(
         schema, Schema
     ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
@@ -660,12 +777,23 @@ repo = Repo(pod=pod)
 <span>def <span class="ident">delete</span></span>(<span>self, *labels)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Delete one or more collections</p>
+<dl>
+<dt><code>*labels</code></dt>
+<dd>Strings, names of the collection do delete</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def delete(self, *labels):
+    &#34;&#34;&#34;
+    Delete one or more collections
+
+    `*labels`
+    : Strings, names of the collection do delete
+
+    &#34;&#34;&#34;
     to_remove = []
     for l in labels:
         clct = self.collection(l)
@@ -706,28 +834,8 @@ ones.</p></div>
     base_folders = self.pod.ls()
     with Pool(8) as pool:
         for folder in base_folders:
-            pool.submit(self.gc_folder, folder, active_digests)
+            pool.submit(self._gc_folder, folder, active_digests)
     count = sum(pool.results)
-    return count</code></pre>
-</details>
-</dd>
-<dt id="lakota.repo.Repo.gc_folder"><code class="name flex">
-<span>def <span class="ident">gc_folder</span></span>(<span>self, folder, active_digests)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def gc_folder(self, folder, active_digests):
-    count = 0
-    pod = self.pod.cd(folder)
-    for filename in pod.walk(max_depth=2):
-        digest = folder + filename.replace(&#34;/&#34;, &#34;&#34;)
-        if digest not in active_digests:
-            count += 1
-            pod.rm(filename, missing_ok=True)
     return count</code></pre>
 </details>
 </dd>
@@ -748,12 +856,17 @@ ones.</p></div>
 <span>def <span class="ident">merge</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Merge repository registry. Needed when collections have been created
+or deleted concurrently.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def merge(self):
+    &#34;&#34;&#34;
+    Merge repository registry. Needed when collections have been created
+    or deleted concurrently.
+    &#34;&#34;&#34;
     return self.registry.merge()</code></pre>
 </details>
 </dd>
@@ -761,12 +874,27 @@ ones.</p></div>
 <span>def <span class="ident">pull</span></span>(<span>self, remote, *labels)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><dl>
+<dt>Pull revisions from <code>remote</code> Repo (and related segments).</dt>
+<dt><code>remote</code></dt>
+<dd>A <code><a title="lakota.repo.Repo" href="#lakota.repo.Repo">Repo</a></code> instance</dd>
+<dt><code>labels</code></dt>
+<dd>The collections to pull. If not given, all collections are pulled</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def pull(self, remote, *labels):
+    &#34;&#34;&#34;
+    Pull revisions from `remote` Repo (and related segments).
+    `remote`
+    : A `lakota.repo.Repo` instance
+
+    `labels`
+    : The collections to pull. If not given, all collections are pulled
+    &#34;&#34;&#34;
+
     assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
     # Pull registry
     self.registry.pull(remote.registry)
@@ -790,19 +918,35 @@ ones.</p></div>
                         &#34;incompatible meta-info.&#34;
                     )
                     raise ValueError(msg)
-            pool.submit(l_clct.pull, r_clct)</code></pre>
+            pool.submit(
+                l_clct.pull, r_clct
+            )  # TODO invert the work (call collection.pull first and then self.create_collection) to show consistent state to concurrent reads</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.push"><code class="name flex">
 <span>def <span class="ident">push</span></span>(<span>self, remote, *labels)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><dl>
+<dt>Push local revisions (and related segments) to <code>remote</code> Repo.</dt>
+<dt><code>remote</code></dt>
+<dd>A <code><a title="lakota.repo.Repo" href="#lakota.repo.Repo">Repo</a></code> instance</dd>
+<dt><code>labels</code></dt>
+<dd>The collections to push. If not given, all collections are pushed</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def push(self, remote, *labels):
+    &#34;&#34;&#34;
+    Push local revisions (and related segments) to `remote` Repo.
+    `remote`
+    : A `lakota.repo.Repo` instance
+
+    `labels`
+    : The collections to push. If not given, all collections are pushed
+    &#34;&#34;&#34;
     return remote.pull(self, *labels)</code></pre>
 </details>
 </dd>
@@ -867,7 +1011,8 @@ ones.</p></div>
 <h1>Index</h1>
 <div class="toc">
 <ul>
-<li><a href="#create-and-access-collections">Create and access collections</a></li>
+<li><a href="#create-repositories">Create repositories</a></li>
+<li><a href="#access-collections">Access collections</a></li>
 <li><a href="#garbage-collection">Garbage Collection</a></li>
 </ul>
 </div>
@@ -887,7 +1032,6 @@ ones.</p></div>
 <li><code><a title="lakota.repo.Repo.create_collection" href="#lakota.repo.Repo.create_collection">create_collection</a></code></li>
 <li><code><a title="lakota.repo.Repo.delete" href="#lakota.repo.Repo.delete">delete</a></code></li>
 <li><code><a title="lakota.repo.Repo.gc" href="#lakota.repo.Repo.gc">gc</a></code></li>
-<li><code><a title="lakota.repo.Repo.gc_folder" href="#lakota.repo.Repo.gc_folder">gc_folder</a></code></li>
 <li><code><a title="lakota.repo.Repo.ls" href="#lakota.repo.Repo.ls">ls</a></code></li>
 <li><code><a title="lakota.repo.Repo.merge" href="#lakota.repo.Repo.merge">merge</a></code></li>
 <li><code><a title="lakota.repo.Repo.pull" href="#lakota.repo.Repo.pull">pull</a></code></li>

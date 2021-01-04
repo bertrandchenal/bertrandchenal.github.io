@@ -322,7 +322,8 @@ class Frame:
         # By column name -&gt; return an array
         if by in self.columns:
             return self.columns[by]
-        return self.schema[by].cast([])
+        else:
+            raise KeyError(f&#39;KeyError &#34;{by}&#34;&#39;)
 
     def drop(self, *columns):
         keep_columns = (c for c in self.columns if c not in columns)
@@ -639,7 +640,8 @@ class Frame:
         # By column name -&gt; return an array
         if by in self.columns:
             return self.columns[by]
-        return self.schema[by].cast([])
+        else:
+            raise KeyError(f&#39;KeyError &#34;{by}&#34;&#39;)
 
     def drop(self, *columns):
         keep_columns = (c for c in self.columns if c not in columns)

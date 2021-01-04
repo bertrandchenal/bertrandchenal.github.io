@@ -226,7 +226,7 @@ timestamp,value
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#39;&#39;&#39;
+<pre><code class="python">&#34;&#34;&#34;
 # Example usage
 
 Create a collection, and a first series:
@@ -462,7 +462,7 @@ timestamp,value
 2020-06-28T00:00:00,29.2
 ```
 
-&#39;&#39;&#39;
+&#34;&#34;&#34;
 
 
 import argparse
@@ -483,22 +483,34 @@ def get_repo(args):
     return Repo(args.repo)
 
 
+def get_collection(repo, label):
+    collection = repo / label
+
+    if collection:
+        return collection
+    match = [c for c in repo if c.startswith(label)]
+    if len(match) == 1:
+        return repo / match[0]
+    exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
+
+
 def get_series(args):
     repo = get_repo(args)
     if not &#34;/&#34; in args.label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
     c_label, s_label = args.label.split(&#34;/&#34;, 1)
-    collection = repo / c_label
-    if collection is None:
-        exit(f&#34;Collection &#39;{c_label}&#39; not found&#34;)
+    collection = get_collection(repo, c_label)
     series = collection / s_label
-    if series is None:
-        exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
-    return series
+    if series:
+        return series
+    match = [s for s in collection if s.startswith(s_label)]
+    if len(match) == 1:
+        return collection / match[0]
+    exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
 
 
 def read(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Basic usage:
     ```
     $ lakota read my_collection/my_series
@@ -520,8 +532,7 @@ def read(args):
     ```
     lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
     ```
-    &#39;&#39;&#39;
-
+    &#34;&#34;&#34;
     series = get_series(args)
     reduce = False
     if not args.columns:
@@ -572,13 +583,13 @@ def read(args):
 
 
 def length(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Show total length of a collection/series
     ```
     $ lakota len my_collection
     $ lakota len my_collection/my_series
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     if &#34;/&#34; in args.label:
         series = [get_series(args)]
     else:
@@ -591,13 +602,13 @@ def length(args):
 
 
 def rev(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Show Revision
     ```
     $ lakota rev my_collection # -e for extended output
     ```
 
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = None
     collection = repo / args.label
@@ -624,7 +635,7 @@ Date: {timestamp}&#34;&#34;&#34;
 
 
 def ls(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     List collections in a repo
     ```
     $ lakota ls
@@ -635,12 +646,10 @@ def ls(args):
     $ lakota ls my_collection
     ```
 
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     if args.label:
-        collection = repo / args.label
-        if collection is None:
-            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        collection = get_collection(repo, args.label)
         header = &#34;series&#34;
     else:
         collection = repo
@@ -656,13 +665,13 @@ def ls(args):
 
 
 def create(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Create a collection, the `*` indicate the index columns
     ```
     $ lakota create my_collection &#34;timestamp timestamp*&#34; &#34;value float&#34;
     $ lakota create another_collection &#34;timestamp timestamp*&#34; &#34;category str*&#34; &#34;value float&#34;
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = args.label
 
@@ -671,12 +680,12 @@ def create(args):
 
 
 def write(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Write is done through stdin
     ```
     $ cat some_file.csv | lakota write my_collection/my_series
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     series = get_series(args)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
@@ -684,17 +693,18 @@ def write(args):
     df = dict(zip(schema.columns, columns))
     series.write(df)
 
+
 def merge(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Merge a collection
     ```
     $ lakota merge my_collection
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = repo / args.label
     if not collection:
-        exit(f&#39;Collection {args.label} not found&#39;)
+        exit(f&#34;Collection {args.label} not found&#34;)
     collection.merge()
 
 
@@ -715,7 +725,7 @@ def squash(args):
 
 
 def push(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Push (the local repo in `.lakota`) to a remote repo
     ```
     $ lakota push some_remote_repo
@@ -725,23 +735,23 @@ def push(args):
     ```
     $ lakota -r some_repo push another_repo
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     reg = get_repo(args)
     remote_reg = Repo(args.remote)
     reg.push(remote_reg, *args.labels)
 
 
 def pull(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Similar to `push`, but with direction inversed
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     remote_reg = Repo(args.remote)
     repo.pull(remote_reg, *args.labels)
 
 
 def delete(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Delete a series
     ```
     $ lakota delete my_collection/my_series
@@ -751,7 +761,7 @@ def delete(args):
     ```
     $ lakota delete my_collection
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     if &#34;/&#34; in args.label:
         collection, series = args.label.split(&#34;/&#34;, 1)
@@ -762,12 +772,12 @@ def delete(args):
 
 
 def gc(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Garbage-collec a repository
     ```
     $ lakota gc
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     cnt = repo.gc()
     print(f&#34;{cnt} segments deleted&#34;)
@@ -888,7 +898,7 @@ def run():
 
     # Add help command
     parser_help = subparsers.add_parser(&#34;help&#34;)
-    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#39;?&#39;)
+    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#34;?&#34;)
     parser_help.set_defaults(func=lambda args: print_help(parser, args))
 
     # Add version command
@@ -938,13 +948,13 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def create(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Create a collection, the `*` indicate the index columns
     ```
     $ lakota create my_collection &#34;timestamp timestamp*&#34; &#34;value float&#34;
     $ lakota create another_collection &#34;timestamp timestamp*&#34; &#34;category str*&#34; &#34;value float&#34;
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = args.label
 
@@ -967,7 +977,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def delete(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Delete a series
     ```
     $ lakota delete my_collection/my_series
@@ -977,7 +987,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     ```
     $ lakota delete my_collection
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     if &#34;/&#34; in args.label:
         collection, series = args.label.split(&#34;/&#34;, 1)
@@ -999,15 +1009,35 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def gc(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Garbage-collec a repository
     ```
     $ lakota gc
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     cnt = repo.gc()
     print(f&#34;{cnt} segments deleted&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.get_collection"><code class="name flex">
+<span>def <span class="ident">get_collection</span></span>(<span>repo, label)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_collection(repo, label):
+    collection = repo / label
+
+    if collection:
+        return collection
+    match = [c for c in repo if c.startswith(label)]
+    if len(match) == 1:
+        return repo / match[0]
+    exit(f&#39;Collection &#34;{label}&#34; not found&#39;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.get_repo"><code class="name flex">
@@ -1037,13 +1067,14 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     if not &#34;/&#34; in args.label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
     c_label, s_label = args.label.split(&#34;/&#34;, 1)
-    collection = repo / c_label
-    if collection is None:
-        exit(f&#34;Collection &#39;{c_label}&#39; not found&#34;)
+    collection = get_collection(repo, c_label)
     series = collection / s_label
-    if series is None:
-        exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
-    return series</code></pre>
+    if series:
+        return series
+    match = [s for s in collection if s.startswith(s_label)]
+    if len(match) == 1:
+        return collection / match[0]
+    exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.length"><code class="name flex">
@@ -1059,13 +1090,13 @@ $ lakota len my_collection/my_series
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def length(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Show total length of a collection/series
     ```
     $ lakota len my_collection
     $ lakota len my_collection/my_series
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     if &#34;/&#34; in args.label:
         series = [get_series(args)]
     else:
@@ -1092,7 +1123,7 @@ $ lakota len my_collection/my_series
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def ls(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     List collections in a repo
     ```
     $ lakota ls
@@ -1103,12 +1134,10 @@ $ lakota len my_collection/my_series
     $ lakota ls my_collection
     ```
 
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     if args.label:
-        collection = repo / args.label
-        if collection is None:
-            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+        collection = get_collection(repo, args.label)
         header = &#34;series&#34;
     else:
         collection = repo
@@ -1135,16 +1164,16 @@ $ lakota len my_collection/my_series
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def merge(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Merge a collection
     ```
     $ lakota merge my_collection
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = repo / args.label
     if not collection:
-        exit(f&#39;Collection {args.label} not found&#39;)
+        exit(f&#34;Collection {args.label} not found&#34;)
     collection.merge()</code></pre>
 </details>
 </dd>
@@ -1174,9 +1203,9 @@ $ lakota len my_collection/my_series
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def pull(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Similar to `push`, but with direction inversed
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     remote_reg = Repo(args.remote)
     repo.pull(remote_reg, *args.labels)</code></pre>
@@ -1197,7 +1226,7 @@ $ lakota len my_collection/my_series
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def push(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Push (the local repo in `.lakota`) to a remote repo
     ```
     $ lakota push some_remote_repo
@@ -1207,7 +1236,7 @@ $ lakota len my_collection/my_series
     ```
     $ lakota -r some_repo push another_repo
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     reg = get_repo(args)
     remote_reg = Repo(args.remote)
     reg.push(remote_reg, *args.labels)</code></pre>
@@ -1236,7 +1265,7 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def read(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Basic usage:
     ```
     $ lakota read my_collection/my_series
@@ -1258,8 +1287,7 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     ```
     lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
     ```
-    &#39;&#39;&#39;
-
+    &#34;&#34;&#34;
     series = get_series(args)
     reduce = False
     if not args.columns:
@@ -1321,13 +1349,13 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def rev(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Show Revision
     ```
     $ lakota rev my_collection # -e for extended output
     ```
 
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     repo = get_repo(args)
     collection = None
     collection = repo / args.label
@@ -1470,7 +1498,7 @@ Date: {timestamp}&#34;&#34;&#34;
 
     # Add help command
     parser_help = subparsers.add_parser(&#34;help&#34;)
-    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#39;?&#39;)
+    parser_help.add_argument(&#34;help_cmd&#34;, nargs=&#34;?&#34;)
     parser_help.set_defaults(func=lambda args: print_help(parser, args))
 
     # Add version command
@@ -1538,12 +1566,12 @@ repo changelog.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def write(args):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Write is done through stdin
     ```
     $ cat some_file.csv | lakota write my_collection/my_series
     ```
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     series = get_series(args)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
@@ -1576,6 +1604,7 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.create" href="#lakota.cli.create">create</a></code></li>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
 <li><code><a title="lakota.cli.gc" href="#lakota.cli.gc">gc</a></code></li>
+<li><code><a title="lakota.cli.get_collection" href="#lakota.cli.get_collection">get_collection</a></code></li>
 <li><code><a title="lakota.cli.get_repo" href="#lakota.cli.get_repo">get_repo</a></code></li>
 <li><code><a title="lakota.cli.get_series" href="#lakota.cli.get_series">get_series</a></code></li>
 <li><code><a title="lakota.cli.length" href="#lakota.cli.length">length</a></code></li>
