@@ -126,7 +126,7 @@ from .repo import *
 from .schema import *
 from .series import *
 
-__version__ = &#34;0.3&#34;</code></pre>
+__version__ = &#34;0.4.1&#34;</code></pre>
 </details>
 </section>
 <section>
@@ -154,15 +154,25 @@ columns: <code>label</code>, …</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt><code class="name"><a title="lakota.pod" href="pod.html">lakota.pod</a></code></dt>
+<dt><code class="name"><a title="lakota.http_pod" href="http_pod.html">lakota.http_pod</a></code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="lakota.pod" href="pod.html">lakota.pod</a></code></dt>
+<dd>
+<div class="desc"><p>The <code>POD</code> class implement low-level access to different
+storage. The <code>from_uri</code> method allow to instanciate a POD object based
+on a uri. The supported …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.repo" href="repo.html">lakota.repo</a></code></dt>
 <dd>
 <div class="desc"><p>The <code>Repo</code> class manage the organisation of a storage location. It
 provides creation and deletion of collections, synchronization with
 remote …</p></div>
+</dd>
+<dt><code class="name"><a title="lakota.s3_pod" href="s3_pod.html">lakota.s3_pod</a></code></dt>
+<dd>
+<div class="desc"></div>
 </dd>
 <dt><code class="name"><a title="lakota.schema" href="schema.html">lakota.schema</a></code></dt>
 <dd>
@@ -172,9 +182,17 @@ remote …</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt><code class="name"><a title="lakota.server" href="server.html">lakota.server</a></code></dt>
+<dd>
+<div class="desc"><p>The server sub-module implement a flask application that expose
+the main methods of <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code>.
+It can be launched from the cli
+like this: …</p></div>
+</dd>
 <dt><code class="name"><a title="lakota.sexpr" href="sexpr.html">lakota.sexpr</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>The <code>AST</code> (abstract syntax tree) implement parsing and evaluation
+of <a href="https://en.wikipedia.org/wiki/S-expression">s-expressions</a> …</p></div>
 </dd>
 <dt><code class="name"><a title="lakota.utils" href="utils.html">lakota.utils</a></code></dt>
 <dd>
@@ -207,10 +225,13 @@ remote …</p></div>
 <li><code><a title="lakota.collection" href="collection.html">lakota.collection</a></code></li>
 <li><code><a title="lakota.commit" href="commit.html">lakota.commit</a></code></li>
 <li><code><a title="lakota.frame" href="frame.html">lakota.frame</a></code></li>
+<li><code><a title="lakota.http_pod" href="http_pod.html">lakota.http_pod</a></code></li>
 <li><code><a title="lakota.pod" href="pod.html">lakota.pod</a></code></li>
 <li><code><a title="lakota.repo" href="repo.html">lakota.repo</a></code></li>
+<li><code><a title="lakota.s3_pod" href="s3_pod.html">lakota.s3_pod</a></code></li>
 <li><code><a title="lakota.schema" href="schema.html">lakota.schema</a></code></li>
 <li><code><a title="lakota.series" href="series.html">lakota.series</a></code></li>
+<li><code><a title="lakota.server" href="server.html">lakota.server</a></code></li>
 <li><code><a title="lakota.sexpr" href="sexpr.html">lakota.sexpr</a></code></li>
 <li><code><a title="lakota.utils" href="utils.html">lakota.utils</a></code></li>
 </ul>

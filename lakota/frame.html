@@ -28,13 +28,12 @@
 </summary>
 <pre><code class="python">from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from functools import lru_cache
 
 from numpy import argsort, array_equal, asarray, concatenate, ndarray, rec, unique
 
 from .schema import Schema
-from .sexpr import AST
-from .utils import Pool, floor, hashed_path, pretty_nb
+from .sexpr import AST, Alias
+from .utils import Closed, Pool, floor, pretty_nb
 
 try:
     from pandas import DataFrame
@@ -87,12 +86,11 @@ class Frame:
                 if stop is not None:
                     stop = max(stop - len(sgm), 0)
                 continue
-            arr = sgm.read(name, start=start, stop=stop)
+            arr = sgm.read(name, start_pos=start, stop_pos=stop)
             start = max(start - len(sgm), 0)
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
             arrays.append(arr)
-
         return name, concatenate(arrays) if arrays else []
 
     def df(self, *columns):
@@ -150,7 +148,6 @@ class Frame:
         return Frame(self.schema, cols)
 
     def eval(self, expr):
-        # See also https://github.com/mapbox/snuggs
         ast = AST.parse(expr)
         env = self.eval_env()
         res = ast.eval(env)
@@ -177,18 +174,17 @@ class Frame:
             values = self.schema.row(pos)
             yield dict(zip(self.schema.columns, values))
 
-    def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+    def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
+        default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
+
         &#34;&#34;&#34;
-        Slice between two index value. `closed` can be &#34;left&#34; (default),
-        &#34;right&#34; or &#34;both&#34;.
-        &#34;&#34;&#34;
+        closed = closed if isinstance(closed, Closed) else Closed[closed]
         idx_start = idx_stop = None
         if start:
-            right = closed in (&#34;right&#34;, None)
-            idx_start = self.index(start, right=right)
+            idx_start = self.index(start, right=not closed.left)
         if stop:
-            right = closed in (&#34;both&#34;, &#34;right&#34;)
-            idx_stop = self.index(stop, right=right)
+            idx_stop = self.index(stop, right=closed.right)
         return idx_start, idx_stop
 
     def index(self, values, right=False):
@@ -280,6 +276,10 @@ class Frame:
                 arr = ast.eval(env=env)
             else:
                 arr = self.columns[expr]
+
+            if isinstance(arr, Alias):
+                # un-pack alias
+                arr, alias = arr.value, arr.name
             non_agg[alias] = arr
 
         # Early exit if we don&#39;t need to compute aggregates
@@ -294,12 +294,19 @@ class Frame:
             keys, bins = unique(records, return_inverse=True)
             # Build resulting columns
             for alias in non_agg:
-                res[alias] = keys[alias]
+                arr = keys[alias]
+                if isinstance(arr, Alias):
+                    # un-pack alias
+                    arr, alias = arr.value, arr.name
+                res[alias] = arr
             env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
 
         # Compute aggregates
         for alias, expr in agg_ast.items():
             arr = expr.eval(env)
+            if isinstance(arr, Alias):
+                # un-pack alias
+                arr, alias = arr.value, arr.name
             # Without bins, eval will return a scalar value
             res[alias] = arr if non_agg else asarray([arr])
         schema = Schema.from_frame(res, idx_columns=list(non_agg))
@@ -405,12 +412,11 @@ class Frame:
                 if stop is not None:
                     stop = max(stop - len(sgm), 0)
                 continue
-            arr = sgm.read(name, start=start, stop=stop)
+            arr = sgm.read(name, start_pos=start, stop_pos=stop)
             start = max(start - len(sgm), 0)
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
             arrays.append(arr)
-
         return name, concatenate(arrays) if arrays else []
 
     def df(self, *columns):
@@ -468,7 +474,6 @@ class Frame:
         return Frame(self.schema, cols)
 
     def eval(self, expr):
-        # See also https://github.com/mapbox/snuggs
         ast = AST.parse(expr)
         env = self.eval_env()
         res = ast.eval(env)
@@ -495,18 +500,17 @@ class Frame:
             values = self.schema.row(pos)
             yield dict(zip(self.schema.columns, values))
 
-    def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+    def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
+        default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
+
         &#34;&#34;&#34;
-        Slice between two index value. `closed` can be &#34;left&#34; (default),
-        &#34;right&#34; or &#34;both&#34;.
-        &#34;&#34;&#34;
+        closed = closed if isinstance(closed, Closed) else Closed[closed]
         idx_start = idx_stop = None
         if start:
-            right = closed in (&#34;right&#34;, None)
-            idx_start = self.index(start, right=right)
+            idx_start = self.index(start, right=not closed.left)
         if stop:
-            right = closed in (&#34;both&#34;, &#34;right&#34;)
-            idx_stop = self.index(stop, right=right)
+            idx_stop = self.index(stop, right=closed.right)
         return idx_start, idx_stop
 
     def index(self, values, right=False):
@@ -598,6 +602,10 @@ class Frame:
                 arr = ast.eval(env=env)
             else:
                 arr = self.columns[expr]
+
+            if isinstance(arr, Alias):
+                # un-pack alias
+                arr, alias = arr.value, arr.name
             non_agg[alias] = arr
 
         # Early exit if we don&#39;t need to compute aggregates
@@ -612,12 +620,19 @@ class Frame:
             keys, bins = unique(records, return_inverse=True)
             # Build resulting columns
             for alias in non_agg:
-                res[alias] = keys[alias]
+                arr = keys[alias]
+                if isinstance(arr, Alias):
+                    # un-pack alias
+                    arr, alias = arr.value, arr.name
+                res[alias] = arr
             env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
 
         # Compute aggregates
         for alias, expr in agg_ast.items():
             arr = expr.eval(env)
+            if isinstance(arr, Alias):
+                # un-pack alias
+                arr, alias = arr.value, arr.name
             # Without bins, eval will return a scalar value
             res[alias] = arr if non_agg else asarray([arr])
         schema = Schema.from_frame(res, idx_columns=list(non_agg))
@@ -747,12 +762,11 @@ def read_segments(cls, segments, name, limit=None, offset=None):
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
             continue
-        arr = sgm.read(name, start=start, stop=stop)
+        arr = sgm.read(name, start_pos=start, stop_pos=stop)
         start = max(start - len(sgm), 0)
         if stop is not None:
             stop = max(stop - len(sgm), 0)
         arrays.append(arr)
-
     return name, concatenate(arrays) if arrays else []</code></pre>
 </details>
 </dd>
@@ -829,7 +843,6 @@ def empty(self):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def eval(self, expr):
-    # See also https://github.com/mapbox/snuggs
     ast = AST.parse(expr)
     env = self.eval_env()
     res = ast.eval(env)
@@ -878,27 +891,26 @@ def empty(self):
 </details>
 </dd>
 <dt id="lakota.frame.Frame.index_slice"><code class="name flex">
-<span>def <span class="ident">index_slice</span></span>(<span>self, start=None, stop=None, closed='left')</span>
+<span>def <span class="ident">index_slice</span></span>(<span>self, start=None, stop=None, closed='l')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Slice between two index value. <code>closed</code> can be "left" (default),
-"right" or "both".</p></div>
+<div class="desc"><p>Slice between two index value. <code>closed</code> can be "l" (left, the
+default), "r" (right) "n" (none) or "b" (both).</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def index_slice(self, start=None, stop=None, closed=&#34;left&#34;):
+<pre><code class="python">def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
+    &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
+    default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
+
     &#34;&#34;&#34;
-    Slice between two index value. `closed` can be &#34;left&#34; (default),
-    &#34;right&#34; or &#34;both&#34;.
-    &#34;&#34;&#34;
+    closed = closed if isinstance(closed, Closed) else Closed[closed]
     idx_start = idx_stop = None
     if start:
-        right = closed in (&#34;right&#34;, None)
-        idx_start = self.index(start, right=right)
+        idx_start = self.index(start, right=not closed.left)
     if stop:
-        right = closed in (&#34;both&#34;, &#34;right&#34;)
-        idx_stop = self.index(stop, right=right)
+        idx_stop = self.index(stop, right=closed.right)
     return idx_start, idx_stop</code></pre>
 </details>
 </dd>
@@ -985,6 +997,10 @@ evaluated.</p></div>
             arr = ast.eval(env=env)
         else:
             arr = self.columns[expr]
+
+        if isinstance(arr, Alias):
+            # un-pack alias
+            arr, alias = arr.value, arr.name
         non_agg[alias] = arr
 
     # Early exit if we don&#39;t need to compute aggregates
@@ -999,12 +1015,19 @@ evaluated.</p></div>
         keys, bins = unique(records, return_inverse=True)
         # Build resulting columns
         for alias in non_agg:
-            res[alias] = keys[alias]
+            arr = keys[alias]
+            if isinstance(arr, Alias):
+                # un-pack alias
+                arr, alias = arr.value, arr.name
+            res[alias] = arr
         env.update({&#34;_keys&#34;: keys, &#34;_bins&#34;: bins})
 
     # Compute aggregates
     for alias, expr in agg_ast.items():
         arr = expr.eval(env)
+        if isinstance(arr, Alias):
+            # un-pack alias
+            arr, alias = arr.value, arr.name
         # Without bins, eval will return a scalar value
         res[alias] = arr if non_agg else asarray([arr])
     schema = Schema.from_frame(res, idx_columns=list(non_agg))

@@ -34,9 +34,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Flag
 from hashlib import sha1
 from itertools import islice
-from pathlib import PosixPath
+from pathlib import PurePosixPath
 from time import perf_counter, time
 
 from numpy import arange
@@ -51,16 +52,16 @@ FLAGS = {}
 fmt = &#34;%(levelname)s:%(asctime).19s: %(message)s&#34;
 logging.basicConfig(format=fmt)
 logger = logging.getLogger(&#34;lakota&#34;)
-DEBUG = False
 
 
 # Global settings
 @dataclass
 class Settings:
     threaded: bool
+    debug: bool
 
 
-settings = Settings(threaded=True)
+settings = Settings(threaded=True, debug=False)
 
 
 def chunky(collection, size=100):
@@ -113,7 +114,7 @@ def hashed_path(digest, depth=2):
     12345678 -&gt; (Path(12/34), &#34;5678&#34;) (with depth = 2)
     &#34;&#34;&#34;
     assert len(digest) &gt; 2 * depth
-    folder = PosixPath(&#34;.&#34;)
+    folder = PurePosixPath(&#34;.&#34;)
     for _ in range(depth):
         prefix, digest = digest[:2], digest[2:]
         folder = folder / prefix
@@ -255,7 +256,35 @@ class Interval:
     def bisect(cls, nb_seconds):
         idx = bisect.bisect_right(cls.durations, nb_seconds)
         label = cls.labels[idx]
-        return label</code></pre>
+        return label
+
+
+class Closed(Flag):
+    NONE = n = 0
+    RIGHT = r = 1
+    LEFT = l = 2
+    BOTH = b = 3
+
+    @property
+    def left(self):
+        return bool(self &amp; Closed.LEFT)
+
+    @property
+    def right(self):
+        return bool(self &amp; Closed.RIGHT)
+
+    def set_left(self, other):
+        return (self &amp; Closed.RIGHT) | (other &amp; Closed.LEFT)
+
+    def set_right(self, other):
+        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)
+
+    def close_left(self, other):
+        return
+        return self.set_left(Closed.LEFT)
+
+    def close_right(self, other):
+        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
 </details>
 </section>
 <section>
@@ -366,7 +395,7 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
     12345678 -&gt; (Path(12/34), &#34;5678&#34;) (with depth = 2)
     &#34;&#34;&#34;
     assert len(digest) &gt; 2 * depth
-    folder = PosixPath(&#34;.&#34;)
+    folder = PurePosixPath(&#34;.&#34;)
     for _ in range(depth):
         prefix, digest = digest[:2], digest[2:]
         folder = folder / prefix
@@ -587,6 +616,167 @@ def timeit(title=&#34;&#34;):
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="lakota.utils.Closed"><code class="flex name class">
+<span>class <span class="ident">Closed</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An enumeration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Closed(Flag):
+    NONE = n = 0
+    RIGHT = r = 1
+    LEFT = l = 2
+    BOTH = b = 3
+
+    @property
+    def left(self):
+        return bool(self &amp; Closed.LEFT)
+
+    @property
+    def right(self):
+        return bool(self &amp; Closed.RIGHT)
+
+    def set_left(self, other):
+        return (self &amp; Closed.RIGHT) | (other &amp; Closed.LEFT)
+
+    def set_right(self, other):
+        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)
+
+    def close_left(self, other):
+        return
+        return self.set_left(Closed.LEFT)
+
+    def close_right(self, other):
+        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Flag</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="lakota.utils.Closed.BOTH"><code class="name">var <span class="ident">BOTH</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.LEFT"><code class="name">var <span class="ident">LEFT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.NONE"><code class="name">var <span class="ident">NONE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.RIGHT"><code class="name">var <span class="ident">RIGHT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.b"><code class="name">var <span class="ident">b</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.l"><code class="name">var <span class="ident">l</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.n"><code class="name">var <span class="ident">n</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Closed.r"><code class="name">var <span class="ident">r</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="lakota.utils.Closed.left"><code class="name">var <span class="ident">left</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def left(self):
+    return bool(self &amp; Closed.LEFT)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.Closed.right"><code class="name">var <span class="ident">right</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def right(self):
+    return bool(self &amp; Closed.RIGHT)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.utils.Closed.close_left"><code class="name flex">
+<span>def <span class="ident">close_left</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def close_left(self, other):
+    return
+    return self.set_left(Closed.LEFT)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.Closed.close_right"><code class="name flex">
+<span>def <span class="ident">close_right</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def close_right(self, other):
+    return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.Closed.set_left"><code class="name flex">
+<span>def <span class="ident">set_left</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_left(self, other):
+    return (self &amp; Closed.RIGHT) | (other &amp; Closed.LEFT)</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.Closed.set_right"><code class="name flex">
+<span>def <span class="ident">set_right</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_right(self, other):
+    return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 <dt id="lakota.utils.Interval"><code class="flex name class">
 <span>class <span class="ident">Interval</span></span>
 </code></dt>
@@ -702,19 +892,24 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool)</span>
+<span>(</span><span>threaded: bool, debug: bool)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool)</p></div>
+<div class="desc"><p>Settings(threaded: bool, debug: bool)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Settings:
-    threaded: bool</code></pre>
+    threaded: bool
+    debug: bool</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
+<dt id="lakota.utils.Settings.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="lakota.utils.Settings.threaded"><code class="name">var <span class="ident">threaded</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
@@ -759,6 +954,25 @@ def bisect(cls, nb_seconds):
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="lakota.utils.Closed" href="#lakota.utils.Closed">Closed</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.utils.Closed.BOTH" href="#lakota.utils.Closed.BOTH">BOTH</a></code></li>
+<li><code><a title="lakota.utils.Closed.LEFT" href="#lakota.utils.Closed.LEFT">LEFT</a></code></li>
+<li><code><a title="lakota.utils.Closed.NONE" href="#lakota.utils.Closed.NONE">NONE</a></code></li>
+<li><code><a title="lakota.utils.Closed.RIGHT" href="#lakota.utils.Closed.RIGHT">RIGHT</a></code></li>
+<li><code><a title="lakota.utils.Closed.b" href="#lakota.utils.Closed.b">b</a></code></li>
+<li><code><a title="lakota.utils.Closed.close_left" href="#lakota.utils.Closed.close_left">close_left</a></code></li>
+<li><code><a title="lakota.utils.Closed.close_right" href="#lakota.utils.Closed.close_right">close_right</a></code></li>
+<li><code><a title="lakota.utils.Closed.l" href="#lakota.utils.Closed.l">l</a></code></li>
+<li><code><a title="lakota.utils.Closed.left" href="#lakota.utils.Closed.left">left</a></code></li>
+<li><code><a title="lakota.utils.Closed.n" href="#lakota.utils.Closed.n">n</a></code></li>
+<li><code><a title="lakota.utils.Closed.r" href="#lakota.utils.Closed.r">r</a></code></li>
+<li><code><a title="lakota.utils.Closed.right" href="#lakota.utils.Closed.right">right</a></code></li>
+<li><code><a title="lakota.utils.Closed.set_left" href="#lakota.utils.Closed.set_left">set_left</a></code></li>
+<li><code><a title="lakota.utils.Closed.set_right" href="#lakota.utils.Closed.set_right">set_right</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="lakota.utils.Interval" href="#lakota.utils.Interval">Interval</a></code></h4>
 <ul class="">
 <li><code><a title="lakota.utils.Interval.bisect" href="#lakota.utils.Interval.bisect">bisect</a></code></li>
@@ -775,6 +989,7 @@ def bisect(cls, nb_seconds):
 <li>
 <h4><code><a title="lakota.utils.Settings" href="#lakota.utils.Settings">Settings</a></code></h4>
 <ul class="">
+<li><code><a title="lakota.utils.Settings.debug" href="#lakota.utils.Settings.debug">debug</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
 </ul>
 </li>

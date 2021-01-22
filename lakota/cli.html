@@ -470,6 +470,7 @@ import csv
 import os
 import sys
 from datetime import datetime
+from itertools import chain
 
 from tabulate import tabulate
 
@@ -494,19 +495,17 @@ def get_collection(repo, label):
     exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
 
 
-def get_series(args):
-    repo = get_repo(args)
-    if not &#34;/&#34; in args.label:
+def get_series(repo, label):
+    if not &#34;/&#34; in label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
-    c_label, s_label = args.label.split(&#34;/&#34;, 1)
+    c_label, s_label = label.split(&#34;/&#34;, 1)
     collection = get_collection(repo, c_label)
-    series = collection / s_label
-    if series:
-        return series
+    if label in collection:
+        return collection / s_label
     match = [s for s in collection if s.startswith(s_label)]
     if len(match) == 1:
         return collection / match[0]
-    exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)
+    exit(f&#34;Series &#39;{label}&#39; not found&#34;)
 
 
 def read(args):
@@ -533,7 +532,8 @@ def read(args):
     lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
     ```
     &#34;&#34;&#34;
-    series = get_series(args)
+    repo = get_repo(args)
+    series = get_series(repo, args.label)
     reduce = False
     if not args.columns:
         columns = list(series.schema.columns)
@@ -556,8 +556,11 @@ def read(args):
 
     if reduce:
         kw = {c: c for c in args.columns}
-        columns = args.columns
         frames = (f.reduce(**kw) for f in frames)
+        # Peek at first frame to get the colums
+        first = next(frames)
+        columns = list(first)
+        frames = chain([first], frames)
 
     if args.pretty:
         for frm in frames:
@@ -590,13 +593,15 @@ def length(args):
     $ lakota len my_collection/my_series
     ```
     &#34;&#34;&#34;
+    repo = get_repo(args)
+    label = args.label
     if &#34;/&#34; in args.label:
-        series = [get_series(args)]
+        series = [get_series(repo, label)]
     else:
         repo = get_repo(args)
-        clc = repo / args.label
+        clc = get_collection(repo, label)
         if clc is None:
-            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+            exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
         series = [clc / name for name in clc]
     print(sum(len(s) for s in series))
 
@@ -610,10 +615,12 @@ def rev(args):
 
     &#34;&#34;&#34;
     repo = get_repo(args)
-    collection = None
-    collection = repo / args.label
-    if collection is None:
-        exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+    if args.label:
+        collection = get_collection(repo, args.label)
+        if collection is None:
+            exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+    else:
+        collection = repo.collection_series
 
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
@@ -686,7 +693,8 @@ def write(args):
     $ cat some_file.csv | lakota write my_collection/my_series
     ```
     &#34;&#34;&#34;
-    series = get_series(args)
+    repo = get_repo(args)
+    series = get_series(repo, args.label)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
     schema = series.schema
@@ -714,13 +722,14 @@ def squash(args):
     repo changelog.
     &#34;&#34;&#34;
     repo = get_repo(args)
-    if args.labels:
-        for label in args.labels:
-            collection = repo / label
+    labels = repo.ls() if args.all else args.labels
+    if labels:
+        for label in labels:
+            collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
             collection.squash()
-    else:
+    if args.all or not args.labels:
         repo.registry.squash()
 
 
@@ -764,11 +773,11 @@ def delete(args):
     &#34;&#34;&#34;
     repo = get_repo(args)
     if &#34;/&#34; in args.label:
-        collection, series = args.label.split(&#34;/&#34;, 1)
-        clct = repo / collection
-        clct.delete(series)
+        srs = get_series(args.label)
+        srs.collection.delete(srs.label)
     else:
-        repo.delete(args.label)
+        clc = get_collection(repo, args.label)
+        repo.delete(clc.label)
 
 
 def gc(args):
@@ -783,6 +792,25 @@ def gc(args):
     print(f&#34;{cnt} segments deleted&#34;)
 
 
+def serve(args):
+    try:
+        from lakota import server
+    except ImportError:
+        raise
+        exit(&#34;Please install flask to run server&#34;)
+
+    repo = get_repo(args)
+    server.run(repo, args.netloc, debug=args.verbose)
+
+
+def deploy(args):
+    try:
+        from lakota.aws_utils import deploy_lambda
+    except ImportError:
+        exit(&#34;Please install boto3 and aws-wsgi to deploy lambda&#34;)
+    deploy_lambda(args.name, args.arn, args.lakota_package)
+
+
 def print_help(parser, args):
     cmd = args.help_cmd and globals().get(args.help_cmd)
     if cmd and cmd.__doc__:
@@ -793,7 +821,7 @@ def print_help(parser, args):
 def run():
 
     # Take default repo from env variable, fallback to .lakota in current dir
-    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file://.lakota&#34;)
+    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file:///.lakota&#34;)
 
     # top-level parser
     parser = argparse.ArgumentParser(
@@ -843,7 +871,7 @@ def run():
 
     # Add rev command
     parser_rev = subparsers.add_parser(&#34;rev&#34;)
-    parser_rev.add_argument(&#34;label&#34;)
+    parser_rev.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
     parser_rev.add_argument(
         &#34;-e&#34;, &#34;--extended&#34;, action=&#34;store_true&#34;, help=&#34;Extended output&#34;
     )
@@ -857,6 +885,9 @@ def run():
     # Add squash command
     parser_squash = subparsers.add_parser(&#34;squash&#34;)
     parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.add_argument(
+        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
+    )
     parser_squash.set_defaults(func=squash)
 
     # Add push command
@@ -904,6 +935,22 @@ def run():
     # Add version command
     parser_len = subparsers.add_parser(&#34;version&#34;)
     parser_len.set_defaults(func=lambda *a: print(__version__))
+
+    # Add serve command
+    parser_serve = subparsers.add_parser(&#34;serve&#34;)
+    parser_serve.add_argument(&#34;netloc&#34;, nargs=&#34;?&#34;, default=&#34;127.0.0.1:8080&#34;)
+    parser_serve.set_defaults(func=serve)
+
+    # Add deploy command
+    parser_deploy = subparsers.add_parser(&#34;deploy&#34;)
+    parser_deploy.add_argument(&#34;name&#34;, help=&#34;Lambda function name&#34;)
+    parser_deploy.add_argument(&#34;--arn&#34;, help=&#34;ARN of the role&#34;)
+    parser_deploy.add_argument(
+        &#34;--lakota-package&#34;,
+        help=&#34;Full path to clone (if not set use the offical package&#34;,
+        default=&#34;lakota&#34;,
+    )
+    parser_deploy.set_defaults(func=deploy)
 
     # Parse args
     args = parser.parse_args()
@@ -990,11 +1037,28 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     &#34;&#34;&#34;
     repo = get_repo(args)
     if &#34;/&#34; in args.label:
-        collection, series = args.label.split(&#34;/&#34;, 1)
-        clct = repo / collection
-        clct.delete(series)
+        srs = get_series(args.label)
+        srs.collection.delete(srs.label)
     else:
-        repo.delete(args.label)</code></pre>
+        clc = get_collection(repo, args.label)
+        repo.delete(clc.label)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.deploy"><code class="name flex">
+<span>def <span class="ident">deploy</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def deploy(args):
+    try:
+        from lakota.aws_utils import deploy_lambda
+    except ImportError:
+        exit(&#34;Please install boto3 and aws-wsgi to deploy lambda&#34;)
+    deploy_lambda(args.name, args.arn, args.lakota_package)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.gc"><code class="name flex">
@@ -1054,7 +1118,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 </details>
 </dd>
 <dt id="lakota.cli.get_series"><code class="name flex">
-<span>def <span class="ident">get_series</span></span>(<span>args)</span>
+<span>def <span class="ident">get_series</span></span>(<span>repo, label)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1062,19 +1126,17 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_series(args):
-    repo = get_repo(args)
-    if not &#34;/&#34; in args.label:
+<pre><code class="python">def get_series(repo, label):
+    if not &#34;/&#34; in label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
-    c_label, s_label = args.label.split(&#34;/&#34;, 1)
+    c_label, s_label = label.split(&#34;/&#34;, 1)
     collection = get_collection(repo, c_label)
-    series = collection / s_label
-    if series:
-        return series
+    if label in collection:
+        return collection / s_label
     match = [s for s in collection if s.startswith(s_label)]
     if len(match) == 1:
         return collection / match[0]
-    exit(f&#34;Series &#39;{args.label}&#39; not found&#34;)</code></pre>
+    exit(f&#34;Series &#39;{label}&#39; not found&#34;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.length"><code class="name flex">
@@ -1097,13 +1159,15 @@ $ lakota len my_collection/my_series
     $ lakota len my_collection/my_series
     ```
     &#34;&#34;&#34;
+    repo = get_repo(args)
+    label = args.label
     if &#34;/&#34; in args.label:
-        series = [get_series(args)]
+        series = [get_series(repo, label)]
     else:
         repo = get_repo(args)
-        clc = repo / args.label
+        clc = get_collection(repo, label)
         if clc is None:
-            exit(f&#39;Collection &#34;{args.label}&#34; not found&#39;)
+            exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
         series = [clc / name for name in clc]
     print(sum(len(s) for s in series))</code></pre>
 </details>
@@ -1288,7 +1352,8 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     lakota read my_collection/my_series --mask &#34;(&lt; self.some_field 42)
     ```
     &#34;&#34;&#34;
-    series = get_series(args)
+    repo = get_repo(args)
+    series = get_series(repo, args.label)
     reduce = False
     if not args.columns:
         columns = list(series.schema.columns)
@@ -1311,8 +1376,11 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
 
     if reduce:
         kw = {c: c for c in args.columns}
-        columns = args.columns
         frames = (f.reduce(**kw) for f in frames)
+        # Peek at first frame to get the colums
+        first = next(frames)
+        columns = list(first)
+        frames = chain([first], frames)
 
     if args.pretty:
         for frm in frames:
@@ -1357,10 +1425,12 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
 
     &#34;&#34;&#34;
     repo = get_repo(args)
-    collection = None
-    collection = repo / args.label
-    if collection is None:
-        exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+    if args.label:
+        collection = get_collection(repo, args.label)
+        if collection is None:
+            exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
+    else:
+        collection = repo.collection_series
 
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
@@ -1393,7 +1463,7 @@ Date: {timestamp}&#34;&#34;&#34;
 <pre><code class="python">def run():
 
     # Take default repo from env variable, fallback to .lakota in current dir
-    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file://.lakota&#34;)
+    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file:///.lakota&#34;)
 
     # top-level parser
     parser = argparse.ArgumentParser(
@@ -1443,7 +1513,7 @@ Date: {timestamp}&#34;&#34;&#34;
 
     # Add rev command
     parser_rev = subparsers.add_parser(&#34;rev&#34;)
-    parser_rev.add_argument(&#34;label&#34;)
+    parser_rev.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
     parser_rev.add_argument(
         &#34;-e&#34;, &#34;--extended&#34;, action=&#34;store_true&#34;, help=&#34;Extended output&#34;
     )
@@ -1457,6 +1527,9 @@ Date: {timestamp}&#34;&#34;&#34;
     # Add squash command
     parser_squash = subparsers.add_parser(&#34;squash&#34;)
     parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.add_argument(
+        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
+    )
     parser_squash.set_defaults(func=squash)
 
     # Add push command
@@ -1505,6 +1578,22 @@ Date: {timestamp}&#34;&#34;&#34;
     parser_len = subparsers.add_parser(&#34;version&#34;)
     parser_len.set_defaults(func=lambda *a: print(__version__))
 
+    # Add serve command
+    parser_serve = subparsers.add_parser(&#34;serve&#34;)
+    parser_serve.add_argument(&#34;netloc&#34;, nargs=&#34;?&#34;, default=&#34;127.0.0.1:8080&#34;)
+    parser_serve.set_defaults(func=serve)
+
+    # Add deploy command
+    parser_deploy = subparsers.add_parser(&#34;deploy&#34;)
+    parser_deploy.add_argument(&#34;name&#34;, help=&#34;Lambda function name&#34;)
+    parser_deploy.add_argument(&#34;--arn&#34;, help=&#34;ARN of the role&#34;)
+    parser_deploy.add_argument(
+        &#34;--lakota-package&#34;,
+        help=&#34;Full path to clone (if not set use the offical package&#34;,
+        default=&#34;lakota&#34;,
+    )
+    parser_deploy.set_defaults(func=deploy)
+
     # Parse args
     args = parser.parse_args()
     if not args.command:
@@ -1528,6 +1617,26 @@ Date: {timestamp}&#34;&#34;&#34;
         pass</code></pre>
 </details>
 </dd>
+<dt id="lakota.cli.serve"><code class="name flex">
+<span>def <span class="ident">serve</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def serve(args):
+    try:
+        from lakota import server
+    except ImportError:
+        raise
+        exit(&#34;Please install flask to run server&#34;)
+
+    repo = get_repo(args)
+    server.run(repo, args.netloc, debug=args.verbose)</code></pre>
+</details>
+</dd>
 <dt id="lakota.cli.squash"><code class="name flex">
 <span>def <span class="ident">squash</span></span>(<span>args)</span>
 </code></dt>
@@ -1544,13 +1653,14 @@ repo changelog.</p></div>
     repo changelog.
     &#34;&#34;&#34;
     repo = get_repo(args)
-    if args.labels:
-        for label in args.labels:
-            collection = repo / label
+    labels = repo.ls() if args.all else args.labels
+    if labels:
+        for label in labels:
+            collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
             collection.squash()
-    else:
+    if args.all or not args.labels:
         repo.registry.squash()</code></pre>
 </details>
 </dd>
@@ -1572,7 +1682,8 @@ repo changelog.</p></div>
     $ cat some_file.csv | lakota write my_collection/my_series
     ```
     &#34;&#34;&#34;
-    series = get_series(args)
+    repo = get_repo(args)
+    series = get_series(repo, args.label)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
     schema = series.schema
@@ -1603,6 +1714,7 @@ repo changelog.</p></div>
 <ul class="two-column">
 <li><code><a title="lakota.cli.create" href="#lakota.cli.create">create</a></code></li>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
+<li><code><a title="lakota.cli.deploy" href="#lakota.cli.deploy">deploy</a></code></li>
 <li><code><a title="lakota.cli.gc" href="#lakota.cli.gc">gc</a></code></li>
 <li><code><a title="lakota.cli.get_collection" href="#lakota.cli.get_collection">get_collection</a></code></li>
 <li><code><a title="lakota.cli.get_repo" href="#lakota.cli.get_repo">get_repo</a></code></li>
@@ -1616,6 +1728,7 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.read" href="#lakota.cli.read">read</a></code></li>
 <li><code><a title="lakota.cli.rev" href="#lakota.cli.rev">rev</a></code></li>
 <li><code><a title="lakota.cli.run" href="#lakota.cli.run">run</a></code></li>
+<li><code><a title="lakota.cli.serve" href="#lakota.cli.serve">serve</a></code></li>
 <li><code><a title="lakota.cli.squash" href="#lakota.cli.squash">squash</a></code></li>
 <li><code><a title="lakota.cli.write" href="#lakota.cli.write">write</a></code></li>
 </ul>

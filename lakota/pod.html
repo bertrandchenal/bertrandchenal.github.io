@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.9.2" />
 <title>lakota.pod API documentation</title>
-<meta name="description" content="" />
+<meta name="description" content="The `POD` class implement low-level access to different
+storage. The `from_uri` method allow to instanciate a POD object based
+on a uri. The supported …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,15 +24,54 @@
 <h1 class="title">Module <code>lakota.pod</code></h1>
 </header>
 <section id="section-intro">
+<p>The <code><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></code> class implement low-level access to different
+storage. The <code>from_uri</code> method allow to instanciate a POD object based
+on a uri. The supported schemes are <code>file://</code>, <code>s3://</code>, <code>http://</code> and
+<code>memory://</code>. if no scheme is given, the uri is interpreted as a local
+path.</p>
+<pre><code class="language-python-console">&gt;&gt;&gt; from lakota import POD
+&gt;&gt;&gt; pod = POD.from_uri('.lakota')
+&gt;&gt;&gt; pod.ls()
+['00', '01', '02', '03', ... 'fb', 'fc', 'fd', 'fe', 'ff']
+</code></pre>
+<p>It is mainly used through the <code>lakota.Repo</code> class.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import shutil
+<pre><code class="python">&#34;&#34;&#34;
+The `POD` class implement low-level access to different
+storage. The `from_uri` method allow to instanciate a POD object based
+on a uri. The supported schemes are `file://`, `s3://`, `http://` and
+`memory://`. if no scheme is given, the uri is interpreted as a local
+path.
+
+
+``` python-console
+&gt;&gt;&gt; from lakota import POD
+&gt;&gt;&gt; pod = POD.from_uri(&#39;.lakota&#39;)
+&gt;&gt;&gt; pod.ls()
+[&#39;00&#39;, &#39;01&#39;, &#39;02&#39;, &#39;03&#39;, ... &#39;fb&#39;, &#39;fc&#39;, &#39;fd&#39;, &#39;fe&#39;, &#39;ff&#39;]
+```
+
+It is mainly used through the `lakota.Repo` class.
+&#34;&#34;&#34;
+import io
+import os
+import shutil
 from pathlib import Path, PurePosixPath
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
-import s3fs
+try:
+    import s3fs
+except ImportError:
+    s3fs = None
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 from .utils import logger
 
@@ -63,26 +104,48 @@ class POD:
             return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
         # Define protocal and path
-        if not uri:
-            protocol = &#34;memory&#34;
-            path = &#34;.&#34;
-        elif not &#34;://&#34; in uri:
-            protocol = &#34;file&#34;
-            path = uri
-        else:
-            protocol, path = uri.split(&#34;://&#34;, 1)
+        parts = urlsplit(uri)
+        scheme, path = parts.scheme, parts.path
+        kwargs = parse_qs(parts.query)
+        if not scheme:
+            if not path or path == &#34;:memory:&#34;:
+                scheme = &#34;memory&#34;
+                path = &#34;.&#34;
+            else:
+                scheme = &#34;file&#34;
+
+        # Massage path
+        if parts.scheme and path.startswith(&#34;/&#34;):
+            # urlsplit keep the separator in the path
+            path = path[1:]
+        if scheme == &#34;file&#34;:
+            path = Path(path).expanduser()
 
         # Instatiate pod object
         path = PurePosixPath(path)
-        if protocol == &#34;file&#34;:
-            path = Path(path).expanduser()
-            return FilePOD(path, **fs_kwargs)
-        elif protocol == &#34;s3&#34;:
-            return S3POD(path, **fs_kwargs)
-        elif protocol == &#34;memory&#34;:
-            return MemPOD(path, **fs_kwargs)
+        if scheme == &#34;file&#34;:
+            assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
+            return FilePOD(path)
+        elif scheme == &#34;s3&#34;:
+            if s3fs is None:
+                raise ValueError(
+                    f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+                )
+            profile = kwargs.get(&#34;profile&#34;, [None])[0]
+            return S3POD(path, netloc=parts.netloc, profile=profile)
+        elif scheme == &#34;ssh&#34;:
+            raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
+        elif scheme == &#34;http&#34;:
+            if requests is None:
+                raise ImportError(
+                    f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
+                )
+            base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
+            return HttpPOD(base_uri, path)
+        elif scheme == &#34;memory&#34;:
+            return MemPOD(path)
         else:
-            raise ValueError(f&#39;Protocol &#34;{protocol}&#34; not supported&#39;)
+            raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)
 
     def __truediv__(self, relpath):
         return self.cd(relpath)
@@ -138,6 +201,7 @@ class FilePOD(POD):
     def read(self, relpath, mode=&#34;rb&#34;):
         logger.debug(&#34;READ %s %s&#34;, self.path, relpath)
         path = self.path / relpath
+        # XXX make sure path is subpath of self.path
         return path.open(mode).read()
 
     def write(self, relpath, data, mode=&#34;wb&#34;):
@@ -178,7 +242,7 @@ class MemPOD(POD):
 
     protocol = &#34;memory&#34;
 
-    def __init__(self, path, parent=None):
+    def __init__(self, path=&#34;.&#34;, parent=None):
         self.path = PurePosixPath(path)
         self.parent = parent
         # store keys are path, values are either bytes (aka a file)
@@ -307,63 +371,6 @@ class MemPOD(POD):
             del pod.store[leaf]
 
 
-class S3POD(POD):
-
-    protocol = &#34;s3&#34;
-
-    def __init__(self, path, fs=None, **kw):
-        # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
-        self.path = path
-        self.fs = fs or s3fs.S3FileSystem(
-            anon=False,
-            **kw,
-        )
-        super().__init__()
-
-    def cd(self, *others):
-        path = self.path.joinpath(*others)
-        return S3POD(path, fs=self.fs)
-
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST s3://%s %s&#34;, self.path, relpath)
-        path = self.path / relpath
-        try:
-            return [Path(p).name for p in self.fs.ls(path)]
-        except FileNotFoundError:
-            if missing_ok:
-                return []
-            raise
-
-    def read(self, relpath, mode=&#34;rb&#34;):
-        logger.debug(&#34;READ s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).read()
-
-    def write(self, relpath, data, mode=&#34;wb&#34;):
-        if self.isfile(relpath):
-            logger.debug(&#34;SKIP-WRITE s3://%s %s&#34;, self.path, relpath)
-            return
-        logger.debug(&#34;WRITE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).write(data)
-
-    def isdir(self, relpath):
-        return self.fs.isdir(self.path / relpath)
-
-    def isfile(self, relpath):
-        return self.fs.isfile(self.path / relpath)
-
-    def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
-        logger.debug(&#34;REMOVE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        try:
-            return self.fs.rm(path, recursive=recursive)
-        except FileNotFoundError:
-            if missing_ok:
-                return
-            raise
-
-
 class CachePOD(POD):
     def __init__(self, local, remote):
         self.local = local
@@ -408,7 +415,59 @@ class CachePOD(POD):
         try:
             self.local.rm(relpath, recursive=recursive, missing_ok=missing_ok)
         except FileNotFoundError:
-            pass</code></pre>
+            pass
+
+
+class SSHPOD(POD):
+
+    protocol = &#34;ssh&#34;
+
+    def __init__(self, client, path):
+        self.client = client
+        super().__init__()
+
+    @classmethod
+    def from_uri(cls, uri):
+        user, tail = uri.split(&#34;@&#34;)
+        host, path = tail.split(&#34;/&#34;, 1)
+
+        # path = Path(path)
+
+        key = os.environ[&#34;SSH_KEY&#34;]
+        file_obj = io.StringIO(key)
+
+        k = paramiko.RSAKey(file_obj=file_obj)
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=host, username=&#34;username&#34;, pkey=k)
+
+        return SSHPOD(client, path)
+
+    def cd(self, *others):
+        path = self.path.joinpath(*others)
+        return SSHPOD(self.client, path)
+
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
+        logger.debug(&#34;LIST %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        try:
+            return self.client.listdir(path)
+        except FileNotFoundError:
+            if missing_ok:
+                return []
+            raise
+
+    def read(self, relpath, mode=&#34;rb&#34;):
+        logger.debug(&#34;READ %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        return self.client.open(path, mode).read()
+
+
+# Tigger imports if related dependencies are present
+if requests is not None:
+    from .http_pod import HttpPOD
+if s3fs is not None:
+    from .s3_pod import S3POD</code></pre>
 </details>
 </section>
 <section>
@@ -455,26 +514,48 @@ class CachePOD(POD):
             return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
         # Define protocal and path
-        if not uri:
-            protocol = &#34;memory&#34;
-            path = &#34;.&#34;
-        elif not &#34;://&#34; in uri:
-            protocol = &#34;file&#34;
-            path = uri
-        else:
-            protocol, path = uri.split(&#34;://&#34;, 1)
+        parts = urlsplit(uri)
+        scheme, path = parts.scheme, parts.path
+        kwargs = parse_qs(parts.query)
+        if not scheme:
+            if not path or path == &#34;:memory:&#34;:
+                scheme = &#34;memory&#34;
+                path = &#34;.&#34;
+            else:
+                scheme = &#34;file&#34;
+
+        # Massage path
+        if parts.scheme and path.startswith(&#34;/&#34;):
+            # urlsplit keep the separator in the path
+            path = path[1:]
+        if scheme == &#34;file&#34;:
+            path = Path(path).expanduser()
 
         # Instatiate pod object
         path = PurePosixPath(path)
-        if protocol == &#34;file&#34;:
-            path = Path(path).expanduser()
-            return FilePOD(path, **fs_kwargs)
-        elif protocol == &#34;s3&#34;:
-            return S3POD(path, **fs_kwargs)
-        elif protocol == &#34;memory&#34;:
-            return MemPOD(path, **fs_kwargs)
+        if scheme == &#34;file&#34;:
+            assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
+            return FilePOD(path)
+        elif scheme == &#34;s3&#34;:
+            if s3fs is None:
+                raise ValueError(
+                    f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+                )
+            profile = kwargs.get(&#34;profile&#34;, [None])[0]
+            return S3POD(path, netloc=parts.netloc, profile=profile)
+        elif scheme == &#34;ssh&#34;:
+            raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
+        elif scheme == &#34;http&#34;:
+            if requests is None:
+                raise ImportError(
+                    f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
+                )
+            base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
+            return HttpPOD(base_uri, path)
+        elif scheme == &#34;memory&#34;:
+            return MemPOD(path)
         else:
-            raise ValueError(f&#39;Protocol &#34;{protocol}&#34; not supported&#39;)
+            raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)
 
     def __truediv__(self, relpath):
         return self.cd(relpath)
@@ -506,10 +587,12 @@ class CachePOD(POD):
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="lakota.http_pod.HttpPOD" href="http_pod.html#lakota.http_pod.HttpPOD">HttpPOD</a></li>
 <li>lakota.pod.CachePOD</li>
 <li>lakota.pod.FilePOD</li>
 <li>lakota.pod.MemPOD</li>
-<li>lakota.pod.S3POD</li>
+<li>lakota.pod.SSHPOD</li>
+<li><a title="lakota.s3_pod.S3POD" href="s3_pod.html#lakota.s3_pod.S3POD">S3POD</a></li>
 </ul>
 <h3>Static methods</h3>
 <dl>
@@ -551,26 +634,48 @@ def from_uri(cls, uri=None, **fs_kwargs):
         return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
     # Define protocal and path
-    if not uri:
-        protocol = &#34;memory&#34;
-        path = &#34;.&#34;
-    elif not &#34;://&#34; in uri:
-        protocol = &#34;file&#34;
-        path = uri
-    else:
-        protocol, path = uri.split(&#34;://&#34;, 1)
+    parts = urlsplit(uri)
+    scheme, path = parts.scheme, parts.path
+    kwargs = parse_qs(parts.query)
+    if not scheme:
+        if not path or path == &#34;:memory:&#34;:
+            scheme = &#34;memory&#34;
+            path = &#34;.&#34;
+        else:
+            scheme = &#34;file&#34;
+
+    # Massage path
+    if parts.scheme and path.startswith(&#34;/&#34;):
+        # urlsplit keep the separator in the path
+        path = path[1:]
+    if scheme == &#34;file&#34;:
+        path = Path(path).expanduser()
 
     # Instatiate pod object
     path = PurePosixPath(path)
-    if protocol == &#34;file&#34;:
-        path = Path(path).expanduser()
-        return FilePOD(path, **fs_kwargs)
-    elif protocol == &#34;s3&#34;:
-        return S3POD(path, **fs_kwargs)
-    elif protocol == &#34;memory&#34;:
-        return MemPOD(path, **fs_kwargs)
+    if scheme == &#34;file&#34;:
+        assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
+        return FilePOD(path)
+    elif scheme == &#34;s3&#34;:
+        if s3fs is None:
+            raise ValueError(
+                f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+            )
+        profile = kwargs.get(&#34;profile&#34;, [None])[0]
+        return S3POD(path, netloc=parts.netloc, profile=profile)
+    elif scheme == &#34;ssh&#34;:
+        raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
+    elif scheme == &#34;http&#34;:
+        if requests is None:
+            raise ImportError(
+                f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
+            )
+        base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
+        return HttpPOD(base_uri, path)
+    elif scheme == &#34;memory&#34;:
+        return MemPOD(path)
     else:
-        raise ValueError(f&#39;Protocol &#34;{protocol}&#34; not supported&#39;)</code></pre>
+        raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)</code></pre>
 </details>
 </dd>
 </dl>
