@@ -29,27 +29,36 @@
 <pre><code class="python">from pathlib import Path
 
 import s3fs
+import urllib3
 
 from .pod import POD
 from .utils import logger
+
+
+def silence_insecure_warning():
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class S3POD(POD):
 
     protocol = &#34;s3&#34;
 
-    def __init__(self, path, netloc=None, profile=None, fs=None):
+    def __init__(self, path, netloc=None, profile=None, verify=True, fs=None):
         # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
         self.path = path
         if fs:
             self.fs = fs
         else:
-            client_kwargs = {}
+            if not verify:
+                silence_insecure_warning()
+            client_kwargs = {&#34;verify&#34;: verify}
             if netloc:
                 # TODO support for https
                 client_kwargs[&#34;endpoint_url&#34;] = f&#34;http://{netloc}&#34;
             self.fs = s3fs.S3FileSystem(
-                anon=False, client_kwargs=client_kwargs, profile=profile
+                anon=False,
+                client_kwargs=client_kwargs,
+                profile=profile,
             )
 
         super().__init__()
@@ -103,13 +112,29 @@ class S3POD(POD):
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="lakota.s3_pod.silence_insecure_warning"><code class="name flex">
+<span>def <span class="ident">silence_insecure_warning</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def silence_insecure_warning():
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)</code></pre>
+</details>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
 <dt id="lakota.s3_pod.S3POD"><code class="flex name class">
 <span>class <span class="ident">S3POD</span></span>
-<span>(</span><span>path, netloc=None, profile=None, fs=None)</span>
+<span>(</span><span>path, netloc=None, profile=None, verify=True, fs=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -121,18 +146,22 @@ class S3POD(POD):
 
     protocol = &#34;s3&#34;
 
-    def __init__(self, path, netloc=None, profile=None, fs=None):
+    def __init__(self, path, netloc=None, profile=None, verify=True, fs=None):
         # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
         self.path = path
         if fs:
             self.fs = fs
         else:
-            client_kwargs = {}
+            if not verify:
+                silence_insecure_warning()
+            client_kwargs = {&#34;verify&#34;: verify}
             if netloc:
                 # TODO support for https
                 client_kwargs[&#34;endpoint_url&#34;] = f&#34;http://{netloc}&#34;
             self.fs = s3fs.S3FileSystem(
-                anon=False, client_kwargs=client_kwargs, profile=profile
+                anon=False,
+                client_kwargs=client_kwargs,
+                profile=profile,
             )
 
         super().__init__()
@@ -320,6 +349,11 @@ class S3POD(POD):
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="lakota" href="index.html">lakota</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="lakota.s3_pod.silence_insecure_warning" href="#lakota.s3_pod.silence_insecure_warning">silence_insecure_warning</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

@@ -98,19 +98,24 @@ provide persistant caching.
 expose full read and write access to the underlying repository.
 &#34;&#34;&#34;
 
-from flask import Flask, Response, abort, request
+import base64
+from urllib.parse import urlsplit
 
-app = Flask(&#34;Lakota Repository&#34;)
+from flask import Blueprint, Flask, abort, request
+
+# Simple dict to register repositories
+dispatcher = {}
+
+pod_bp = Blueprint(f&#34;Lakota POD&#34;, __name__)
 
 
-@app.route(&#34;/&lt;action&gt;/&#34;)
-@app.route(&#34;/&lt;action&gt;/&lt;path:relpath&gt;&#34;, methods=[&#34;GET&#34;, &#34;POST&#34;])
-def pod(action, relpath=None):
+@pod_bp.route(&#34;/&lt;action&gt;&#34;, methods=[&#34;GET&#34;, &#34;POST&#34;])
+def pod(repo, action, relpath=None):
     &#34;&#34;&#34;
     summary: Interact with low-level POD object (GET)
     ---
     parameters:
-      - in: path
+      - in: action
         name: action
         schema:
           type: string
@@ -123,49 +128,68 @@ def pod(action, relpath=None):
         required: false
         description: Relative path
     &#34;&#34;&#34;
+    relpath = request.args.get(&#34;path&#34;)
 
-    repo = app.config[&#34;lakota_repo&#34;]
     if action == &#34;ls&#34;:
         try:
             relpath = &#34;.&#34; if relpath is None else relpath
-            payload = &#34;\n&#34;.join(repo.pod.ls(relpath))
+            names = repo.pod.ls(relpath)
         except FileNotFoundError:
-            return abort(404)
-        return Response(payload, mimetype=&#34;text/plain&#34;)
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: names}
 
     elif action == &#34;read&#34;:
-        payload = repo.pod.read(relpath)
-        return Response(payload, mimetype=&#34;application/octet-stream&#34;)
+        try:
+            payload = repo.pod.read(relpath)
+            payload = base64.b64encode(payload).decode(&#34;ascii&#34;)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: payload, &#34;b64encoded&#34;: True}
 
     elif action == &#34;rm&#34;:
         recursive = request.args.get(&#34;recursive&#34;, &#34;&#34;).lower() == &#34;true&#34;
         missing_ok = request.args.get(&#34;missing_ok&#34;, &#34;&#34;).lower() == &#34;true&#34;
-        repo.pod.rm(relpath, recursive=recursive, missing_ok=missing_ok)
-        return Response(&#34;ok&#34;, mimetype=&#34;text/plain&#34;)
+        try:
+            repo.pod.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;status&#34;: &#34;ok&#34;}
 
     elif action == &#34;write&#34;:
-        info = repo.pod.write(relpath, request.data)
-        return Response(str(info or &#34;&#34;), mimetype=&#34;text/plain&#34;)
+        try:
+            info = repo.pod.write(relpath, request.data)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: info}
 
     elif action == &#34;walk&#34;:
         pod = repo.pod
-        if relpath:
-            pod = pod.cd(relpath)
-        max_depth = request.args.get(&#34;max_depth&#34;)
-        if max_depth is not None:
-            max_depth = int(max_depth)
-        payload = &#34;\n&#34;.join(pod.walk(max_depth=max_depth))
-        return Response(payload, mimetype=&#34;text/plain&#34;)
+        try:
+            if relpath:
+                pod = pod.cd(relpath)
+            max_depth = request.args.get(&#34;max_depth&#34;)
+            if max_depth is not None:
+                max_depth = int(max_depth)
+            names = list(pod.walk(max_depth=max_depth))
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: names}
 
     else:
-        return abort(404, f&#34;Action {action} not supported&#34;)
+        return &#39;Action &#34;{action}&#34; not supported&#39;, 404
 
 
-def run(repo, netloc=None, debug=False):
-    host, port = netloc.split(&#34;:&#34;, 1)
-    port = port and int(port) or None
-    app.config[&#34;lakota_repo&#34;] = repo
-    app.run(host, debug=debug, port=port)</code></pre>
+def run(repo, web_uri=None, debug=False):
+    parts = urlsplit(web_uri)
+    if not parts.scheme == &#34;http&#34;:
+        # if no scheme is given, hostname and port are not interpreted correctly
+        msg = &#34;Incorrect web uri, it should start with &#39;http://&#39;&#34;
+        raise ValueError(msg)
+
+    # Instanciate app and blueprint. Run app
+    app = Flask(&#34;Lakota Repository&#34;)
+    app.register_blueprint(pod_bp, url_prefix=parts.path, url_defaults={&#34;repo&#34;: repo})
+    app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </section>
 <section>
@@ -176,12 +200,12 @@ def run(repo, netloc=None, debug=False):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="lakota.server.pod"><code class="name flex">
-<span>def <span class="ident">pod</span></span>(<span>action, relpath=None)</span>
+<span>def <span class="ident">pod</span></span>(<span>repo, action, relpath=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><h2 id="summary-interact-with-low-level-pod-object-get">summary: Interact with low-level POD object (GET)</h2>
 <p>parameters:
-- in: path
+- in: action
 name: action
 schema:
 type: string
@@ -197,14 +221,13 @@ description: Relative path</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@app.route(&#34;/&lt;action&gt;/&#34;)
-@app.route(&#34;/&lt;action&gt;/&lt;path:relpath&gt;&#34;, methods=[&#34;GET&#34;, &#34;POST&#34;])
-def pod(action, relpath=None):
+<pre><code class="python">@pod_bp.route(&#34;/&lt;action&gt;&#34;, methods=[&#34;GET&#34;, &#34;POST&#34;])
+def pod(repo, action, relpath=None):
     &#34;&#34;&#34;
     summary: Interact with low-level POD object (GET)
     ---
     parameters:
-      - in: path
+      - in: action
         name: action
         schema:
           type: string
@@ -217,46 +240,59 @@ def pod(action, relpath=None):
         required: false
         description: Relative path
     &#34;&#34;&#34;
+    relpath = request.args.get(&#34;path&#34;)
 
-    repo = app.config[&#34;lakota_repo&#34;]
     if action == &#34;ls&#34;:
         try:
             relpath = &#34;.&#34; if relpath is None else relpath
-            payload = &#34;\n&#34;.join(repo.pod.ls(relpath))
+            names = repo.pod.ls(relpath)
         except FileNotFoundError:
-            return abort(404)
-        return Response(payload, mimetype=&#34;text/plain&#34;)
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: names}
 
     elif action == &#34;read&#34;:
-        payload = repo.pod.read(relpath)
-        return Response(payload, mimetype=&#34;application/octet-stream&#34;)
+        try:
+            payload = repo.pod.read(relpath)
+            payload = base64.b64encode(payload).decode(&#34;ascii&#34;)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: payload, &#34;b64encoded&#34;: True}
 
     elif action == &#34;rm&#34;:
         recursive = request.args.get(&#34;recursive&#34;, &#34;&#34;).lower() == &#34;true&#34;
         missing_ok = request.args.get(&#34;missing_ok&#34;, &#34;&#34;).lower() == &#34;true&#34;
-        repo.pod.rm(relpath, recursive=recursive, missing_ok=missing_ok)
-        return Response(&#34;ok&#34;, mimetype=&#34;text/plain&#34;)
+        try:
+            repo.pod.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;status&#34;: &#34;ok&#34;}
 
     elif action == &#34;write&#34;:
-        info = repo.pod.write(relpath, request.data)
-        return Response(str(info or &#34;&#34;), mimetype=&#34;text/plain&#34;)
+        try:
+            info = repo.pod.write(relpath, request.data)
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: info}
 
     elif action == &#34;walk&#34;:
         pod = repo.pod
-        if relpath:
-            pod = pod.cd(relpath)
-        max_depth = request.args.get(&#34;max_depth&#34;)
-        if max_depth is not None:
-            max_depth = int(max_depth)
-        payload = &#34;\n&#34;.join(pod.walk(max_depth=max_depth))
-        return Response(payload, mimetype=&#34;text/plain&#34;)
+        try:
+            if relpath:
+                pod = pod.cd(relpath)
+            max_depth = request.args.get(&#34;max_depth&#34;)
+            if max_depth is not None:
+                max_depth = int(max_depth)
+            names = list(pod.walk(max_depth=max_depth))
+        except FileNotFoundError:
+            return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;body&#34;: names}
 
     else:
-        return abort(404, f&#34;Action {action} not supported&#34;)</code></pre>
+        return &#39;Action &#34;{action}&#34; not supported&#39;, 404</code></pre>
 </details>
 </dd>
 <dt id="lakota.server.run"><code class="name flex">
-<span>def <span class="ident">run</span></span>(<span>repo, netloc=None, debug=False)</span>
+<span>def <span class="ident">run</span></span>(<span>repo, web_uri=None, debug=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -264,11 +300,17 @@ def pod(action, relpath=None):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def run(repo, netloc=None, debug=False):
-    host, port = netloc.split(&#34;:&#34;, 1)
-    port = port and int(port) or None
-    app.config[&#34;lakota_repo&#34;] = repo
-    app.run(host, debug=debug, port=port)</code></pre>
+<pre><code class="python">def run(repo, web_uri=None, debug=False):
+    parts = urlsplit(web_uri)
+    if not parts.scheme == &#34;http&#34;:
+        # if no scheme is given, hostname and port are not interpreted correctly
+        msg = &#34;Incorrect web uri, it should start with &#39;http://&#39;&#34;
+        raise ValueError(msg)
+
+    # Instanciate app and blueprint. Run app
+    app = Flask(&#34;Lakota Repository&#34;)
+    app.register_blueprint(pod_bp, url_prefix=parts.path, url_defaults={&#34;repo&#34;: repo})
+    app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </dd>
 </dl>

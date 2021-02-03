@@ -29,7 +29,7 @@
 <pre><code class="python">from bisect import bisect_left, bisect_right
 from collections import defaultdict
 
-from numpy import argsort, array_equal, asarray, concatenate, ndarray, rec, unique
+from numpy import argsort, array_equal, asarray, concatenate, ndarray, rec, unique, arange
 
 from .schema import Schema
 from .sexpr import AST, Alias
@@ -103,6 +103,19 @@ class Frame:
         arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
         # Mergesort is faster on pre-sorted arrays
         return argsort(arr, kind=&#34;mergesort&#34;)
+
+    def is_sorted(self):
+        return True
+        idx_cols = list(self.schema.idx)
+        if len(idx_cols) == 1:
+            arr = self[idx_cols[0]]
+            return all(arr[1:] &gt;= arr[:-1])
+
+        # Multi-column index we fallback on argsort
+        arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+        sort_mask = self.argsort()
+        a_range = arange(len(sort_mask))
+        return all(sort_mask == a_range)
 
     @classmethod
     def concat(cls, *frames):
@@ -429,6 +442,19 @@ class Frame:
         arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
         # Mergesort is faster on pre-sorted arrays
         return argsort(arr, kind=&#34;mergesort&#34;)
+
+    def is_sorted(self):
+        return True
+        idx_cols = list(self.schema.idx)
+        if len(idx_cols) == 1:
+            arr = self[idx_cols[0]]
+            return all(arr[1:] &gt;= arr[:-1])
+
+        # Multi-column index we fallback on argsort
+        arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+        sort_mask = self.argsort()
+        a_range = arange(len(sort_mask))
+        return all(sort_mask == a_range)
 
     @classmethod
     def concat(cls, *frames):
@@ -914,6 +940,29 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
     return idx_start, idx_stop</code></pre>
 </details>
 </dd>
+<dt id="lakota.frame.Frame.is_sorted"><code class="name flex">
+<span>def <span class="ident">is_sorted</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sorted(self):
+    return True
+    idx_cols = list(self.schema.idx)
+    if len(idx_cols) == 1:
+        arr = self[idx_cols[0]]
+        return all(arr[1:] &gt;= arr[:-1])
+
+    # Multi-column index we fallback on argsort
+    arr = rec.fromarrays([self[n] for n in idx_cols], names=idx_cols)
+    sort_mask = self.argsort()
+    a_range = arange(len(sort_mask))
+    return all(sort_mask == a_range)</code></pre>
+</details>
+</dd>
 <dt id="lakota.frame.Frame.keys"><code class="name flex">
 <span>def <span class="ident">keys</span></span>(<span>self)</span>
 </code></dt>
@@ -1170,6 +1219,7 @@ evaluated.</p></div>
 <li><code><a title="lakota.frame.Frame.from_segments" href="#lakota.frame.Frame.from_segments">from_segments</a></code></li>
 <li><code><a title="lakota.frame.Frame.index" href="#lakota.frame.Frame.index">index</a></code></li>
 <li><code><a title="lakota.frame.Frame.index_slice" href="#lakota.frame.Frame.index_slice">index_slice</a></code></li>
+<li><code><a title="lakota.frame.Frame.is_sorted" href="#lakota.frame.Frame.is_sorted">is_sorted</a></code></li>
 <li><code><a title="lakota.frame.Frame.keys" href="#lakota.frame.Frame.keys">keys</a></code></li>
 <li><code><a title="lakota.frame.Frame.mask" href="#lakota.frame.Frame.mask">mask</a></code></li>
 <li><code><a title="lakota.frame.Frame.read_segments" href="#lakota.frame.Frame.read_segments">read_segments</a></code></li>

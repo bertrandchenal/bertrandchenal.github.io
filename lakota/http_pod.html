@@ -26,7 +26,10 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import requests
+<pre><code class="python">import base64
+from pathlib import PurePosixPath
+
+import requests
 
 from .pod import POD
 from .utils import logger
@@ -36,10 +39,14 @@ class HttpPOD(POD):
 
     protocol = &#34;http&#34;
 
-    def __init__(self, base_uri, path=None, session=None):
-        self.base_uri = base_uri
-        self.path = path
-        self.session = session or requests.Session()
+    def __init__(self, base_uri, path=None, session=None, headers=None):
+        self.base_uri = base_uri if base_uri.endswith(&#34;/&#34;) else base_uri + &#34;/&#34;
+        self.path = path or PurePosixPath(&#34;&#34;)
+        if session:
+            self.session = session
+        else:
+            self.session = requests.Session()
+            self.session.headers.update(headers)
         super().__init__()
 
     def cd(self, *others):
@@ -47,9 +54,9 @@ class HttpPOD(POD):
         return HttpPOD(self.base_uri, path, session=self.session)
 
     def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST %s://%s %s&#34;, self.protocol, self.path, relpath)
-        path = self.path / relpath
-        resp = self.session.get(self.base_uri + &#34;ls/&#34; + str(path))
+        logger.debug(&#34;LIST %s %s %s&#34;, self.base_uri, self.path, relpath)
+        params = {&#34;path&#34;: str(self.path / relpath)}
+        resp = self.session.get(self.base_uri + &#34;ls&#34;, params=params)
 
         if resp.status_code == 404:
             if missing_ok:
@@ -57,26 +64,27 @@ class HttpPOD(POD):
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         else:
             resp.raise_for_status()
-
-        return resp.text.splitlines()
+        return resp.json()[&#34;body&#34;]
 
     def read(self, relpath, mode=&#34;rb&#34;):
         logger.debug(&#34;READ %s://%s %s&#34;, self.protocol, self.path, relpath)
-        path = self.path / relpath
-        resp = self.session.get(self.base_uri + &#34;read/&#34; + str(path))
+        params = {&#34;path&#34;: str(self.path / relpath)}
+        resp = self.session.get(self.base_uri + &#34;read&#34;, params=params)
 
         if resp.status_code == 404:
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         else:
             resp.raise_for_status()
-        return resp.content
+        return base64.b64decode(resp.json()[&#34;body&#34;])
 
     def write(self, relpath, data, mode=&#34;wb&#34;):
         logger.debug(&#34;WRITE %s://%s %s&#34;, self.protocol, self.path, relpath)
         path = str(self.path / relpath)
-        resp = self.session.post(self.base_uri + &#34;write/&#34; + str(path), data=data)
+        params = {&#34;path&#34;: str(path)}
+        resp = self.session.post(self.base_uri + &#34;write&#34;, params=params, data=data)
         resp.raise_for_status()
-        return int(resp.content) if resp.content else None
+        body = resp.json()[&#34;body&#34;]
+        return body
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE %s://%s %s&#34;, self.protocol, self.path, relpath)
@@ -84,20 +92,23 @@ class HttpPOD(POD):
         params = {
             &#34;recursive&#34;: &#34;true&#34; if recursive else &#34;&#34;,
             &#34;missing_ok&#34;: &#34;true&#34; if missing_ok else &#34;&#34;,
+            &#34;path&#34;: path,
         }
-        resp = self.session.post(self.base_uri + &#34;rm/&#34; + path, params=params)
+        resp = self.session.post(self.base_uri + &#34;rm&#34;, params, params=params)
         resp.raise_for_status()
 
     def walk(self, max_depth=None):
         if max_depth == 0:
             return []
-        params = {}
+
+        params = {&#34;path&#34;: str(self.path)}
         if max_depth is not None:
             params[&#34;max_depth&#34;] = str(max_depth)
 
-        resp = self.session.get(self.base_uri + &#34;walk/&#34; + str(self.path), params=params)
+        resp = self.session.get(self.base_uri + &#34;walk&#34;, params=params)
         resp.raise_for_status()
-        return resp.text.splitlines()</code></pre>
+        body = resp.json()[&#34;body&#34;]
+        return body</code></pre>
 </details>
 </section>
 <section>
@@ -111,7 +122,7 @@ class HttpPOD(POD):
 <dl>
 <dt id="lakota.http_pod.HttpPOD"><code class="flex name class">
 <span>class <span class="ident">HttpPOD</span></span>
-<span>(</span><span>base_uri, path=None, session=None)</span>
+<span>(</span><span>base_uri, path=None, session=None, headers=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -123,10 +134,14 @@ class HttpPOD(POD):
 
     protocol = &#34;http&#34;
 
-    def __init__(self, base_uri, path=None, session=None):
-        self.base_uri = base_uri
-        self.path = path
-        self.session = session or requests.Session()
+    def __init__(self, base_uri, path=None, session=None, headers=None):
+        self.base_uri = base_uri if base_uri.endswith(&#34;/&#34;) else base_uri + &#34;/&#34;
+        self.path = path or PurePosixPath(&#34;&#34;)
+        if session:
+            self.session = session
+        else:
+            self.session = requests.Session()
+            self.session.headers.update(headers)
         super().__init__()
 
     def cd(self, *others):
@@ -134,9 +149,9 @@ class HttpPOD(POD):
         return HttpPOD(self.base_uri, path, session=self.session)
 
     def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST %s://%s %s&#34;, self.protocol, self.path, relpath)
-        path = self.path / relpath
-        resp = self.session.get(self.base_uri + &#34;ls/&#34; + str(path))
+        logger.debug(&#34;LIST %s %s %s&#34;, self.base_uri, self.path, relpath)
+        params = {&#34;path&#34;: str(self.path / relpath)}
+        resp = self.session.get(self.base_uri + &#34;ls&#34;, params=params)
 
         if resp.status_code == 404:
             if missing_ok:
@@ -144,26 +159,27 @@ class HttpPOD(POD):
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         else:
             resp.raise_for_status()
-
-        return resp.text.splitlines()
+        return resp.json()[&#34;body&#34;]
 
     def read(self, relpath, mode=&#34;rb&#34;):
         logger.debug(&#34;READ %s://%s %s&#34;, self.protocol, self.path, relpath)
-        path = self.path / relpath
-        resp = self.session.get(self.base_uri + &#34;read/&#34; + str(path))
+        params = {&#34;path&#34;: str(self.path / relpath)}
+        resp = self.session.get(self.base_uri + &#34;read&#34;, params=params)
 
         if resp.status_code == 404:
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         else:
             resp.raise_for_status()
-        return resp.content
+        return base64.b64decode(resp.json()[&#34;body&#34;])
 
     def write(self, relpath, data, mode=&#34;wb&#34;):
         logger.debug(&#34;WRITE %s://%s %s&#34;, self.protocol, self.path, relpath)
         path = str(self.path / relpath)
-        resp = self.session.post(self.base_uri + &#34;write/&#34; + str(path), data=data)
+        params = {&#34;path&#34;: str(path)}
+        resp = self.session.post(self.base_uri + &#34;write&#34;, params=params, data=data)
         resp.raise_for_status()
-        return int(resp.content) if resp.content else None
+        body = resp.json()[&#34;body&#34;]
+        return body
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE %s://%s %s&#34;, self.protocol, self.path, relpath)
@@ -171,20 +187,23 @@ class HttpPOD(POD):
         params = {
             &#34;recursive&#34;: &#34;true&#34; if recursive else &#34;&#34;,
             &#34;missing_ok&#34;: &#34;true&#34; if missing_ok else &#34;&#34;,
+            &#34;path&#34;: path,
         }
-        resp = self.session.post(self.base_uri + &#34;rm/&#34; + path, params=params)
+        resp = self.session.post(self.base_uri + &#34;rm&#34;, params, params=params)
         resp.raise_for_status()
 
     def walk(self, max_depth=None):
         if max_depth == 0:
             return []
-        params = {}
+
+        params = {&#34;path&#34;: str(self.path)}
         if max_depth is not None:
             params[&#34;max_depth&#34;] = str(max_depth)
 
-        resp = self.session.get(self.base_uri + &#34;walk/&#34; + str(self.path), params=params)
+        resp = self.session.get(self.base_uri + &#34;walk&#34;, params=params)
         resp.raise_for_status()
-        return resp.text.splitlines()</code></pre>
+        body = resp.json()[&#34;body&#34;]
+        return body</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -223,9 +242,9 @@ class HttpPOD(POD):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-    logger.debug(&#34;LIST %s://%s %s&#34;, self.protocol, self.path, relpath)
-    path = self.path / relpath
-    resp = self.session.get(self.base_uri + &#34;ls/&#34; + str(path))
+    logger.debug(&#34;LIST %s %s %s&#34;, self.base_uri, self.path, relpath)
+    params = {&#34;path&#34;: str(self.path / relpath)}
+    resp = self.session.get(self.base_uri + &#34;ls&#34;, params=params)
 
     if resp.status_code == 404:
         if missing_ok:
@@ -233,8 +252,7 @@ class HttpPOD(POD):
         raise FileNotFoundError(f&#34;{relpath} not found&#34;)
     else:
         resp.raise_for_status()
-
-    return resp.text.splitlines()</code></pre>
+    return resp.json()[&#34;body&#34;]</code></pre>
 </details>
 </dd>
 <dt id="lakota.http_pod.HttpPOD.read"><code class="name flex">
@@ -248,14 +266,14 @@ class HttpPOD(POD):
 </summary>
 <pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
     logger.debug(&#34;READ %s://%s %s&#34;, self.protocol, self.path, relpath)
-    path = self.path / relpath
-    resp = self.session.get(self.base_uri + &#34;read/&#34; + str(path))
+    params = {&#34;path&#34;: str(self.path / relpath)}
+    resp = self.session.get(self.base_uri + &#34;read&#34;, params=params)
 
     if resp.status_code == 404:
         raise FileNotFoundError(f&#34;{relpath} not found&#34;)
     else:
         resp.raise_for_status()
-    return resp.content</code></pre>
+    return base64.b64decode(resp.json()[&#34;body&#34;])</code></pre>
 </details>
 </dd>
 <dt id="lakota.http_pod.HttpPOD.rm"><code class="name flex">
@@ -273,8 +291,9 @@ class HttpPOD(POD):
     params = {
         &#34;recursive&#34;: &#34;true&#34; if recursive else &#34;&#34;,
         &#34;missing_ok&#34;: &#34;true&#34; if missing_ok else &#34;&#34;,
+        &#34;path&#34;: path,
     }
-    resp = self.session.post(self.base_uri + &#34;rm/&#34; + path, params=params)
+    resp = self.session.post(self.base_uri + &#34;rm&#34;, params, params=params)
     resp.raise_for_status()</code></pre>
 </details>
 </dd>
@@ -290,13 +309,15 @@ class HttpPOD(POD):
 <pre><code class="python">def walk(self, max_depth=None):
     if max_depth == 0:
         return []
-    params = {}
+
+    params = {&#34;path&#34;: str(self.path)}
     if max_depth is not None:
         params[&#34;max_depth&#34;] = str(max_depth)
 
-    resp = self.session.get(self.base_uri + &#34;walk/&#34; + str(self.path), params=params)
+    resp = self.session.get(self.base_uri + &#34;walk&#34;, params=params)
     resp.raise_for_status()
-    return resp.text.splitlines()</code></pre>
+    body = resp.json()[&#34;body&#34;]
+    return body</code></pre>
 </details>
 </dd>
 <dt id="lakota.http_pod.HttpPOD.write"><code class="name flex">
@@ -311,9 +332,11 @@ class HttpPOD(POD):
 <pre><code class="python">def write(self, relpath, data, mode=&#34;wb&#34;):
     logger.debug(&#34;WRITE %s://%s %s&#34;, self.protocol, self.path, relpath)
     path = str(self.path / relpath)
-    resp = self.session.post(self.base_uri + &#34;write/&#34; + str(path), data=data)
+    params = {&#34;path&#34;: str(path)}
+    resp = self.session.post(self.base_uri + &#34;write&#34;, params=params, data=data)
     resp.raise_for_status()
-    return int(resp.content) if resp.content else None</code></pre>
+    body = resp.json()[&#34;body&#34;]
+    return body</code></pre>
 </details>
 </dd>
 </dl>

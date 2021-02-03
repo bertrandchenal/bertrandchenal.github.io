@@ -59,7 +59,11 @@ It is mainly used through the `lakota.Repo` class.
 import io
 import os
 import shutil
+import sys
 from pathlib import Path, PurePosixPath
+from random import choice
+from threading import Lock
+from time import time
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -75,7 +79,7 @@ except ImportError:
 
 from .utils import logger
 
-__all__ = [&#34;POD&#34;]
+__all__ = [&#34;POD&#34;, &#34;FilePOD&#34;, &#34;MemPOD&#34;, &#34;CachePOD&#34;]
 
 
 class POD:
@@ -132,18 +136,25 @@ class POD:
                     f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
                 )
             profile = kwargs.get(&#34;profile&#34;, [None])[0]
-            return S3POD(path, netloc=parts.netloc, profile=profile)
+            verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
+            return S3POD(path, netloc=parts.netloc, profile=profile, verify=verify)
         elif scheme == &#34;ssh&#34;:
             raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
-        elif scheme == &#34;http&#34;:
+        elif scheme in (&#34;http&#34;, &#34;https&#34;):
             if requests is None:
                 raise ImportError(
                     f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
                 )
-            base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
-            return HttpPOD(base_uri, path)
+            # Build base uri
+            base_uri = f&#34;{parts.scheme}://{parts.netloc}/{path}&#34;
+            # Extract headers
+            headers = {
+                k[7:]: v[0] for k, v in kwargs.items() if k.startswith(&#34;header-&#34;)
+            }
+            return HttpPOD(base_uri, headers=headers)
         elif scheme == &#34;memory&#34;:
-            return MemPOD(path)
+            lru_size = int(kwargs.get(&#34;lru_size&#34;, [0])[0])
+            return MemPOD(path, lru_size=lru_size)
         else:
             raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)
 
@@ -171,6 +182,7 @@ class POD:
                 subfolders = [
                     (full_path, c, depth + 1) for c in reversed(self.ls(full_path))
                 ]
+
                 folders.extend(subfolders)
             else:
                 yield full_path
@@ -237,138 +249,220 @@ class FilePOD(POD):
                     return
                 raise
 
+    @property
+    def size(self):
+        return sum(os.path.getsize(self.path / name) for name in self.walk())
+
+
+class File:
+    &#34;&#34;&#34;Utility class for MemPOD&#34;&#34;&#34;
+
+    def __init__(self, content):
+        self.content = content
+        self.ts = time()
+
+    def touch(self):
+        self.ts = time()
+
+
+class Folder:
+    &#34;&#34;&#34;Utility class for MemPOD&#34;&#34;&#34;
+
+    def __init__(self):
+        self.items = {}
+
+    def add(self, key, kind):
+        assert kind in (File, Folder)
+        current = self.items.get(key)
+        if current is not None:
+            assert current == kind
+        else:
+            self.items[key] = kind
+
+    def rm(self, entry):
+        self.items.pop(entry, None)
+
+    def ls(self):
+        return self.items.keys()
+
+
+class Store:
+    &#34;&#34;&#34;Utility class for MemPOD&#34;&#34;&#34;
+
+    def __init__(self, lru_size=None):
+        self.kv = {tuple(): Folder()}
+        self._update_lock = Lock()
+        self._lru = set()
+        self._size = 0
+        self.lru_size = None
+        if lru_size is not None and lru_size &gt; 0:
+            self.lru_size = lru_size
+
+    def get(self, key):
+        item = self.kv.get(key)
+        if isinstance(item, File):
+            item.touch()
+        return item
+
+    def set(self, key, value):
+        assert isinstance(value, (File, Folder))
+        self.kv[key] = value
+        if isinstance(value, File):
+            self._lru_add(key)
+            self._update_size(len(value.content))
+
+    def setdefault(self, key, value):
+        assert isinstance(value, (File, Folder))
+        return self.kv.setdefault(key, value)
+
+    def delete(self, key):
+        try:
+            item = self.kv.pop(key)
+            if isinstance(item, File):
+                self._update_size(-len(item.content))
+        except:
+            import pdb
+
+            pdb.set_trace()
+
+    def _lru_add(self, path):
+        if self.lru_size is None:
+            return
+        while len(self._lru) &gt;= 20:
+            # remove random item
+            c = choice(list(self._lru))
+            self._lru.discard(c)
+        self._lru.add(path)
+
+    def _get_ts(self, k):
+        item = self.kv.get(k)
+        if item is None:
+            return sys.maxsize
+        return item.ts
+
+    def _lru_pop(self):
+        lru = sorted(self._lru, key=lambda k: self._get_ts(k))
+        path = lru[0]
+        self._lru.discard(path)
+        return path
+
+    def _update_size(self, value):
+        self._size += value
+        if value &lt; 0 or self.lru_size is None:
+            return
+        with self._update_lock:
+            while self._size &gt; self.lru_size:
+                oldest = self._lru_pop()
+                self.delete(oldest)
+
 
 class MemPOD(POD):
 
     protocol = &#34;memory&#34;
 
-    def __init__(self, path=&#34;.&#34;, parent=None):
-        self.path = PurePosixPath(path)
-        self.parent = parent
-        # store keys are path, values are either bytes (aka a file)
-        # either another dict (aka a directory)
-        self.store = {}
+    def __init__(self, path, store=None, lru_size=None):
+        self.path = Path(path)
+        self.parts = self.path.parts
+        self.store = store or Store(lru_size=lru_size)
         super().__init__()
 
     def cd(self, *others):
-        pod = self
-        for o in others:
-            pod = pod.find_pod(o)
-        return pod
+        path = Path(*(self.parts + others))
+        return MemPOD(path, store=self.store)
+
+    def isdir(self, relpath):
+        relpath = self.split(relpath)
+        key = self.parts + relpath
+        item = self.store.get(key)
+        return isinstance(item, Folder)
+
+    def isfile(self, relpath):
+        relpath = self.split(relpath)
+        key = self.parts + relpath
+        item = self.store.get(key)
+        return isinstance(item, File)
+
+    def write(self, relpath, data, mode=&#34;rb&#34;):
+        if self.isfile(relpath):
+            logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+            return
+        logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+
+        current_path = tuple()
+        relpath = self.split(relpath)
+        full_path = self.parts + relpath
+
+        for part in full_path:
+            parent = current_path
+            current_path = current_path + (part,)
+            folder = self.store.setdefault(parent, Folder())
+            assert isinstance(folder, Folder)
+            if current_path == full_path:
+                folder.add(part, File)
+                current_file = self.store.get(current_path)
+                if current_file is not None:
+                    assert isinstance(current_file, File)
+                    logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+                else:
+                    self.store.set(current_path, File(data))
+            else:
+                folder.add(part, Folder)
+        return len(data)
+
+    def ls(self, relpath=&#34;&#34;, missing_ok=False):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if item is None:
+            if missing_ok:
+                return []
+            raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+        elif isinstance(item, Folder):
+            return list(item.ls())
+        else:
+            return [&#34;/&#34;.join(path)]
+
+    def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if isinstance(item, File):
+            item = self.store.delete(path)
+
+        elif isinstance(item, Folder):
+            if not recursive:
+                raise FileNotFoundError(f&#34;{relpath} is not empty&#34;)
+
+            # Delete and recurse
+            self.store.delete(path)
+            for child in list(item.items):
+                self.rm(relpath + &#34;/&#34; + child, recursive=True)
+
+        elif not missing_ok:
+            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
+        # Update folder info
+        parent_path = path[:-1]
+        parent_folder = self.store.get(parent_path)
+        if parent_folder:
+            # Note: Parent my not exists in the middle of a
+            # reccursive deletion
+            parent_folder.rm(path[-1])
+
+    def read(self, relpath, mode=&#34;rb&#34;):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if not isinstance(item, File):
+            raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+        return item.content
 
     @classmethod
     def split(cls, path):
-        return PurePosixPath(path).as_posix().split(&#34;/&#34;)
-
-    def find_pod(self, relpath, auto_mkdir=True):
-        fragments = self.split(relpath)
-        return self._find_pod(fragments, auto_mkdir)
-
-    def _find_pod(self, fragments, auto_mkdir=False):
-        path = self.path
-        pod = self
-        for frag in fragments:
-            if frag == &#34;.&#34;:
-                continue
-            path = path / frag
-            if frag in pod.store:
-                pod = pod.store[frag]
-            elif auto_mkdir:
-                parent = pod
-                pod = MemPOD(path, parent=parent)
-                parent.store[frag] = pod
-            else:
-                return None
-        return pod
-
-    def find_parent_pod(self, relpath, auto_mkdir=False):
-        fragments = self.split(relpath)
-        pod = self._find_pod(fragments[:-1], auto_mkdir)
-        return pod, fragments[-1]
-
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST memory://%s %s&#34;, self.path, relpath)
-        pod, leaf = self.find_parent_pod(relpath)
-        # Handle pathological cases
-        if not pod:
-            if missing_ok:
-                return []
-            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
-        elif leaf not in pod.store:
-            if leaf == &#34;.&#34;:
-                return list(self.store.keys())
-            elif missing_ok:
-                return [leaf]
-            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
-        # &#34;happy&#34; scenario
-        if pod.isdir(leaf):
-            return list(pod.store[leaf].store.keys())
-        else:
-            return [leaf]
-
-    def read(self, relpath, mode=&#34;rb&#34;):
-        logger.debug(&#34;READ memory://%s %s&#34;, self.path, relpath)
-        pod, leaf = self.find_parent_pod(relpath)
-        if not pod:
-            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
-        if leaf not in pod.store:
-            raise FileNotFoundError(f&#34;{leaf} not found in {pod.path}&#34;)
-        if isinstance(pod.store[leaf], POD):
-            raise FileNotFoundError(f&#34;{leaf} is a directory in {pod.path}&#34;)
-        return pod.store[leaf]
-
-    def write(self, relpath, data, mode=&#34;wb&#34;):
-        pod, leaf = self.find_parent_pod(relpath, auto_mkdir=True)
-        if not pod:
-            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
-        if leaf in pod.store:
-            logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
-            return
-        logger.debug(&#34;WRITE memory://%s %s&#34;, self.path, relpath)
-        pod.store[leaf] = data
-        return len(data)
-
-    def isdir(self, relpath):
-        pod, leaf = self.find_parent_pod(relpath)
-        if pod is None:
-            return False
-        return isinstance(pod.store[leaf], POD)
-
-    def isfile(self, relpath):
-        pod, leaf = self.find_parent_pod(relpath)
-        if pod is None:
-            return False
-        return leaf in pod.store and not isinstance(pod.store[leaf], POD)
-
-    def rm(self, relpath, recursive=False, missing_ok=False):
-        logger.debug(&#34;REMOVE memory://%s %s&#34;, self.path, relpath)
-        if relpath == &#34;.&#34;:
-            if not self.parent:
-                raise FileNotFoundError(&#39;Not parent for &#34;.&#34;&#39;)
-            pod = self.parent
-            leaf = self.split(self.path)[-1]
-        else:
-            pod, leaf = self.find_parent_pod(relpath)
-
-        if not pod:
-            if missing_ok:
-                return
-            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
-        if leaf not in pod.store:
-            if missing_ok:
-                return
-            else:
-                msg = f&#39;File &#34;{leaf}&#34; not found in &#34;{pod.path}&#34;&#39;
-                raise FileNotFoundError(msg)
-
-        if recursive:
-            del pod.store[leaf]
-        elif pod.isdir(leaf):
-            if pod.store[leaf].store:
-                raise FileNotFoundError(f&#34;{relpath} is not empty&#34;)
-            del pod.store[leaf]
-        else:
-            del pod.store[leaf]
+        if not path:
+            return tuple()
+        if isinstance(path, tuple):
+            return path
+        if isinstance(path, PurePosixPath):
+            return path.parts
+        return tuple(p for p in path.split(&#34;/&#34;) if p != &#34;.&#34;)
 
 
 class CachePOD(POD):
@@ -479,6 +573,732 @@ if s3fs is not None:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="lakota.pod.CachePOD"><code class="flex name class">
+<span>class <span class="ident">CachePOD</span></span>
+<span>(</span><span>local, remote)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CachePOD(POD):
+    def __init__(self, local, remote):
+        self.local = local
+        self.remote = remote
+        self.protocol = f&#34;{local.protocol}+{remote.protocol}&#34;
+        super().__init__()
+
+    @property
+    def path(self):
+        return self.local.path
+
+    def cd(self, *others):
+        local = self.local.cd(*others)
+        remote = self.remote.cd(*others)
+        return CachePOD(local, remote)
+
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
+        return self.remote.ls(relpath, missing_ok=missing_ok)
+
+    def read(self, relpath, mode=&#34;rb&#34;):
+        try:
+            return self.local.read(relpath, mode=mode)
+        except FileNotFoundError:
+            pass
+
+        data = self.remote.read(relpath, mode=mode)
+        self.local.write(relpath, data)
+        return data
+
+    def write(self, relpath, data, mode=&#34;wb&#34;):
+        self.local.write(relpath, data, mode=mode)
+        return self.remote.write(relpath, data, mode=mode)
+
+    def isdir(self, relpath):
+        return self.remote.isdir(relpath)
+
+    def isfile(self, relpath):
+        return self.remote.isfile(relpath)
+
+    def rm(self, relpath, recursive=False, missing_ok=False):
+        self.remote.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+        try:
+            self.local.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+        except FileNotFoundError:
+            pass</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="lakota.pod.CachePOD.path"><code class="name">var <span class="ident">path</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def path(self):
+    return self.local.path</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.pod.CachePOD.cd"><code class="name flex">
+<span>def <span class="ident">cd</span></span>(<span>self, *others)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cd(self, *others):
+    local = self.local.cd(*others)
+    remote = self.remote.cd(*others)
+    return CachePOD(local, remote)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.isdir"><code class="name flex">
+<span>def <span class="ident">isdir</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isdir(self, relpath):
+    return self.remote.isdir(relpath)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.isfile"><code class="name flex">
+<span>def <span class="ident">isfile</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isfile(self, relpath):
+    return self.remote.isfile(relpath)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.ls"><code class="name flex">
+<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False):
+    return self.remote.ls(relpath, missing_ok=missing_ok)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.read"><code class="name flex">
+<span>def <span class="ident">read</span></span>(<span>self, relpath, mode='rb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
+    try:
+        return self.local.read(relpath, mode=mode)
+    except FileNotFoundError:
+        pass
+
+    data = self.remote.read(relpath, mode=mode)
+    self.local.write(relpath, data)
+    return data</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.rm"><code class="name flex">
+<span>def <span class="ident">rm</span></span>(<span>self, relpath, recursive=False, missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rm(self, relpath, recursive=False, missing_ok=False):
+    self.remote.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+    try:
+        self.local.rm(relpath, recursive=recursive, missing_ok=missing_ok)
+    except FileNotFoundError:
+        pass</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.CachePOD.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, relpath, data, mode='wb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(self, relpath, data, mode=&#34;wb&#34;):
+    self.local.write(relpath, data, mode=mode)
+    return self.remote.write(relpath, data, mode=mode)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="lakota.pod.FilePOD"><code class="flex name class">
+<span>class <span class="ident">FilePOD</span></span>
+<span>(</span><span>path)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FilePOD(POD):
+
+    protocol = &#34;file&#34;
+
+    def __init__(self, path):
+        self.path = Path(path)
+        super().__init__()
+
+    def cd(self, *others):
+        path = self.path.joinpath(*others)
+        return FilePOD(path)
+
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
+        logger.debug(&#34;LIST %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        try:
+            return list(p.name for p in path.iterdir())
+        except FileNotFoundError:
+            if missing_ok:
+                return []
+            raise
+
+    def read(self, relpath, mode=&#34;rb&#34;):
+        logger.debug(&#34;READ %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        # XXX make sure path is subpath of self.path
+        return path.open(mode).read()
+
+    def write(self, relpath, data, mode=&#34;wb&#34;):
+        if self.isfile(relpath):
+            logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+            return
+        logger.debug(&#34;WRITE %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path.open(mode).write(data)
+
+    def isdir(self, relpath):
+        return self.path.joinpath(relpath).is_dir()
+
+    def isfile(self, relpath):
+        return self.path.joinpath(relpath).is_file()
+
+    def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
+        logger.debug(&#34;REMOVE %s %s&#34;, self.path, relpath)
+        path = self.path / relpath
+        if recursive:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+        elif path.is_dir():
+            path.rmdir()
+        else:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                if missing_ok:
+                    return
+                raise
+
+    @property
+    def size(self):
+        return sum(os.path.getsize(self.path / name) for name in self.walk())</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="lakota.pod.FilePOD.protocol"><code class="name">var <span class="ident">protocol</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="lakota.pod.FilePOD.size"><code class="name">var <span class="ident">size</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def size(self):
+    return sum(os.path.getsize(self.path / name) for name in self.walk())</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.pod.FilePOD.cd"><code class="name flex">
+<span>def <span class="ident">cd</span></span>(<span>self, *others)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cd(self, *others):
+    path = self.path.joinpath(*others)
+    return FilePOD(path)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.isdir"><code class="name flex">
+<span>def <span class="ident">isdir</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isdir(self, relpath):
+    return self.path.joinpath(relpath).is_dir()</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.isfile"><code class="name flex">
+<span>def <span class="ident">isfile</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isfile(self, relpath):
+    return self.path.joinpath(relpath).is_file()</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.ls"><code class="name flex">
+<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False):
+    logger.debug(&#34;LIST %s %s&#34;, self.path, relpath)
+    path = self.path / relpath
+    try:
+        return list(p.name for p in path.iterdir())
+    except FileNotFoundError:
+        if missing_ok:
+            return []
+        raise</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.read"><code class="name flex">
+<span>def <span class="ident">read</span></span>(<span>self, relpath, mode='rb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
+    logger.debug(&#34;READ %s %s&#34;, self.path, relpath)
+    path = self.path / relpath
+    # XXX make sure path is subpath of self.path
+    return path.open(mode).read()</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.rm"><code class="name flex">
+<span>def <span class="ident">rm</span></span>(<span>self, relpath='.', recursive=False, missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
+    logger.debug(&#34;REMOVE %s %s&#34;, self.path, relpath)
+    path = self.path / relpath
+    if recursive:
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    elif path.is_dir():
+        path.rmdir()
+    else:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            if missing_ok:
+                return
+            raise</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.FilePOD.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, relpath, data, mode='wb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(self, relpath, data, mode=&#34;wb&#34;):
+    if self.isfile(relpath):
+        logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+        return
+    logger.debug(&#34;WRITE %s %s&#34;, self.path, relpath)
+    path = self.path / relpath
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path.open(mode).write(data)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="lakota.pod.MemPOD"><code class="flex name class">
+<span>class <span class="ident">MemPOD</span></span>
+<span>(</span><span>path, store=None, lru_size=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MemPOD(POD):
+
+    protocol = &#34;memory&#34;
+
+    def __init__(self, path, store=None, lru_size=None):
+        self.path = Path(path)
+        self.parts = self.path.parts
+        self.store = store or Store(lru_size=lru_size)
+        super().__init__()
+
+    def cd(self, *others):
+        path = Path(*(self.parts + others))
+        return MemPOD(path, store=self.store)
+
+    def isdir(self, relpath):
+        relpath = self.split(relpath)
+        key = self.parts + relpath
+        item = self.store.get(key)
+        return isinstance(item, Folder)
+
+    def isfile(self, relpath):
+        relpath = self.split(relpath)
+        key = self.parts + relpath
+        item = self.store.get(key)
+        return isinstance(item, File)
+
+    def write(self, relpath, data, mode=&#34;rb&#34;):
+        if self.isfile(relpath):
+            logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+            return
+        logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+
+        current_path = tuple()
+        relpath = self.split(relpath)
+        full_path = self.parts + relpath
+
+        for part in full_path:
+            parent = current_path
+            current_path = current_path + (part,)
+            folder = self.store.setdefault(parent, Folder())
+            assert isinstance(folder, Folder)
+            if current_path == full_path:
+                folder.add(part, File)
+                current_file = self.store.get(current_path)
+                if current_file is not None:
+                    assert isinstance(current_file, File)
+                    logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+                else:
+                    self.store.set(current_path, File(data))
+            else:
+                folder.add(part, Folder)
+        return len(data)
+
+    def ls(self, relpath=&#34;&#34;, missing_ok=False):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if item is None:
+            if missing_ok:
+                return []
+            raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+        elif isinstance(item, Folder):
+            return list(item.ls())
+        else:
+            return [&#34;/&#34;.join(path)]
+
+    def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if isinstance(item, File):
+            item = self.store.delete(path)
+
+        elif isinstance(item, Folder):
+            if not recursive:
+                raise FileNotFoundError(f&#34;{relpath} is not empty&#34;)
+
+            # Delete and recurse
+            self.store.delete(path)
+            for child in list(item.items):
+                self.rm(relpath + &#34;/&#34; + child, recursive=True)
+
+        elif not missing_ok:
+            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
+        # Update folder info
+        parent_path = path[:-1]
+        parent_folder = self.store.get(parent_path)
+        if parent_folder:
+            # Note: Parent my not exists in the middle of a
+            # reccursive deletion
+            parent_folder.rm(path[-1])
+
+    def read(self, relpath, mode=&#34;rb&#34;):
+        path = self.parts + self.split(relpath)
+        item = self.store.get(path)
+        if not isinstance(item, File):
+            raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+        return item.content
+
+    @classmethod
+    def split(cls, path):
+        if not path:
+            return tuple()
+        if isinstance(path, tuple):
+            return path
+        if isinstance(path, PurePosixPath):
+            return path.parts
+        return tuple(p for p in path.split(&#34;/&#34;) if p != &#34;.&#34;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="lakota.pod.MemPOD.protocol"><code class="name">var <span class="ident">protocol</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="lakota.pod.MemPOD.split"><code class="name flex">
+<span>def <span class="ident">split</span></span>(<span>path)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def split(cls, path):
+    if not path:
+        return tuple()
+    if isinstance(path, tuple):
+        return path
+    if isinstance(path, PurePosixPath):
+        return path.parts
+    return tuple(p for p in path.split(&#34;/&#34;) if p != &#34;.&#34;)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="lakota.pod.MemPOD.cd"><code class="name flex">
+<span>def <span class="ident">cd</span></span>(<span>self, *others)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cd(self, *others):
+    path = Path(*(self.parts + others))
+    return MemPOD(path, store=self.store)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.isdir"><code class="name flex">
+<span>def <span class="ident">isdir</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isdir(self, relpath):
+    relpath = self.split(relpath)
+    key = self.parts + relpath
+    item = self.store.get(key)
+    return isinstance(item, Folder)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.isfile"><code class="name flex">
+<span>def <span class="ident">isfile</span></span>(<span>self, relpath)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isfile(self, relpath):
+    relpath = self.split(relpath)
+    key = self.parts + relpath
+    item = self.store.get(key)
+    return isinstance(item, File)</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.ls"><code class="name flex">
+<span>def <span class="ident">ls</span></span>(<span>self, relpath='', missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls(self, relpath=&#34;&#34;, missing_ok=False):
+    path = self.parts + self.split(relpath)
+    item = self.store.get(path)
+    if item is None:
+        if missing_ok:
+            return []
+        raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+    elif isinstance(item, Folder):
+        return list(item.ls())
+    else:
+        return [&#34;/&#34;.join(path)]</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.read"><code class="name flex">
+<span>def <span class="ident">read</span></span>(<span>self, relpath, mode='rb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
+    path = self.parts + self.split(relpath)
+    item = self.store.get(path)
+    if not isinstance(item, File):
+        raise FileNotFoundError(f&#39;Path &#34;{path}&#34; not found&#39;)
+    return item.content</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.rm"><code class="name flex">
+<span>def <span class="ident">rm</span></span>(<span>self, relpath='.', recursive=False, missing_ok=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
+    path = self.parts + self.split(relpath)
+    item = self.store.get(path)
+    if isinstance(item, File):
+        item = self.store.delete(path)
+
+    elif isinstance(item, Folder):
+        if not recursive:
+            raise FileNotFoundError(f&#34;{relpath} is not empty&#34;)
+
+        # Delete and recurse
+        self.store.delete(path)
+        for child in list(item.items):
+            self.rm(relpath + &#34;/&#34; + child, recursive=True)
+
+    elif not missing_ok:
+        raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
+    # Update folder info
+    parent_path = path[:-1]
+    parent_folder = self.store.get(parent_path)
+    if parent_folder:
+        # Note: Parent my not exists in the middle of a
+        # reccursive deletion
+        parent_folder.rm(path[-1])</code></pre>
+</details>
+</dd>
+<dt id="lakota.pod.MemPOD.write"><code class="name flex">
+<span>def <span class="ident">write</span></span>(<span>self, relpath, data, mode='rb')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write(self, relpath, data, mode=&#34;rb&#34;):
+    if self.isfile(relpath):
+        logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+        return
+    logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+
+    current_path = tuple()
+    relpath = self.split(relpath)
+    full_path = self.parts + relpath
+
+    for part in full_path:
+        parent = current_path
+        current_path = current_path + (part,)
+        folder = self.store.setdefault(parent, Folder())
+        assert isinstance(folder, Folder)
+        if current_path == full_path:
+            folder.add(part, File)
+            current_file = self.store.get(current_path)
+            if current_file is not None:
+                assert isinstance(current_file, File)
+                logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+            else:
+                self.store.set(current_path, File(data))
+        else:
+            folder.add(part, Folder)
+    return len(data)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 <dt id="lakota.pod.POD"><code class="flex name class">
 <span>class <span class="ident">POD</span></span>
 </code></dt>
@@ -542,18 +1362,25 @@ if s3fs is not None:
                     f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
                 )
             profile = kwargs.get(&#34;profile&#34;, [None])[0]
-            return S3POD(path, netloc=parts.netloc, profile=profile)
+            verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
+            return S3POD(path, netloc=parts.netloc, profile=profile, verify=verify)
         elif scheme == &#34;ssh&#34;:
             raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
-        elif scheme == &#34;http&#34;:
+        elif scheme in (&#34;http&#34;, &#34;https&#34;):
             if requests is None:
                 raise ImportError(
                     f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
                 )
-            base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
-            return HttpPOD(base_uri, path)
+            # Build base uri
+            base_uri = f&#34;{parts.scheme}://{parts.netloc}/{path}&#34;
+            # Extract headers
+            headers = {
+                k[7:]: v[0] for k, v in kwargs.items() if k.startswith(&#34;header-&#34;)
+            }
+            return HttpPOD(base_uri, headers=headers)
         elif scheme == &#34;memory&#34;:
-            return MemPOD(path)
+            lru_size = int(kwargs.get(&#34;lru_size&#34;, [0])[0])
+            return MemPOD(path, lru_size=lru_size)
         else:
             raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)
 
@@ -581,6 +1408,7 @@ if s3fs is not None:
                 subfolders = [
                     (full_path, c, depth + 1) for c in reversed(self.ls(full_path))
                 ]
+
                 folders.extend(subfolders)
             else:
                 yield full_path</code></pre>
@@ -588,9 +1416,9 @@ if s3fs is not None:
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="lakota.http_pod.HttpPOD" href="http_pod.html#lakota.http_pod.HttpPOD">HttpPOD</a></li>
-<li>lakota.pod.CachePOD</li>
-<li>lakota.pod.FilePOD</li>
-<li>lakota.pod.MemPOD</li>
+<li><a title="lakota.pod.CachePOD" href="#lakota.pod.CachePOD">CachePOD</a></li>
+<li><a title="lakota.pod.FilePOD" href="#lakota.pod.FilePOD">FilePOD</a></li>
+<li><a title="lakota.pod.MemPOD" href="#lakota.pod.MemPOD">MemPOD</a></li>
 <li>lakota.pod.SSHPOD</li>
 <li><a title="lakota.s3_pod.S3POD" href="s3_pod.html#lakota.s3_pod.S3POD">S3POD</a></li>
 </ul>
@@ -662,18 +1490,25 @@ def from_uri(cls, uri=None, **fs_kwargs):
                 f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
             )
         profile = kwargs.get(&#34;profile&#34;, [None])[0]
-        return S3POD(path, netloc=parts.netloc, profile=profile)
+        verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
+        return S3POD(path, netloc=parts.netloc, profile=profile, verify=verify)
     elif scheme == &#34;ssh&#34;:
         raise NotImplementedError(&#34;SSH support not implemented yet&#34;)
-    elif scheme == &#34;http&#34;:
+    elif scheme in (&#34;http&#34;, &#34;https&#34;):
         if requests is None:
             raise ImportError(
                 f&#39;Please install the &#34;requests&#34; module in order to access &#34;{uri}&#34;&#39;
             )
-        base_uri = f&#34;{parts.scheme}://{parts.netloc}/&#34;
-        return HttpPOD(base_uri, path)
+        # Build base uri
+        base_uri = f&#34;{parts.scheme}://{parts.netloc}/{path}&#34;
+        # Extract headers
+        headers = {
+            k[7:]: v[0] for k, v in kwargs.items() if k.startswith(&#34;header-&#34;)
+        }
+        return HttpPOD(base_uri, headers=headers)
     elif scheme == &#34;memory&#34;:
-        return MemPOD(path)
+        lru_size = int(kwargs.get(&#34;lru_size&#34;, [0])[0])
+        return MemPOD(path, lru_size=lru_size)
     else:
         raise ValueError(f&#39;Protocol &#34;{scheme}&#34; not supported&#39;)</code></pre>
 </details>
@@ -721,6 +1556,7 @@ def from_uri(cls, uri=None, **fs_kwargs):
             subfolders = [
                 (full_path, c, depth + 1) for c in reversed(self.ls(full_path))
             ]
+
             folders.extend(subfolders)
         else:
             yield full_path</code></pre>
@@ -744,6 +1580,47 @@ def from_uri(cls, uri=None, **fs_kwargs):
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="lakota.pod.CachePOD" href="#lakota.pod.CachePOD">CachePOD</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.pod.CachePOD.cd" href="#lakota.pod.CachePOD.cd">cd</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.isdir" href="#lakota.pod.CachePOD.isdir">isdir</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.isfile" href="#lakota.pod.CachePOD.isfile">isfile</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.ls" href="#lakota.pod.CachePOD.ls">ls</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.path" href="#lakota.pod.CachePOD.path">path</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.read" href="#lakota.pod.CachePOD.read">read</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.rm" href="#lakota.pod.CachePOD.rm">rm</a></code></li>
+<li><code><a title="lakota.pod.CachePOD.write" href="#lakota.pod.CachePOD.write">write</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.pod.FilePOD" href="#lakota.pod.FilePOD">FilePOD</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.pod.FilePOD.cd" href="#lakota.pod.FilePOD.cd">cd</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.isdir" href="#lakota.pod.FilePOD.isdir">isdir</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.isfile" href="#lakota.pod.FilePOD.isfile">isfile</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.ls" href="#lakota.pod.FilePOD.ls">ls</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.protocol" href="#lakota.pod.FilePOD.protocol">protocol</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.read" href="#lakota.pod.FilePOD.read">read</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.rm" href="#lakota.pod.FilePOD.rm">rm</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.size" href="#lakota.pod.FilePOD.size">size</a></code></li>
+<li><code><a title="lakota.pod.FilePOD.write" href="#lakota.pod.FilePOD.write">write</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="lakota.pod.MemPOD" href="#lakota.pod.MemPOD">MemPOD</a></code></h4>
+<ul class="two-column">
+<li><code><a title="lakota.pod.MemPOD.cd" href="#lakota.pod.MemPOD.cd">cd</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.isdir" href="#lakota.pod.MemPOD.isdir">isdir</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.isfile" href="#lakota.pod.MemPOD.isfile">isfile</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.ls" href="#lakota.pod.MemPOD.ls">ls</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.protocol" href="#lakota.pod.MemPOD.protocol">protocol</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.read" href="#lakota.pod.MemPOD.read">read</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.rm" href="#lakota.pod.MemPOD.rm">rm</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.split" href="#lakota.pod.MemPOD.split">split</a></code></li>
+<li><code><a title="lakota.pod.MemPOD.write" href="#lakota.pod.MemPOD.write">write</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></code></h4>
 <ul class="">

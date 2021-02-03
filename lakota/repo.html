@@ -351,21 +351,20 @@ class Repo:
         remote_cache = {r.label: r for r in remote.search()}
         if not labels:
             labels = remote_cache.keys()
-        with Pool() as pool:
-            for label in labels:
-                logger.info(&#34;Sync collection: %s&#34;, label)
-                r_clct = remote_cache[label]
-                if not label in local_cache:
-                    l_clct = self.create_collection(r_clct.schema, label)
-                else:
-                    l_clct = local_cache[label]
-                    if l_clct.schema != r_clct.schema:
-                        msg = (
-                            f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
-                            &#34;incompatible meta-info.&#34;
-                        )
-                        raise ValueError(msg)
-                pool.submit(l_clct.pull, r_clct)
+        for label in labels:
+            logger.info(&#34;Sync collection: %s&#34;, label)
+            r_clct = remote_cache[label]
+            if not label in local_cache:
+                l_clct = self.create_collection(r_clct.schema, label)
+            else:
+                l_clct = local_cache[label]
+                if l_clct.schema != r_clct.schema:
+                    msg = (
+                        f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
+                        &#34;incompatible meta-info.&#34;
+                    )
+                    raise ValueError(msg)
+            l_clct.pull(r_clct)
 
     def merge(self):
         &#34;&#34;&#34;
@@ -388,7 +387,7 @@ class Repo:
                 active_digests.update(clct.digests())
 
         base_folders = self.pod.ls()
-        with Pool(8) as pool:
+        with Pool() as pool:
             for folder in base_folders:
                 pool.submit(self._gc_folder, folder, active_digests)
         count = sum(pool.results)
@@ -600,21 +599,20 @@ class Repo:
         remote_cache = {r.label: r for r in remote.search()}
         if not labels:
             labels = remote_cache.keys()
-        with Pool() as pool:
-            for label in labels:
-                logger.info(&#34;Sync collection: %s&#34;, label)
-                r_clct = remote_cache[label]
-                if not label in local_cache:
-                    l_clct = self.create_collection(r_clct.schema, label)
-                else:
-                    l_clct = local_cache[label]
-                    if l_clct.schema != r_clct.schema:
-                        msg = (
-                            f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
-                            &#34;incompatible meta-info.&#34;
-                        )
-                        raise ValueError(msg)
-                pool.submit(l_clct.pull, r_clct)
+        for label in labels:
+            logger.info(&#34;Sync collection: %s&#34;, label)
+            r_clct = remote_cache[label]
+            if not label in local_cache:
+                l_clct = self.create_collection(r_clct.schema, label)
+            else:
+                l_clct = local_cache[label]
+                if l_clct.schema != r_clct.schema:
+                    msg = (
+                        f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
+                        &#34;incompatible meta-info.&#34;
+                    )
+                    raise ValueError(msg)
+            l_clct.pull(r_clct)
 
     def merge(self):
         &#34;&#34;&#34;
@@ -637,7 +635,7 @@ class Repo:
                 active_digests.update(clct.digests())
 
         base_folders = self.pod.ls()
-        with Pool(8) as pool:
+        with Pool() as pool:
             for folder in base_folders:
                 pool.submit(self._gc_folder, folder, active_digests)
         count = sum(pool.results)
@@ -829,7 +827,7 @@ ones.</p></div>
             active_digests.update(clct.digests())
 
     base_folders = self.pod.ls()
-    with Pool(8) as pool:
+    with Pool() as pool:
         for folder in base_folders:
             pool.submit(self._gc_folder, folder, active_digests)
     count = sum(pool.results)
@@ -900,21 +898,20 @@ or deleted concurrently.</p></div>
     remote_cache = {r.label: r for r in remote.search()}
     if not labels:
         labels = remote_cache.keys()
-    with Pool() as pool:
-        for label in labels:
-            logger.info(&#34;Sync collection: %s&#34;, label)
-            r_clct = remote_cache[label]
-            if not label in local_cache:
-                l_clct = self.create_collection(r_clct.schema, label)
-            else:
-                l_clct = local_cache[label]
-                if l_clct.schema != r_clct.schema:
-                    msg = (
-                        f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
-                        &#34;incompatible meta-info.&#34;
-                    )
-                    raise ValueError(msg)
-            pool.submit(l_clct.pull, r_clct)</code></pre>
+    for label in labels:
+        logger.info(&#34;Sync collection: %s&#34;, label)
+        r_clct = remote_cache[label]
+        if not label in local_cache:
+            l_clct = self.create_collection(r_clct.schema, label)
+        else:
+            l_clct = local_cache[label]
+            if l_clct.schema != r_clct.schema:
+                msg = (
+                    f&#39;Unable to sync collection &#34;{label}&#34;,&#39;
+                    &#34;incompatible meta-info.&#34;
+                )
+                raise ValueError(msg)
+        l_clct.pull(r_clct)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.push"><code class="name flex">

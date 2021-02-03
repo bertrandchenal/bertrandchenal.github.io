@@ -59,9 +59,11 @@ logger = logging.getLogger(&#34;lakota&#34;)
 class Settings:
     threaded: bool
     debug: bool
+    verify_ssl: bool
+    embed_max_size: int
 
 
-settings = Settings(threaded=True, debug=False)
+settings = Settings(threaded=True, verify_ssl=True, debug=False, embed_max_size=1024)
 
 
 def chunky(collection, size=100):
@@ -162,20 +164,18 @@ class Pool:
     Threadpoolexecutor wrapper to simplify it&#39;s usage
     &#34;&#34;&#34;
 
-    def __init__(self, nb_threads=2):
-        self.nb_threads = nb_threads
+    _pool = ThreadPoolExecutor(4)
+
+    def __init__(self):
         self.futures = []
         self.results = []
-        self.pool = None
 
     def __enter__(self):
-        if settings.threaded:
-            self.pool = ThreadPoolExecutor(self.nb_threads)
         return self
 
     def submit(self, fn, *a, **kw):
         if settings.threaded:
-            self.futures.append(self.pool.submit(fn, *a, **kw))
+            self.futures.append(self._pool.submit(fn, *a, **kw))
         else:
             self.results.append(fn(*a, **kw))
 
@@ -836,7 +836,6 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Pool"><code class="flex name class">
 <span>class <span class="ident">Pool</span></span>
-<span>(</span><span>nb_threads=2)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Threadpoolexecutor wrapper to simplify it's usage</p></div>
@@ -849,20 +848,18 @@ def bisect(cls, nb_seconds):
     Threadpoolexecutor wrapper to simplify it&#39;s usage
     &#34;&#34;&#34;
 
-    def __init__(self, nb_threads=2):
-        self.nb_threads = nb_threads
+    _pool = ThreadPoolExecutor(4)
+
+    def __init__(self):
         self.futures = []
         self.results = []
-        self.pool = None
 
     def __enter__(self):
-        if settings.threaded:
-            self.pool = ThreadPoolExecutor(self.nb_threads)
         return self
 
     def submit(self, fn, *a, **kw):
         if settings.threaded:
-            self.futures.append(self.pool.submit(fn, *a, **kw))
+            self.futures.append(self._pool.submit(fn, *a, **kw))
         else:
             self.results.append(fn(*a, **kw))
 
@@ -883,7 +880,7 @@ def bisect(cls, nb_seconds):
 </summary>
 <pre><code class="python">def submit(self, fn, *a, **kw):
     if settings.threaded:
-        self.futures.append(self.pool.submit(fn, *a, **kw))
+        self.futures.append(self._pool.submit(fn, *a, **kw))
     else:
         self.results.append(fn(*a, **kw))</code></pre>
 </details>
@@ -892,17 +889,19 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool, debug: bool)</span>
+<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool, debug: bool)</p></div>
+<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Settings:
     threaded: bool
-    debug: bool</code></pre>
+    debug: bool
+    verify_ssl: bool
+    embed_max_size: int</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -910,7 +909,15 @@ def bisect(cls, nb_seconds):
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="lakota.utils.Settings.embed_max_size"><code class="name">var <span class="ident">embed_max_size</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="lakota.utils.Settings.threaded"><code class="name">var <span class="ident">threaded</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Settings.verify_ssl"><code class="name">var <span class="ident">verify_ssl</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -990,7 +997,9 @@ def bisect(cls, nb_seconds):
 <h4><code><a title="lakota.utils.Settings" href="#lakota.utils.Settings">Settings</a></code></h4>
 <ul class="">
 <li><code><a title="lakota.utils.Settings.debug" href="#lakota.utils.Settings.debug">debug</a></code></li>
+<li><code><a title="lakota.utils.Settings.embed_max_size" href="#lakota.utils.Settings.embed_max_size">embed_max_size</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
+<li><code><a title="lakota.utils.Settings.verify_ssl" href="#lakota.utils.Settings.verify_ssl">verify_ssl</a></code></li>
 </ul>
 </li>
 </ul>

@@ -181,12 +181,12 @@ class Collection:
         revisions = self.changelog.log()
         # Corner cases
         if not revisions:
-            return
+            return []
         if not heads:
             heads = [r for r in revisions if r.is_leaf]
 
         if len(heads) &lt; 2:
-            return
+            return []
 
         # Reorganise revision as child-&gt;parents dict
         ch2pr = defaultdict(list)
@@ -240,13 +240,13 @@ class Collection:
             if leaf:
                 self.changelog.pod.clear(leaf.path)
                 self.changelog.refresh()
-            return
+            return []
 
         # Rewrite each series, based on `step` size arrays
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch() as batch:
+        with self.batch(root=True) as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -258,7 +258,10 @@ class Collection:
             revs = batch.revs
         else:
             leaf = self.changelog.leaf()
-            revs = [leaf] if leaf is not None else []
+            if leaf is None:
+                # Empty collection
+                return []
+            revs = [leaf]
         skip = [r.path for r in revs]
         self.changelog.pod.clear(*skip)
         self.changelog.refresh()
@@ -267,11 +270,14 @@ class Collection:
     def digests(self):
         for rev in self.changelog.log():
             ci = rev.commit(self)
-            yield from chain.from_iterable(ci.digest.values())
+            digs = set(chain.from_iterable(ci.digest.values()))
+            # return only digest not already embedded in the commit
+            digs = digs - set(ci.embedded)
+            yield from digs
 
     @contextmanager
-    def batch(self, force_parent=None):
-        b = Batch(self, force_parent)
+    def batch(self, root=None):
+        b = Batch(self, root)
         yield b
         b.flush()
 
@@ -283,8 +289,8 @@ class Batch:
         self.revs = None
         self.root = root
 
-    def append(self, ci_info):
-        self._ci_info.append(ci_info)
+    def append(self, label, start, stop, all_dig, frame_len, embedded):
+        self._ci_info.append((label, start, stop, all_dig, frame_len, embedded))
 
     def extend(self, *other_batches):
         for b in other_batches:
@@ -302,12 +308,20 @@ class Batch:
         if leaf_rev:
             last_ci = leaf_rev.commit(self.collection)
         else:
-            label, start, stop, all_dig, length = next(all_ci_info)
+            label, start, stop, all_dig, length, embedded = next(all_ci_info)
             last_ci = Commit.one(
-                self.collection.schema, label, start, stop, all_dig, length
+                self.collection.schema,
+                label,
+                start,
+                stop,
+                all_dig,
+                length,
+                embedded=embedded,
             )
-        for label, start, stop, all_dig, length in all_ci_info:
-            last_ci = last_ci.update(label, start, stop, all_dig, length)
+        for label, start, stop, all_dig, length, embedded in all_ci_info:
+            last_ci = last_ci.update(
+                label, start, stop, all_dig, length, embedded=embedded
+            )
 
         # Save it
         payload = last_ci.encode()
@@ -341,8 +355,8 @@ class Batch:
         self.revs = None
         self.root = root
 
-    def append(self, ci_info):
-        self._ci_info.append(ci_info)
+    def append(self, label, start, stop, all_dig, frame_len, embedded):
+        self._ci_info.append((label, start, stop, all_dig, frame_len, embedded))
 
     def extend(self, *other_batches):
         for b in other_batches:
@@ -360,12 +374,20 @@ class Batch:
         if leaf_rev:
             last_ci = leaf_rev.commit(self.collection)
         else:
-            label, start, stop, all_dig, length = next(all_ci_info)
+            label, start, stop, all_dig, length, embedded = next(all_ci_info)
             last_ci = Commit.one(
-                self.collection.schema, label, start, stop, all_dig, length
+                self.collection.schema,
+                label,
+                start,
+                stop,
+                all_dig,
+                length,
+                embedded=embedded,
             )
-        for label, start, stop, all_dig, length in all_ci_info:
-            last_ci = last_ci.update(label, start, stop, all_dig, length)
+        for label, start, stop, all_dig, length, embedded in all_ci_info:
+            last_ci = last_ci.update(
+                label, start, stop, all_dig, length, embedded=embedded
+            )
 
         # Save it
         payload = last_ci.encode()
@@ -375,7 +397,7 @@ class Batch:
 <h3>Methods</h3>
 <dl>
 <dt id="lakota.collection.Batch.append"><code class="name flex">
-<span>def <span class="ident">append</span></span>(<span>self, ci_info)</span>
+<span>def <span class="ident">append</span></span>(<span>self, label, start, stop, all_dig, frame_len, embedded)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -383,8 +405,8 @@ class Batch:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def append(self, ci_info):
-    self._ci_info.append(ci_info)</code></pre>
+<pre><code class="python">def append(self, label, start, stop, all_dig, frame_len, embedded):
+    self._ci_info.append((label, start, stop, all_dig, frame_len, embedded))</code></pre>
 </details>
 </dd>
 <dt id="lakota.collection.Batch.extend"><code class="name flex">
@@ -422,12 +444,20 @@ class Batch:
     if leaf_rev:
         last_ci = leaf_rev.commit(self.collection)
     else:
-        label, start, stop, all_dig, length = next(all_ci_info)
+        label, start, stop, all_dig, length, embedded = next(all_ci_info)
         last_ci = Commit.one(
-            self.collection.schema, label, start, stop, all_dig, length
+            self.collection.schema,
+            label,
+            start,
+            stop,
+            all_dig,
+            length,
+            embedded=embedded,
         )
-    for label, start, stop, all_dig, length in all_ci_info:
-        last_ci = last_ci.update(label, start, stop, all_dig, length)
+    for label, start, stop, all_dig, length, embedded in all_ci_info:
+        last_ci = last_ci.update(
+            label, start, stop, all_dig, length, embedded=embedded
+        )
 
     # Save it
     payload = last_ci.encode()
@@ -516,12 +546,12 @@ class Batch:
         revisions = self.changelog.log()
         # Corner cases
         if not revisions:
-            return
+            return []
         if not heads:
             heads = [r for r in revisions if r.is_leaf]
 
         if len(heads) &lt; 2:
-            return
+            return []
 
         # Reorganise revision as child-&gt;parents dict
         ch2pr = defaultdict(list)
@@ -575,13 +605,13 @@ class Batch:
             if leaf:
                 self.changelog.pod.clear(leaf.path)
                 self.changelog.refresh()
-            return
+            return []
 
         # Rewrite each series, based on `step` size arrays
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch() as batch:
+        with self.batch(root=True) as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -593,7 +623,10 @@ class Batch:
             revs = batch.revs
         else:
             leaf = self.changelog.leaf()
-            revs = [leaf] if leaf is not None else []
+            if leaf is None:
+                # Empty collection
+                return []
+            revs = [leaf]
         skip = [r.path for r in revs]
         self.changelog.pod.clear(*skip)
         self.changelog.refresh()
@@ -602,18 +635,21 @@ class Batch:
     def digests(self):
         for rev in self.changelog.log():
             ci = rev.commit(self)
-            yield from chain.from_iterable(ci.digest.values())
+            digs = set(chain.from_iterable(ci.digest.values()))
+            # return only digest not already embedded in the commit
+            digs = digs - set(ci.embedded)
+            yield from digs
 
     @contextmanager
-    def batch(self, force_parent=None):
-        b = Batch(self, force_parent)
+    def batch(self, root=None):
+        b = Batch(self, root)
         yield b
         b.flush()</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
 <dt id="lakota.collection.Collection.batch"><code class="name flex">
-<span>def <span class="ident">batch</span></span>(<span>self, force_parent=None)</span>
+<span>def <span class="ident">batch</span></span>(<span>self, root=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -622,8 +658,8 @@ class Batch:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@contextmanager
-def batch(self, force_parent=None):
-    b = Batch(self, force_parent)
+def batch(self, root=None):
+    b = Batch(self, root)
     yield b
     b.flush()</code></pre>
 </details>
@@ -661,7 +697,10 @@ def batch(self, force_parent=None):
 <pre><code class="python">def digests(self):
     for rev in self.changelog.log():
         ci = rev.commit(self)
-        yield from chain.from_iterable(ci.digest.values())</code></pre>
+        digs = set(chain.from_iterable(ci.digest.values()))
+        # return only digest not already embedded in the commit
+        digs = digs - set(ci.embedded)
+        yield from digs</code></pre>
 </details>
 </dd>
 <dt id="lakota.collection.Collection.ls"><code class="name flex">
@@ -695,12 +734,12 @@ def batch(self, force_parent=None):
     revisions = self.changelog.log()
     # Corner cases
     if not revisions:
-        return
+        return []
     if not heads:
         heads = [r for r in revisions if r.is_leaf]
 
     if len(heads) &lt; 2:
-        return
+        return []
 
     # Reorganise revision as child-&gt;parents dict
     ch2pr = defaultdict(list)
@@ -827,13 +866,13 @@ frames. Returns newly created revisions.</p></div>
         if leaf:
             self.changelog.pod.clear(leaf.path)
             self.changelog.refresh()
-        return
+        return []
 
     # Rewrite each series, based on `step` size arrays
     step = 500_000
     all_labels = self.ls()
     # TODO run in parallel
-    with self.batch() as batch:
+    with self.batch(root=True) as batch:
         for label in all_labels:
             logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
             # Re-write each series
@@ -845,7 +884,10 @@ frames. Returns newly created revisions.</p></div>
         revs = batch.revs
     else:
         leaf = self.changelog.leaf()
-        revs = [leaf] if leaf is not None else []
+        if leaf is None:
+            # Empty collection
+            return []
+        revs = [leaf]
     skip = [r.path for r in revs]
     self.changelog.pod.clear(*skip)
     self.changelog.refresh()
