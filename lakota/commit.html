@@ -265,7 +265,7 @@ from itertools import chain
 from threading import Lock
 
 from numcodecs import registry
-from numpy import asarray, concatenate, isin, where
+from numpy import asarray, concatenate, isin, repeat, where
 
 from .frame import Frame
 from .schema import Codec, Schema
@@ -302,16 +302,6 @@ class Commit:
         length = [length]
         closed = [closed]
         return Commit(schema, label, start, stop, digest, length, closed, embedded)
-
-    @classmethod
-    def empty(cls, schema):
-        label = asarray([])
-        start = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-        stop = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-        digest = dict(zip(schema, (asarray([]) for _ in schema)))
-        length = []
-        closed = []
-        return Commit(schema, label, start, stop, digest, length, closed)
 
     @classmethod
     def decode(cls, schema, payload):
@@ -414,7 +404,6 @@ class Commit:
             return inner
 
         start_pos, stop_pos = self.split(label, start, stop)
-
         # Truncate start_pos row
         head = None
         # start_pos is the result of a bisect_right, so we have to
@@ -440,8 +429,6 @@ class Commit:
             if start_row[&#34;start&#34;] == start_row[&#34;stop&#34;]:
                 # Ignore star_row
                 head = self.head(start_pos)
-            elif start_pos == len(self):
-                head = Commit.one(schema=self.schema, **start_row)
             else:
                 head = Commit.concat(
                     self.head(start_pos),
@@ -475,8 +462,6 @@ class Commit:
             if stop_row[&#34;start&#34;] == stop_row[&#34;stop&#34;]:
                 # Ignore stop_row
                 tail = self.tail(stop_pos)
-            elif stop_pos == 0:
-                tail = Commit.one(schema=self.schema, **stop_row)
             else:
                 tail = Commit.concat(
                     Commit.one(schema=self.schema, **stop_row),
@@ -570,7 +555,7 @@ class Commit:
                 elif not arr_closed.right and start == arr_stop:
                     # Same
                     continue
-                elif start &gt; arr_start:
+                elif start &gt;= arr_start:
                     # closed &#34;win&#34; over arr_closed on the left
                     arr_closed = arr_closed.set_left(closed)
                     arr_start = start
@@ -580,7 +565,7 @@ class Commit:
                     continue
                 elif not arr_closed.left and stop == arr_start:
                     continue
-                elif stop &lt; arr_stop:
+                elif stop &lt;= arr_stop:
                     # closed &#34;win&#34; over arr_closed on the right
                     arr_closed = arr_closed.set_right(closed)
                     arr_stop = stop
@@ -599,6 +584,9 @@ class Commit:
 
     def delete_labels(self, rm_labels):
         keep = ~isin(self.label, rm_labels)
+        return self.mask(keep)
+
+    def mask(self, keep):
         return Commit(
             schema=self.schema,
             label=self.label[keep],
@@ -609,6 +597,21 @@ class Commit:
             closed=self.closed[keep],
             embedded=self.embedded,
         )
+
+    def rename_label(self, from_label, to_label):
+        # First we create an extract with `from_label` only
+        extract = self.mask(self.label == from_label)
+        base_ci = self.delete_labels(from_label)
+
+        # replace label in extract
+        extract.label = repeat(to_label, len(extract))
+
+        # Re-inject it
+        for pos in range(len(extract)):
+            row = extract.at(pos)
+            base_ci = base_ci.update(**row)
+
+        return base_ci
 
     def __contains__(self, row):
         start_pos, _ = self.split(row[&#34;label&#34;], row[&#34;start&#34;], row[&#34;stop&#34;])
@@ -665,7 +668,7 @@ class Segment:
             #     for name in self.commit.schema.idx:
             #         pool.submit(lambda: cols.update({name: self._read(name)}))
             for name in self.commit.schema.idx:
-                cols[name] =  self._read(name)
+                cols[name] = self._read(name)
 
             frm = Frame(self.commit.schema, cols)
             self.start_pos, self.stop_pos = frm.index_slice(
@@ -724,16 +727,6 @@ class Segment:
         return Commit(schema, label, start, stop, digest, length, closed, embedded)
 
     @classmethod
-    def empty(cls, schema):
-        label = asarray([])
-        start = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-        stop = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-        digest = dict(zip(schema, (asarray([]) for _ in schema)))
-        length = []
-        closed = []
-        return Commit(schema, label, start, stop, digest, length, closed)
-
-    @classmethod
     def decode(cls, schema, payload):
         msgpck = registry.codec_registry[&#34;msgpack2&#34;]()
         data = msgpck.decode(payload)[0]
@@ -834,7 +827,6 @@ class Segment:
             return inner
 
         start_pos, stop_pos = self.split(label, start, stop)
-
         # Truncate start_pos row
         head = None
         # start_pos is the result of a bisect_right, so we have to
@@ -860,8 +852,6 @@ class Segment:
             if start_row[&#34;start&#34;] == start_row[&#34;stop&#34;]:
                 # Ignore star_row
                 head = self.head(start_pos)
-            elif start_pos == len(self):
-                head = Commit.one(schema=self.schema, **start_row)
             else:
                 head = Commit.concat(
                     self.head(start_pos),
@@ -895,8 +885,6 @@ class Segment:
             if stop_row[&#34;start&#34;] == stop_row[&#34;stop&#34;]:
                 # Ignore stop_row
                 tail = self.tail(stop_pos)
-            elif stop_pos == 0:
-                tail = Commit.one(schema=self.schema, **stop_row)
             else:
                 tail = Commit.concat(
                     Commit.one(schema=self.schema, **stop_row),
@@ -990,7 +978,7 @@ class Segment:
                 elif not arr_closed.right and start == arr_stop:
                     # Same
                     continue
-                elif start &gt; arr_start:
+                elif start &gt;= arr_start:
                     # closed &#34;win&#34; over arr_closed on the left
                     arr_closed = arr_closed.set_left(closed)
                     arr_start = start
@@ -1000,7 +988,7 @@ class Segment:
                     continue
                 elif not arr_closed.left and stop == arr_start:
                     continue
-                elif stop &lt; arr_stop:
+                elif stop &lt;= arr_stop:
                     # closed &#34;win&#34; over arr_closed on the right
                     arr_closed = arr_closed.set_right(closed)
                     arr_stop = stop
@@ -1019,6 +1007,9 @@ class Segment:
 
     def delete_labels(self, rm_labels):
         keep = ~isin(self.label, rm_labels)
+        return self.mask(keep)
+
+    def mask(self, keep):
         return Commit(
             schema=self.schema,
             label=self.label[keep],
@@ -1029,6 +1020,21 @@ class Segment:
             closed=self.closed[keep],
             embedded=self.embedded,
         )
+
+    def rename_label(self, from_label, to_label):
+        # First we create an extract with `from_label` only
+        extract = self.mask(self.label == from_label)
+        base_ci = self.delete_labels(from_label)
+
+        # replace label in extract
+        extract.label = repeat(to_label, len(extract))
+
+        # Re-inject it
+        for pos in range(len(extract)):
+            row = extract.at(pos)
+            base_ci = base_ci.update(**row)
+
+        return base_ci
 
     def __contains__(self, row):
         start_pos, _ = self.split(row[&#34;label&#34;], row[&#34;start&#34;], row[&#34;stop&#34;])
@@ -1136,26 +1142,6 @@ def decode(cls, schema, payload):
     return Commit(schema, **values)</code></pre>
 </details>
 </dd>
-<dt id="lakota.commit.Commit.empty"><code class="name flex">
-<span>def <span class="ident">empty</span></span>(<span>schema)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@classmethod
-def empty(cls, schema):
-    label = asarray([])
-    start = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-    stop = dict(zip(schema.idx, (asarray([]) for _ in schema.idx)))
-    digest = dict(zip(schema, (asarray([]) for _ in schema)))
-    length = []
-    closed = []
-    return Commit(schema, label, start, stop, digest, length, closed)</code></pre>
-</details>
-</dd>
 <dt id="lakota.commit.Commit.one"><code class="name flex">
 <span>def <span class="ident">one</span></span>(<span>schema, label, start, stop, digest, length, closed='b', embedded=None)</span>
 </code></dt>
@@ -1215,16 +1201,7 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
 </summary>
 <pre><code class="python">def delete_labels(self, rm_labels):
     keep = ~isin(self.label, rm_labels)
-    return Commit(
-        schema=self.schema,
-        label=self.label[keep],
-        start={k: v[keep] for k, v in self.start.items()},
-        stop={k: v[keep] for k, v in self.stop.items()},
-        digest={k: v[keep] for k, v in self.digest.items()},
-        length=self.length[keep],
-        closed=self.closed[keep],
-        embedded=self.embedded,
-    )</code></pre>
+    return self.mask(keep)</code></pre>
 </details>
 </dd>
 <dt id="lakota.commit.Commit.encode"><code class="name flex">
@@ -1281,6 +1258,53 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
     return self.slice(None, pos)</code></pre>
 </details>
 </dd>
+<dt id="lakota.commit.Commit.mask"><code class="name flex">
+<span>def <span class="ident">mask</span></span>(<span>self, keep)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mask(self, keep):
+    return Commit(
+        schema=self.schema,
+        label=self.label[keep],
+        start={k: v[keep] for k, v in self.start.items()},
+        stop={k: v[keep] for k, v in self.stop.items()},
+        digest={k: v[keep] for k, v in self.digest.items()},
+        length=self.length[keep],
+        closed=self.closed[keep],
+        embedded=self.embedded,
+    )</code></pre>
+</details>
+</dd>
+<dt id="lakota.commit.Commit.rename_label"><code class="name flex">
+<span>def <span class="ident">rename_label</span></span>(<span>self, from_label, to_label)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rename_label(self, from_label, to_label):
+    # First we create an extract with `from_label` only
+    extract = self.mask(self.label == from_label)
+    base_ci = self.delete_labels(from_label)
+
+    # replace label in extract
+    extract.label = repeat(to_label, len(extract))
+
+    # Re-inject it
+    for pos in range(len(extract)):
+        row = extract.at(pos)
+        base_ci = base_ci.update(**row)
+
+    return base_ci</code></pre>
+</details>
+</dd>
 <dt id="lakota.commit.Commit.segments"><code class="name flex">
 <span>def <span class="ident">segments</span></span>(<span>self, label, pod, start=None, stop=None, closed='b')</span>
 </code></dt>
@@ -1312,7 +1336,7 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
             elif not arr_closed.right and start == arr_stop:
                 # Same
                 continue
-            elif start &gt; arr_start:
+            elif start &gt;= arr_start:
                 # closed &#34;win&#34; over arr_closed on the left
                 arr_closed = arr_closed.set_left(closed)
                 arr_start = start
@@ -1322,7 +1346,7 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
                 continue
             elif not arr_closed.left and stop == arr_start:
                 continue
-            elif stop &lt; arr_stop:
+            elif stop &lt;= arr_stop:
                 # closed &#34;win&#34; over arr_closed on the right
                 arr_closed = arr_closed.set_right(closed)
                 arr_stop = stop
@@ -1423,7 +1447,6 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
         return inner
 
     start_pos, stop_pos = self.split(label, start, stop)
-
     # Truncate start_pos row
     head = None
     # start_pos is the result of a bisect_right, so we have to
@@ -1449,8 +1472,6 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
         if start_row[&#34;start&#34;] == start_row[&#34;stop&#34;]:
             # Ignore star_row
             head = self.head(start_pos)
-        elif start_pos == len(self):
-            head = Commit.one(schema=self.schema, **start_row)
         else:
             head = Commit.concat(
                 self.head(start_pos),
@@ -1484,8 +1505,6 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
         if stop_row[&#34;start&#34;] == stop_row[&#34;stop&#34;]:
             # Ignore stop_row
             tail = self.tail(stop_pos)
-        elif stop_pos == 0:
-            tail = Commit.one(schema=self.schema, **stop_row)
         else:
             tail = Commit.concat(
                 Commit.one(schema=self.schema, **stop_row),
@@ -1555,7 +1574,7 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
             #     for name in self.commit.schema.idx:
             #         pool.submit(lambda: cols.update({name: self._read(name)}))
             for name in self.commit.schema.idx:
-                cols[name] =  self._read(name)
+                cols[name] = self._read(name)
 
             frm = Frame(self.commit.schema, cols)
             self.start_pos, self.stop_pos = frm.index_slice(
@@ -1585,7 +1604,7 @@ def frame(self):
         #     for name in self.commit.schema.idx:
         #         pool.submit(lambda: cols.update({name: self._read(name)}))
         for name in self.commit.schema.idx:
-            cols[name] =  self._read(name)
+            cols[name] = self._read(name)
 
         frm = Frame(self.commit.schema, cols)
         self.start_pos, self.stop_pos = frm.index_slice(
@@ -1641,12 +1660,13 @@ def frame(self):
 <li><code><a title="lakota.commit.Commit.decode" href="#lakota.commit.Commit.decode">decode</a></code></li>
 <li><code><a title="lakota.commit.Commit.delete_labels" href="#lakota.commit.Commit.delete_labels">delete_labels</a></code></li>
 <li><code><a title="lakota.commit.Commit.digest_codec" href="#lakota.commit.Commit.digest_codec">digest_codec</a></code></li>
-<li><code><a title="lakota.commit.Commit.empty" href="#lakota.commit.Commit.empty">empty</a></code></li>
 <li><code><a title="lakota.commit.Commit.encode" href="#lakota.commit.Commit.encode">encode</a></code></li>
 <li><code><a title="lakota.commit.Commit.head" href="#lakota.commit.Commit.head">head</a></code></li>
 <li><code><a title="lakota.commit.Commit.label_codec" href="#lakota.commit.Commit.label_codec">label_codec</a></code></li>
 <li><code><a title="lakota.commit.Commit.len_codec" href="#lakota.commit.Commit.len_codec">len_codec</a></code></li>
+<li><code><a title="lakota.commit.Commit.mask" href="#lakota.commit.Commit.mask">mask</a></code></li>
 <li><code><a title="lakota.commit.Commit.one" href="#lakota.commit.Commit.one">one</a></code></li>
+<li><code><a title="lakota.commit.Commit.rename_label" href="#lakota.commit.Commit.rename_label">rename_label</a></code></li>
 <li><code><a title="lakota.commit.Commit.segments" href="#lakota.commit.Commit.segments">segments</a></code></li>
 <li><code><a title="lakota.commit.Commit.slice" href="#lakota.commit.Commit.slice">slice</a></code></li>
 <li><code><a title="lakota.commit.Commit.split" href="#lakota.commit.Commit.split">split</a></code></li>

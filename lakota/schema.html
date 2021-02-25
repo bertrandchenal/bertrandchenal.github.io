@@ -104,10 +104,10 @@ class SchemaColumn:
         self.idx = idx
 
     @classmethod
-    def from_ui(cls, line):
-        parser = shlex.shlex(line, posix=True, punctuation_chars=&#34;|*&#34;)
+    def from_ui(cls, name, definition):
+        parser = shlex.shlex(definition, posix=True, punctuation_chars=&#34;|*&#34;)
         parser.wordchars += &#34;[]&#34;
-        name, dt, *tokens = parser
+        dt, *tokens = parser
         idx = False
         codec_names = []
         state = None
@@ -146,32 +146,24 @@ class SchemaColumn:
 
 
 class Schema:
-    def __init__(self, from_ui=None, from_columns=None, kind=None):
-        assert (
-            from_ui or from_columns
-        ), &#34;At least one of from_ui or from_columns is needed&#34;
-        assert kind in (None, &#34;kv&#34;)
-        self.kind = kind
-
-        if from_columns:
-            self.columns = {c.name: c for c in from_columns}
-        else:
-            self.columns = {}
-            if not isinstance(from_ui, (list, tuple)):
-                from_ui = from_ui.splitlines()
-            for line in from_ui:
-                line = line.strip()
-                if not line:
-                    continue
-                col = SchemaColumn.from_ui(line)
-                self.columns[col.name] = col
+    def __init__(self, **columns):
+        self.kind = None
+        self.columns = {}
+        for name, definition in columns.items():
+            if not isinstance(definition, SchemaColumn):
+                definition = SchemaColumn.from_ui(name, definition)
+            self.columns[name] = definition
 
         self.idx = {n: c for n, c in self.columns.items() if c.idx}
         self.non_idx = {n: c for n, c in self.columns.items() if not c.idx}
         if len(self.idx) == 0:
-            raise ValueError(
-                &#34;Invalid schema, no index defined: &#34; + str(from_ui or from_columns)
-            )
+            raise ValueError(&#34;Invalid schema, no index defined&#34;)
+
+    @classmethod
+    def kv(cls, **columns):
+        schema = Schema(**columns)
+        schema.kind = &#34;kv&#34;
+        return schema
 
     @classmethod
     def from_frame(cls, frame, idx_columns=None):
@@ -179,11 +171,11 @@ class Schema:
         Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
         &#34;&#34;&#34;
         idx_columns = idx_columns or list(frame)
-        col_defs = []
+        col_defs = {}
         for name in frame:
             arr = frame[name]
-            col_defs.append(SchemaColumn(name, arr.dtype, [], name in idx_columns))
-        return Schema(from_columns=col_defs)
+            col_defs[name] = SchemaColumn(name, arr.dtype, [], name in idx_columns)
+        return Schema(**col_defs)
 
     def serialize(self, values):
         if not values:
@@ -205,8 +197,12 @@ class Schema:
 
     @classmethod
     def loads(self, data):
-        columns = [SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()]
-        return Schema(from_columns=columns, kind=data[&#34;kind&#34;])
+        columns = {
+            name: SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()
+        }
+        if data[&#34;kind&#34;] == &#34;kv&#34;:
+            return Schema.kv(**columns)
+        return Schema(**columns)
 
     def dump(self):
         columns = {c.name: c.dump() for c in self.columns.values()}
@@ -230,10 +226,12 @@ class Schema:
             columns = list(self)
         else:
             columns = [c for c in df if c in self]
+
+        res = {}
         for name in columns:
             col = self[name]
-            df[col.name] = col.cast(df.get(col.name, []))
-        return df
+            res[col.name] = col.cast(df.get(col.name, []))
+        return res
 
     def __getitem__(self, name):
         return self.columns[name]
@@ -269,7 +267,7 @@ class SeriesDefinition:
 <dl>
 <dt id="lakota.schema.Schema"><code class="flex name class">
 <span>class <span class="ident">Schema</span></span>
-<span>(</span><span>from_ui=None, from_columns=None, kind=None)</span>
+<span>(</span><span>**columns)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -278,32 +276,24 @@ class SeriesDefinition:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Schema:
-    def __init__(self, from_ui=None, from_columns=None, kind=None):
-        assert (
-            from_ui or from_columns
-        ), &#34;At least one of from_ui or from_columns is needed&#34;
-        assert kind in (None, &#34;kv&#34;)
-        self.kind = kind
-
-        if from_columns:
-            self.columns = {c.name: c for c in from_columns}
-        else:
-            self.columns = {}
-            if not isinstance(from_ui, (list, tuple)):
-                from_ui = from_ui.splitlines()
-            for line in from_ui:
-                line = line.strip()
-                if not line:
-                    continue
-                col = SchemaColumn.from_ui(line)
-                self.columns[col.name] = col
+    def __init__(self, **columns):
+        self.kind = None
+        self.columns = {}
+        for name, definition in columns.items():
+            if not isinstance(definition, SchemaColumn):
+                definition = SchemaColumn.from_ui(name, definition)
+            self.columns[name] = definition
 
         self.idx = {n: c for n, c in self.columns.items() if c.idx}
         self.non_idx = {n: c for n, c in self.columns.items() if not c.idx}
         if len(self.idx) == 0:
-            raise ValueError(
-                &#34;Invalid schema, no index defined: &#34; + str(from_ui or from_columns)
-            )
+            raise ValueError(&#34;Invalid schema, no index defined&#34;)
+
+    @classmethod
+    def kv(cls, **columns):
+        schema = Schema(**columns)
+        schema.kind = &#34;kv&#34;
+        return schema
 
     @classmethod
     def from_frame(cls, frame, idx_columns=None):
@@ -311,11 +301,11 @@ class SeriesDefinition:
         Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
         &#34;&#34;&#34;
         idx_columns = idx_columns or list(frame)
-        col_defs = []
+        col_defs = {}
         for name in frame:
             arr = frame[name]
-            col_defs.append(SchemaColumn(name, arr.dtype, [], name in idx_columns))
-        return Schema(from_columns=col_defs)
+            col_defs[name] = SchemaColumn(name, arr.dtype, [], name in idx_columns)
+        return Schema(**col_defs)
 
     def serialize(self, values):
         if not values:
@@ -337,8 +327,12 @@ class SeriesDefinition:
 
     @classmethod
     def loads(self, data):
-        columns = [SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()]
-        return Schema(from_columns=columns, kind=data[&#34;kind&#34;])
+        columns = {
+            name: SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()
+        }
+        if data[&#34;kind&#34;] == &#34;kv&#34;:
+            return Schema.kv(**columns)
+        return Schema(**columns)
 
     def dump(self):
         columns = {c.name: c.dump() for c in self.columns.values()}
@@ -362,10 +356,12 @@ class SeriesDefinition:
             columns = list(self)
         else:
             columns = [c for c in df if c in self]
+
+        res = {}
         for name in columns:
             col = self[name]
-            df[col.name] = col.cast(df.get(col.name, []))
-        return df
+            res[col.name] = col.cast(df.get(col.name, []))
+        return res
 
     def __getitem__(self, name):
         return self.columns[name]
@@ -400,11 +396,27 @@ def from_frame(cls, frame, idx_columns=None):
     Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
     &#34;&#34;&#34;
     idx_columns = idx_columns or list(frame)
-    col_defs = []
+    col_defs = {}
     for name in frame:
         arr = frame[name]
-        col_defs.append(SchemaColumn(name, arr.dtype, [], name in idx_columns))
-    return Schema(from_columns=col_defs)</code></pre>
+        col_defs[name] = SchemaColumn(name, arr.dtype, [], name in idx_columns)
+    return Schema(**col_defs)</code></pre>
+</details>
+</dd>
+<dt id="lakota.schema.Schema.kv"><code class="name flex">
+<span>def <span class="ident">kv</span></span>(<span>**columns)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def kv(cls, **columns):
+    schema = Schema(**columns)
+    schema.kind = &#34;kv&#34;
+    return schema</code></pre>
 </details>
 </dd>
 <dt id="lakota.schema.Schema.loads"><code class="name flex">
@@ -418,8 +430,12 @@ def from_frame(cls, frame, idx_columns=None):
 </summary>
 <pre><code class="python">@classmethod
 def loads(self, data):
-    columns = [SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()]
-    return Schema(from_columns=columns, kind=data[&#34;kind&#34;])</code></pre>
+    columns = {
+        name: SchemaColumn(name, **opts) for name, opts in data[&#34;columns&#34;].items()
+    }
+    if data[&#34;kind&#34;] == &#34;kv&#34;:
+        return Schema.kv(**columns)
+    return Schema(**columns)</code></pre>
 </details>
 </dd>
 </dl>
@@ -440,10 +456,12 @@ def loads(self, data):
         columns = list(self)
     else:
         columns = [c for c in df if c in self]
+
+    res = {}
     for name in columns:
         col = self[name]
-        df[col.name] = col.cast(df.get(col.name, []))
-    return df</code></pre>
+        res[col.name] = col.cast(df.get(col.name, []))
+    return res</code></pre>
 </details>
 </dd>
 <dt id="lakota.schema.Schema.deserialize"><code class="name flex">
@@ -542,6 +560,7 @@ given position</p></div>
 <li><code><a title="lakota.schema.Schema.deserialize" href="#lakota.schema.Schema.deserialize">deserialize</a></code></li>
 <li><code><a title="lakota.schema.Schema.dump" href="#lakota.schema.Schema.dump">dump</a></code></li>
 <li><code><a title="lakota.schema.Schema.from_frame" href="#lakota.schema.Schema.from_frame">from_frame</a></code></li>
+<li><code><a title="lakota.schema.Schema.kv" href="#lakota.schema.Schema.kv">kv</a></code></li>
 <li><code><a title="lakota.schema.Schema.loads" href="#lakota.schema.Schema.loads">loads</a></code></li>
 <li><code><a title="lakota.schema.Schema.row" href="#lakota.schema.Schema.row">row</a></code></li>
 <li><code><a title="lakota.schema.Schema.serialize" href="#lakota.schema.Schema.serialize">serialize</a></code></li>

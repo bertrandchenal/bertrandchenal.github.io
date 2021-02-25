@@ -6,7 +6,7 @@
 <meta name="generator" content="pdoc 0.9.2" />
 <title>lakota.server API documentation</title>
 <meta name="description" content="The server sub-module implement a flask application that expose
-the main methods of `lakota.pod.POD`.
+The main methods of `lakota.pod.POD`.
 It can be launched from the cli
 like this: …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -26,10 +26,10 @@ like this: …" />
 </header>
 <section id="section-intro">
 <p>The server sub-module implement a flask application that expose
-the main methods of <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code>.
+The main methods of <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code>.
 It can be launched from the cli
 like this:</p>
-<pre><code class="language-shell">$ lakota serve
+<pre><code class="language-shell">$ lakota serve &quot;local-repo file:///.lakota&quot;
  * Serving Flask app &quot;Lakota Repository&quot; (lazy loading)
  * Environment: production
    WARNING: This is a development server. Do not use it
@@ -38,19 +38,21 @@ like this:</p>
  * Debug mode: off
 INFO:2021-01-22 16:04:08:  * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 </code></pre>
-<p>In the above example the repository exposed is the usual default
-repository of the cli (so the folder <code>".lakota"</code> or the one defined in
-the environment variable <code>LAKOTA_REPO</code> if this one is set up).</p>
+<p><code>local-repo</code> is the route at which the API will exposed and
+<code>file:///.lakota</code> the source repo.</p>
 <p>Once the server is started you can query it, for example you can do
 (while the server is running in another shell):</p>
-<pre><code class="language-shell">$ lakota -r http://localhost:8080 ls
+<pre><code class="language-shell">$ lakota -r http://localhost:8080/local-repo ls
 ...
 </code></pre>
 <p>It can also be used as a local proxy to speed-up access to remote locations:</p>
-<pre><code class="language-shell">$ lakota -r memory://+s3:///bucket_name serve
+<pre><code class="language-shell">$ lakota serve &quot;faster-bucket memory:// s3:///bucket_name&quot;
 </code></pre>
 <p>You can also use <code>file:////tmp/local-cache</code> instead of <code>memory://</code> to
 provide persistant caching.</p>
+<p>You can expose several repo under different prefixes:</p>
+<pre><code class="language-shell">$ lakota serve &quot;local-repo file:///.lakota&quot; &quot;faster-bucket memory:// s3:///bucket_name&quot;
+</code></pre>
 <p><strong>Beware</strong>: no authentication nor encryption is provided, and the server
 expose full read and write access to the underlying repository.</p>
 <details class="source">
@@ -59,11 +61,11 @@ expose full read and write access to the underlying repository.</p>
 </summary>
 <pre><code class="python">&#34;&#34;&#34;
 The server sub-module implement a flask application that expose
-the main methods of `lakota.pod.POD`.  It can be launched from the cli
+The main methods of `lakota.pod.POD`.  It can be launched from the cli
 like this:
 
 ``` shell
-$ lakota serve
+$ lakota serve &#34;local-repo file:///.lakota&#34;
  * Serving Flask app &#34;Lakota Repository&#34; (lazy loading)
  * Environment: production
    WARNING: This is a development server. Do not use it
@@ -73,26 +75,31 @@ $ lakota serve
 INFO:2021-01-22 16:04:08:  * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
 
-In the above example the repository exposed is the usual default
-repository of the cli (so the folder `&#34;.lakota&#34;` or the one defined in
-the environment variable `LAKOTA_REPO` if this one is set up).
+`local-repo` is the route at which the API will exposed and
+`file:///.lakota` the source repo.
 
 Once the server is started you can query it, for example you can do
 (while the server is running in another shell):
 
 ``` shell
-$ lakota -r http://localhost:8080 ls
+$ lakota -r http://localhost:8080/local-repo ls
 ...
 ```
 
 It can also be used as a local proxy to speed-up access to remote locations:
 
 ``` shell
-$ lakota -r memory://+s3:///bucket_name serve
+$ lakota serve &#34;faster-bucket memory:// s3:///bucket_name&#34;
 ```
 
 You can also use `file:////tmp/local-cache` instead of `memory://` to
 provide persistant caching.
+
+You can expose several repo under different prefixes:
+
+``` shell
+$ lakota serve &#34;local-repo file:///.lakota&#34; &#34;faster-bucket memory:// s3:///bucket_name&#34;
+```
 
 **Beware**: no authentication nor encryption is provided, and the server
 expose full read and write access to the underlying repository.
@@ -101,10 +108,9 @@ expose full read and write access to the underlying repository.
 import base64
 from urllib.parse import urlsplit
 
-from flask import Blueprint, Flask, abort, request
+from flask import Blueprint, Flask, request
 
-# Simple dict to register repositories
-dispatcher = {}
+from lakota import Repo
 
 pod_bp = Blueprint(f&#34;Lakota POD&#34;, __name__)
 
@@ -179,7 +185,7 @@ def pod(repo, action, relpath=None):
         return &#39;Action &#34;{action}&#34; not supported&#39;, 404
 
 
-def run(repo, web_uri=None, debug=False):
+def run(repo_map, web_uri=None, debug=False):
     parts = urlsplit(web_uri)
     if not parts.scheme == &#34;http&#34;:
         # if no scheme is given, hostname and port are not interpreted correctly
@@ -188,7 +194,10 @@ def run(repo, web_uri=None, debug=False):
 
     # Instanciate app and blueprint. Run app
     app = Flask(&#34;Lakota Repository&#34;)
-    app.register_blueprint(pod_bp, url_prefix=parts.path, url_defaults={&#34;repo&#34;: repo})
+    for name, uri in repo_map.items():
+        prefix = parts.path + &#34;/&#34; + name.strip(&#34;/&#34;)
+        repo = Repo(uri)
+        app.register_blueprint(pod_bp, url_prefix=prefix, url_defaults={&#34;repo&#34;: repo})
     app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </section>
@@ -292,7 +301,7 @@ def pod(repo, action, relpath=None):
 </details>
 </dd>
 <dt id="lakota.server.run"><code class="name flex">
-<span>def <span class="ident">run</span></span>(<span>repo, web_uri=None, debug=False)</span>
+<span>def <span class="ident">run</span></span>(<span>repo_map, web_uri=None, debug=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -300,7 +309,7 @@ def pod(repo, action, relpath=None):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def run(repo, web_uri=None, debug=False):
+<pre><code class="python">def run(repo_map, web_uri=None, debug=False):
     parts = urlsplit(web_uri)
     if not parts.scheme == &#34;http&#34;:
         # if no scheme is given, hostname and port are not interpreted correctly
@@ -309,7 +318,10 @@ def pod(repo, action, relpath=None):
 
     # Instanciate app and blueprint. Run app
     app = Flask(&#34;Lakota Repository&#34;)
-    app.register_blueprint(pod_bp, url_prefix=parts.path, url_defaults={&#34;repo&#34;: repo})
+    for name, uri in repo_map.items():
+        prefix = parts.path + &#34;/&#34; + name.strip(&#34;/&#34;)
+        repo = Repo(uri)
+        app.register_blueprint(pod_bp, url_prefix=prefix, url_defaults={&#34;repo&#34;: repo})
     app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </dd>

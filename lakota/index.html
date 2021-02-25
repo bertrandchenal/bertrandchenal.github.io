@@ -32,7 +32,7 @@ ease of synchronisation across different storage backends.</p>
 <p>You can then run:</p>
 <pre><code class="language-python">from lakota import Repo, Schema
 
-ts_schema = Schema([&quot;timestamp timestamp*&quot;, &quot;value float&quot;])
+ts_schema = Schema(timestamp=&quot;timestamp*&quot;, value=&quot;float&quot;)
 repo = Repo(&quot;my-data-folder&quot;)  # or Repo(&quot;s3://my-s3-bucket&quot;)
 clct = repo.create_collection(ts_schema, &quot;temperature&quot;)
 series = clct.series('Brussels')
@@ -84,7 +84,7 @@ You can then run:
 ``` python
 from lakota import Repo, Schema
 
-ts_schema = Schema([&#34;timestamp timestamp*&#34;, &#34;value float&#34;])
+ts_schema = Schema(timestamp=&#34;timestamp*&#34;, value=&#34;float&#34;)
 repo = Repo(&#34;my-data-folder&#34;)  # or Repo(&#34;s3://my-s3-bucket&#34;)
 clct = repo.create_collection(ts_schema, &#34;temperature&#34;)
 series = clct.series(&#39;Brussels&#39;)
@@ -126,7 +126,7 @@ from .repo import *
 from .schema import *
 from .series import *
 
-__version__ = &#34;0.4.4&#34;</code></pre>
+__version__ = &#34;0.4.6&#34;</code></pre>
 </details>
 </section>
 <section>
@@ -185,7 +185,7 @@ remote …</p></div>
 <dt><code class="name"><a title="lakota.server" href="server.html">lakota.server</a></code></dt>
 <dd>
 <div class="desc"><p>The server sub-module implement a flask application that expose
-the main methods of <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code>.
+The main methods of <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code>.
 It can be launched from the cli
 like this: …</p></div>
 </dd>

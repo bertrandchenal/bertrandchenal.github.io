@@ -470,7 +470,7 @@ import csv
 import os
 import sys
 from datetime import datetime
-from io import BytesIO, StringIO
+from io import StringIO
 from itertools import chain
 
 from tabulate import tabulate
@@ -481,9 +481,12 @@ from .repo import Repo
 from .schema import Schema
 from .utils import hextime, logger, strpt, timeit
 
+# Take default repo from env variable, fallback to .lakota in current dir
+default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file:///.lakota&#34;)
+
 
 def get_repo(args):
-    return Repo(args.repo)
+    return Repo(args.repo or default_repo)
 
 
 def get_collection(repo, label):
@@ -556,6 +559,9 @@ def read(args):
     else:
         frames = [query.frame()]
 
+    if args.mask:
+        frames = (frm.mask(args.mask) for frm in frames)
+
     if reduce:
         kw = {c: c for c in args.columns}
         frames = (f.reduce(**kw) for f in frames)
@@ -566,10 +572,6 @@ def read(args):
 
     if args.pretty:
         for frm in frames:
-            if args.mask:
-                frm = frm.mask(args.mask)
-                if frm.empty:
-                    continue
             rows = zip(*(frm[col] for col in columns))
             if len(frm) == 0:
                 print(tabulate([], headers=columns))
@@ -579,10 +581,6 @@ def read(args):
         writer = csv.writer(sys.stdout)
         writer.writerow(columns)
         for frm in frames:
-            if args.mask:
-                frm = frm.mask(args.mask)
-                if frm.empty:
-                    continue
             rows = zip(*(frm[col] for col in columns))
             writer.writerows(rows)
 
@@ -744,7 +742,8 @@ def create(args):
     repo = get_repo(args)
     collection = args.label
 
-    schema = Schema(args.columns)
+    columns = dict(col.split(maxsplit=1) for col in args.columns)
+    schema = Schema(**columns)
     repo.create_collection(schema, collection)
 
 
@@ -861,8 +860,11 @@ def serve(args):
         raise
         exit(&#34;Please install flask to run server&#34;)
 
-    repo = get_repo(args)
-    server.run(repo, args.web_uri, debug=args.verbose)
+    repo_map = {}
+    for item in args.repo_map:
+        name, *uris = item.split()
+        repo_map[name] = uris
+    server.run(repo_map, args.web_uri, debug=args.verbose)
 
 
 def deploy(args):
@@ -882,9 +884,6 @@ def print_help(parser, args):
 
 def run():
 
-    # Take default repo from env variable, fallback to .lakota in current dir
-    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file:///.lakota&#34;)
-
     # top-level parser
     parser = argparse.ArgumentParser(
         prog=&#34;lakota&#34;,
@@ -893,7 +892,7 @@ def run():
     parser.add_argument(
         &#34;--repo&#34;,
         &#34;-r&#34;,
-        default=default_repo,
+        action=&#34;append&#34;,
         help=f&#34;Lakota repo (default: {default_repo}&#34;,
     )
     parser.add_argument(&#34;--timing&#34;, &#34;-t&#34;, action=&#34;store_true&#34;, help=&#34;Enable timing&#34;)
@@ -1015,7 +1014,21 @@ def run():
 
     # Add serve command
     parser_serve = subparsers.add_parser(&#34;serve&#34;)
-    parser_serve.add_argument(&#34;web_uri&#34;, nargs=&#34;?&#34;, default=&#34;http://127.0.0.1:8080&#34;)
+    parser_serve.add_argument(
+        &#34;repo_map&#34;,
+        nargs=&#34;+&#34;,
+        metavar=&#34;repo-map&#34;,
+        help=&#34;space-separated mapping of name and repo uri. &#34;
+        &#34;Example: &#39;my-local-repo file://.lakota&#39; &#39;a-remote-one http://host/foobar&#39;. &#34;
+        &#34;Use &#39;/&#39; as name to serve repo at root.&#34;,
+    )
+    parser_serve.add_argument(
+        &#34;-w&#34;,
+        &#34;--web-uri&#34;,
+        nargs=&#34;?&#34;,
+        default=&#34;http://127.0.0.1:8080&#34;,
+        help=&#34;Base url at which the repo will be served&#34;,
+    )
     parser_serve.set_defaults(func=serve)
 
     # Add deploy command
@@ -1082,7 +1095,8 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     repo = get_repo(args)
     collection = args.label
 
-    schema = Schema(args.columns)
+    columns = dict(col.split(maxsplit=1) for col in args.columns)
+    schema = Schema(**columns)
     repo.create_collection(schema, collection)</code></pre>
 </details>
 </dd>
@@ -1239,7 +1253,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_repo(args):
-    return Repo(args.repo)</code></pre>
+    return Repo(args.repo or default_repo)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.get_series"><code class="name flex">
@@ -1547,6 +1561,9 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     else:
         frames = [query.frame()]
 
+    if args.mask:
+        frames = (frm.mask(args.mask) for frm in frames)
+
     if reduce:
         kw = {c: c for c in args.columns}
         frames = (f.reduce(**kw) for f in frames)
@@ -1557,10 +1574,6 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
 
     if args.pretty:
         for frm in frames:
-            if args.mask:
-                frm = frm.mask(args.mask)
-                if frm.empty:
-                    continue
             rows = zip(*(frm[col] for col in columns))
             if len(frm) == 0:
                 print(tabulate([], headers=columns))
@@ -1570,10 +1583,6 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
         writer = csv.writer(sys.stdout)
         writer.writerow(columns)
         for frm in frames:
-            if args.mask:
-                frm = frm.mask(args.mask)
-                if frm.empty:
-                    continue
             rows = zip(*(frm[col] for col in columns))
             writer.writerows(rows)</code></pre>
 </details>
@@ -1635,9 +1644,6 @@ Date: {timestamp}&#34;&#34;&#34;
 </summary>
 <pre><code class="python">def run():
 
-    # Take default repo from env variable, fallback to .lakota in current dir
-    default_repo = os.environ.get(&#34;LAKOTA_REPO&#34;, &#34;file:///.lakota&#34;)
-
     # top-level parser
     parser = argparse.ArgumentParser(
         prog=&#34;lakota&#34;,
@@ -1646,7 +1652,7 @@ Date: {timestamp}&#34;&#34;&#34;
     parser.add_argument(
         &#34;--repo&#34;,
         &#34;-r&#34;,
-        default=default_repo,
+        action=&#34;append&#34;,
         help=f&#34;Lakota repo (default: {default_repo}&#34;,
     )
     parser.add_argument(&#34;--timing&#34;, &#34;-t&#34;, action=&#34;store_true&#34;, help=&#34;Enable timing&#34;)
@@ -1768,7 +1774,21 @@ Date: {timestamp}&#34;&#34;&#34;
 
     # Add serve command
     parser_serve = subparsers.add_parser(&#34;serve&#34;)
-    parser_serve.add_argument(&#34;web_uri&#34;, nargs=&#34;?&#34;, default=&#34;http://127.0.0.1:8080&#34;)
+    parser_serve.add_argument(
+        &#34;repo_map&#34;,
+        nargs=&#34;+&#34;,
+        metavar=&#34;repo-map&#34;,
+        help=&#34;space-separated mapping of name and repo uri. &#34;
+        &#34;Example: &#39;my-local-repo file://.lakota&#39; &#39;a-remote-one http://host/foobar&#39;. &#34;
+        &#34;Use &#39;/&#39; as name to serve repo at root.&#34;,
+    )
+    parser_serve.add_argument(
+        &#34;-w&#34;,
+        &#34;--web-uri&#34;,
+        nargs=&#34;?&#34;,
+        default=&#34;http://127.0.0.1:8080&#34;,
+        help=&#34;Base url at which the repo will be served&#34;,
+    )
     parser_serve.set_defaults(func=serve)
 
     # Add deploy command
@@ -1821,8 +1841,11 @@ Date: {timestamp}&#34;&#34;&#34;
         raise
         exit(&#34;Please install flask to run server&#34;)
 
-    repo = get_repo(args)
-    server.run(repo, args.web_uri, debug=args.verbose)</code></pre>
+    repo_map = {}
+    for item in args.repo_map:
+        name, *uris = item.split()
+        repo_map[name] = uris
+    server.run(repo_map, args.web_uri, debug=args.verbose)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.squash"><code class="name flex">

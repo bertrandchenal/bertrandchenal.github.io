@@ -34,12 +34,12 @@ my_series = clct.series('my_series')
 my_series = clct.series / 'my_series'
 </code></pre>
 <p>See <code><a title="lakota.series" href="series.html">lakota.series</a></code> on how to use <code><a title="lakota.series.Series" href="series.html#lakota.series.Series">Series</a></code>.</p>
-<p>The <code><a title="lakota.collection.Collection.batch" href="#lakota.collection.Collection.batch">Collection.batch()</a></code> method returns a contect manager that will provide atomic
+<p>The <code><a title="lakota.collection.Collection.multi" href="#lakota.collection.Collection.multi">Collection.multi()</a></code> method returns a contect manager that will provide atomic
 (and faster) writes across several series</p>
-<pre><code class="language-python">with clct.batch() as batch:
+<pre><code class="language-python">with clct.multi():
     for label, df in ...:
         series = clct / label
-        series.write(df, batch=batch)
+        series.write(df)
 </code></pre>
 <h2 id="concurrent-writes-and-synchronization">Concurrent writes and synchronization</h2>
 <p>Collections can also be pushed/pulled and merged.</p>
@@ -75,13 +75,13 @@ my_series = clct.series / &#39;my_series&#39;
 
 See `lakota.series` on how to use `lakota.series.Series`.
 
-The `lakota.collection.Collection.batch` method returns a contect manager that will provide atomic
+The `lakota.collection.Collection.multi` method returns a contect manager that will provide atomic
 (and faster) writes across several series
 ```python
-with clct.batch() as batch:
+with clct.multi():
     for label, df in ...:
         series = clct / label
-        series.write(df, batch=batch)
+        series.write(df)
 ```
 
 ## Concurrent writes and synchronization
@@ -101,6 +101,7 @@ clct.squash()
 ```
 &#34;&#34;&#34;
 
+import threading
 from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
@@ -119,6 +120,8 @@ class Collection:
         self.schema = schema
         self.label = label
         self.changelog = Changelog(self.pod / path)
+        self._local = threading.local()
+        self._local.batch = None
 
     def series(self, label):
         label = label.strip()
@@ -148,6 +151,17 @@ class Collection:
 
         ci = leaf_rev.commit(self)
         ci = ci.delete_labels(labels)
+        parent = leaf_rev.child
+        payload = ci.encode()
+        return self.changelog.commit(payload, parents=[parent])
+
+    def rename(self, from_label, to_label):
+        leaf_rev = self.changelog.leaf()
+        if not leaf_rev:
+            return
+
+        ci = leaf_rev.commit(self)
+        ci = ci.rename_label(from_label, to_label)
         parent = leaf_rev.child
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
@@ -246,13 +260,13 @@ class Collection:
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch(root=True) as batch:
+        with self.multi(root=True) as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
                 series = self / label
                 for frm in series.paginate(step):
-                    series.write(frm, batch=batch)
+                    series.write(frm)
 
         if batch.revs:
             revs = batch.revs
@@ -276,10 +290,20 @@ class Collection:
             yield from digs
 
     @contextmanager
-    def batch(self, root=None):
+    def multi(self, root=None):
         b = Batch(self, root)
+        self.batch = b
         yield b
         b.flush()
+        self.batch = None
+
+    @property
+    def batch(self):
+        return self._local.batch
+
+    @batch.setter
+    def batch(self, b):
+        self._local.batch = b
 
 
 class Batch:
@@ -484,6 +508,8 @@ class Batch:
         self.schema = schema
         self.label = label
         self.changelog = Changelog(self.pod / path)
+        self._local = threading.local()
+        self._local.batch = None
 
     def series(self, label):
         label = label.strip()
@@ -513,6 +539,17 @@ class Batch:
 
         ci = leaf_rev.commit(self)
         ci = ci.delete_labels(labels)
+        parent = leaf_rev.child
+        payload = ci.encode()
+        return self.changelog.commit(payload, parents=[parent])
+
+    def rename(self, from_label, to_label):
+        leaf_rev = self.changelog.leaf()
+        if not leaf_rev:
+            return
+
+        ci = leaf_rev.commit(self)
+        ci = ci.rename_label(from_label, to_label)
         parent = leaf_rev.child
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
@@ -611,13 +648,13 @@ class Batch:
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.batch(root=True) as batch:
+        with self.multi(root=True) as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
                 series = self / label
                 for frm in series.paginate(step):
-                    series.write(frm, batch=batch)
+                    series.write(frm)
 
         if batch.revs:
             revs = batch.revs
@@ -641,29 +678,38 @@ class Batch:
             yield from digs
 
     @contextmanager
-    def batch(self, root=None):
+    def multi(self, root=None):
         b = Batch(self, root)
+        self.batch = b
         yield b
-        b.flush()</code></pre>
+        b.flush()
+        self.batch = None
+
+    @property
+    def batch(self):
+        return self._local.batch
+
+    @batch.setter
+    def batch(self, b):
+        self._local.batch = b</code></pre>
 </details>
-<h3>Methods</h3>
+<h3>Instance variables</h3>
 <dl>
-<dt id="lakota.collection.Collection.batch"><code class="name flex">
-<span>def <span class="ident">batch</span></span>(<span>self, root=None)</span>
-</code></dt>
+<dt id="lakota.collection.Collection.batch"><code class="name">var <span class="ident">batch</span></code></dt>
 <dd>
 <div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@contextmanager
-def batch(self, root=None):
-    b = Batch(self, root)
-    yield b
-    b.flush()</code></pre>
+<pre><code class="python">@property
+def batch(self):
+    return self._local.batch</code></pre>
 </details>
 </dd>
+</dl>
+<h3>Methods</h3>
+<dl>
 <dt id="lakota.collection.Collection.delete"><code class="name flex">
 <span>def <span class="ident">delete</span></span>(<span>self, *labels)</span>
 </code></dt>
@@ -773,6 +819,24 @@ def batch(self, root=None):
     return revs</code></pre>
 </details>
 </dd>
+<dt id="lakota.collection.Collection.multi"><code class="name flex">
+<span>def <span class="ident">multi</span></span>(<span>self, root=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def multi(self, root=None):
+    b = Batch(self, root)
+    self.batch = b
+    yield b
+    b.flush()
+    self.batch = None</code></pre>
+</details>
+</dd>
 <dt id="lakota.collection.Collection.pull"><code class="name flex">
 <span>def <span class="ident">pull</span></span>(<span>self, remote)</span>
 </code></dt>
@@ -828,6 +892,27 @@ def batch(self, root=None):
     self.changelog.refresh()</code></pre>
 </details>
 </dd>
+<dt id="lakota.collection.Collection.rename"><code class="name flex">
+<span>def <span class="ident">rename</span></span>(<span>self, from_label, to_label)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rename(self, from_label, to_label):
+    leaf_rev = self.changelog.leaf()
+    if not leaf_rev:
+        return
+
+    ci = leaf_rev.commit(self)
+    ci = ci.rename_label(from_label, to_label)
+    parent = leaf_rev.child
+    payload = ci.encode()
+    return self.changelog.commit(payload, parents=[parent])</code></pre>
+</details>
+</dd>
 <dt id="lakota.collection.Collection.series"><code class="name flex">
 <span>def <span class="ident">series</span></span>(<span>self, label)</span>
 </code></dt>
@@ -872,13 +957,13 @@ frames. Returns newly created revisions.</p></div>
     step = 500_000
     all_labels = self.ls()
     # TODO run in parallel
-    with self.batch(root=True) as batch:
+    with self.multi(root=True) as batch:
         for label in all_labels:
             logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
             # Re-write each series
             series = self / label
             for frm in series.paginate(step):
-                series.write(frm, batch=batch)
+                series.write(frm)
 
     if batch.revs:
         revs = batch.revs
@@ -931,9 +1016,11 @@ frames. Returns newly created revisions.</p></div>
 <li><code><a title="lakota.collection.Collection.digests" href="#lakota.collection.Collection.digests">digests</a></code></li>
 <li><code><a title="lakota.collection.Collection.ls" href="#lakota.collection.Collection.ls">ls</a></code></li>
 <li><code><a title="lakota.collection.Collection.merge" href="#lakota.collection.Collection.merge">merge</a></code></li>
+<li><code><a title="lakota.collection.Collection.multi" href="#lakota.collection.Collection.multi">multi</a></code></li>
 <li><code><a title="lakota.collection.Collection.pull" href="#lakota.collection.Collection.pull">pull</a></code></li>
 <li><code><a title="lakota.collection.Collection.push" href="#lakota.collection.Collection.push">push</a></code></li>
 <li><code><a title="lakota.collection.Collection.refresh" href="#lakota.collection.Collection.refresh">refresh</a></code></li>
+<li><code><a title="lakota.collection.Collection.rename" href="#lakota.collection.Collection.rename">rename</a></code></li>
 <li><code><a title="lakota.collection.Collection.series" href="#lakota.collection.Collection.series">series</a></code></li>
 <li><code><a title="lakota.collection.Collection.squash" href="#lakota.collection.Collection.squash">squash</a></code></li>
 </ul>

@@ -26,13 +26,12 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from time import time
-from numpy import issubdtype
+<pre><code class="python">from numpy import issubdtype
 
 from .changelog import phi
 from .commit import Commit
 from .frame import Frame
-from .utils import Interval, Pool, encoder, hashed_path, hexdigest, settings
+from .utils import Interval, Pool, hashed_path, hexdigest, settings
 
 __all__ = [&#34;Series&#34;, &#34;KVSeries&#34;]
 
@@ -104,21 +103,7 @@ class Series:
         target = min_period * size
         return Interval.bisect(target)
 
-    def delete(self, root=False, batch=False):
-        rev_info = {
-            &#34;tombstone&#34;: True,
-            &#34;epoch&#34;: time(),
-            &#34;label&#34;: self.label,
-        }
-        key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
-        if batch:
-            batch.append(rev_info, key)
-
-        force_parent = phi if root else None
-        commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
-        return commit
-
-    def write(self, frame, start=None, stop=None, root=False, batch=False):
+    def write(self, frame, start=None, stop=None, root=False):
         # Each commit is like a frame. A row in this frame represent a
         # write (aka a segment) and contains one digest per series
         # column + 2*N extra columns that encode start-stop values (N
@@ -126,10 +111,10 @@ class Series:
         # containing the series name (like that we can write all the
         # series in one commit)
 
-        if not isinstance(frame, Frame):
-            frame = Frame(self.schema, self.schema.cast(frame))
+        frame = Frame(self.schema, frame)
 
         # Make sure frame is sorted
+        # XXX forbid repeated values in index ??
         assert frame.is_sorted(), &#34;Frame is not sorted!&#34;
 
         # Save segments
@@ -166,6 +151,7 @@ class Series:
             stop = (stop,)
 
         # Create new digest
+        batch = self.collection.batch
         if batch:
             ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
             batch.append(*ci_info)
@@ -296,9 +282,9 @@ class Query:
 
 
 class KVSeries(Series):
-    def write(self, frame, start=None, stop=None, root=False, batch=False):
+    def write(self, frame, start=None, stop=None, root=False):
         if root or not (start is None is stop):
-            return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+            return super().write(frame, start=start, stop=stop, root=root)
 
         if not isinstance(frame, Frame):
             frame = Frame(self.schema, frame).sorted()
@@ -306,12 +292,12 @@ class KVSeries(Series):
         start = self.schema.row(frame, pos=0, full=False)
         stop = self.schema.row(frame, pos=-1, full=False)
         segments = self.segments(start, stop, closed=&#34;b&#34;)
-        db_frm = Frame.from_segments(
+        db_frm = Frame.from_segments(  # TODO paginate
             self.schema, segments
         )  # Maybe paginate on large results
 
         if db_frm.empty:
-            return super().write(frame, batch=batch)
+            return super().write(frame)
 
         if db_frm == frame:
             # Nothing to do
@@ -323,7 +309,7 @@ class KVSeries(Series):
         non_idx = [c for c in self.schema if c not in self.schema.idx]
         reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
         new_frm = new_frm.reduce(**reduce_kw)
-        return super().write(new_frm, batch=batch)
+        return super().write(new_frm)
 
     def delete(self, *keys):
         # XXX we have 4 delete method (on series, kvseries, collection
@@ -383,9 +369,9 @@ concurrent management of series.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class KVSeries(Series):
-    def write(self, frame, start=None, stop=None, root=False, batch=False):
+    def write(self, frame, start=None, stop=None, root=False):
         if root or not (start is None is stop):
-            return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+            return super().write(frame, start=start, stop=stop, root=root)
 
         if not isinstance(frame, Frame):
             frame = Frame(self.schema, frame).sorted()
@@ -393,12 +379,12 @@ concurrent management of series.</p></div>
         start = self.schema.row(frame, pos=0, full=False)
         stop = self.schema.row(frame, pos=-1, full=False)
         segments = self.segments(start, stop, closed=&#34;b&#34;)
-        db_frm = Frame.from_segments(
+        db_frm = Frame.from_segments(  # TODO paginate
             self.schema, segments
         )  # Maybe paginate on large results
 
         if db_frm.empty:
-            return super().write(frame, batch=batch)
+            return super().write(frame)
 
         if db_frm == frame:
             # Nothing to do
@@ -410,7 +396,7 @@ concurrent management of series.</p></div>
         non_idx = [c for c in self.schema if c not in self.schema.idx]
         reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
         new_frm = new_frm.reduce(**reduce_kw)
-        return super().write(new_frm, batch=batch)
+        return super().write(new_frm)
 
     def delete(self, *keys):
         # XXX we have 4 delete method (on series, kvseries, collection
@@ -481,7 +467,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.KVSeries.write"><code class="name flex">
-<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False, batch=False)</span>
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -489,9 +475,9 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write(self, frame, start=None, stop=None, root=False, batch=False):
+<pre><code class="python">def write(self, frame, start=None, stop=None, root=False):
     if root or not (start is None is stop):
-        return super().write(frame, start=start, stop=stop, root=root, batch=batch)
+        return super().write(frame, start=start, stop=stop, root=root)
 
     if not isinstance(frame, Frame):
         frame = Frame(self.schema, frame).sorted()
@@ -499,12 +485,12 @@ concurrent management of series.</p></div>
     start = self.schema.row(frame, pos=0, full=False)
     stop = self.schema.row(frame, pos=-1, full=False)
     segments = self.segments(start, stop, closed=&#34;b&#34;)
-    db_frm = Frame.from_segments(
+    db_frm = Frame.from_segments(  # TODO paginate
         self.schema, segments
     )  # Maybe paginate on large results
 
     if db_frm.empty:
-        return super().write(frame, batch=batch)
+        return super().write(frame)
 
     if db_frm == frame:
         # Nothing to do
@@ -516,7 +502,7 @@ concurrent management of series.</p></div>
     non_idx = [c for c in self.schema if c not in self.schema.idx]
     reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
     new_frm = new_frm.reduce(**reduce_kw)
-    return super().write(new_frm, batch=batch)</code></pre>
+    return super().write(new_frm)</code></pre>
 </details>
 </dd>
 </dl>
@@ -598,21 +584,7 @@ concurrent management of series.</p></div>
         target = min_period * size
         return Interval.bisect(target)
 
-    def delete(self, root=False, batch=False):
-        rev_info = {
-            &#34;tombstone&#34;: True,
-            &#34;epoch&#34;: time(),
-            &#34;label&#34;: self.label,
-        }
-        key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
-        if batch:
-            batch.append(rev_info, key)
-
-        force_parent = phi if root else None
-        commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
-        return commit
-
-    def write(self, frame, start=None, stop=None, root=False, batch=False):
+    def write(self, frame, start=None, stop=None, root=False):
         # Each commit is like a frame. A row in this frame represent a
         # write (aka a segment) and contains one digest per series
         # column + 2*N extra columns that encode start-stop values (N
@@ -620,10 +592,10 @@ concurrent management of series.</p></div>
         # containing the series name (like that we can write all the
         # series in one commit)
 
-        if not isinstance(frame, Frame):
-            frame = Frame(self.schema, self.schema.cast(frame))
+        frame = Frame(self.schema, frame)
 
         # Make sure frame is sorted
+        # XXX forbid repeated values in index ??
         assert frame.is_sorted(), &#34;Frame is not sorted!&#34;
 
         # Save segments
@@ -660,6 +632,7 @@ concurrent management of series.</p></div>
             stop = (stop,)
 
         # Create new digest
+        batch = self.collection.batch
         if batch:
             ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
             batch.append(*ci_info)
@@ -738,30 +711,6 @@ concurrent management of series.</p></div>
     payload = new_ci.encode()
     parent = leaf_rev.child if leaf_rev else phi
     return self.changelog.commit(payload, parents=[parent])</code></pre>
-</details>
-</dd>
-<dt id="lakota.series.Series.delete"><code class="name flex">
-<span>def <span class="ident">delete</span></span>(<span>self, root=False, batch=False)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def delete(self, root=False, batch=False):
-    rev_info = {
-        &#34;tombstone&#34;: True,
-        &#34;epoch&#34;: time(),
-        &#34;label&#34;: self.label,
-    }
-    key = hexdigest(*encoder(self.label, &#34;tombstone&#34;))
-    if batch:
-        batch.append(rev_info, key)
-
-    force_parent = phi if root else None
-    commit = self.changelog.commit(rev_info, key=key, force_parent=force_parent)
-    return commit</code></pre>
 </details>
 </dd>
 <dt id="lakota.series.Series.df"><code class="name flex">
@@ -877,7 +826,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.Series.write"><code class="name flex">
-<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False, batch=False)</span>
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -885,7 +834,7 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write(self, frame, start=None, stop=None, root=False, batch=False):
+<pre><code class="python">def write(self, frame, start=None, stop=None, root=False):
     # Each commit is like a frame. A row in this frame represent a
     # write (aka a segment) and contains one digest per series
     # column + 2*N extra columns that encode start-stop values (N
@@ -893,10 +842,10 @@ concurrent management of series.</p></div>
     # containing the series name (like that we can write all the
     # series in one commit)
 
-    if not isinstance(frame, Frame):
-        frame = Frame(self.schema, self.schema.cast(frame))
+    frame = Frame(self.schema, frame)
 
     # Make sure frame is sorted
+    # XXX forbid repeated values in index ??
     assert frame.is_sorted(), &#34;Frame is not sorted!&#34;
 
     # Save segments
@@ -933,6 +882,7 @@ concurrent management of series.</p></div>
         stop = (stop,)
 
     # Create new digest
+    batch = self.collection.batch
     if batch:
         ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
         batch.append(*ci_info)
@@ -969,7 +919,6 @@ concurrent management of series.</p></div>
 <h4><code><a title="lakota.series.Series" href="#lakota.series.Series">Series</a></code></h4>
 <ul class="two-column">
 <li><code><a title="lakota.series.Series.commit" href="#lakota.series.Series.commit">commit</a></code></li>
-<li><code><a title="lakota.series.Series.delete" href="#lakota.series.Series.delete">delete</a></code></li>
 <li><code><a title="lakota.series.Series.df" href="#lakota.series.Series.df">df</a></code></li>
 <li><code><a title="lakota.series.Series.frame" href="#lakota.series.Series.frame">frame</a></code></li>
 <li><code><a title="lakota.series.Series.interval" href="#lakota.series.Series.interval">interval</a></code></li>

@@ -104,8 +104,6 @@ class POD:
                 )
             else:
                 return POD.from_uri(uri[0], **fs_kwargs)
-        elif uri and &#34;+&#34; in uri:
-            return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
         # Define protocal and path
         parts = urlsplit(uri)
@@ -1330,8 +1328,6 @@ def split(cls, path):
                 )
             else:
                 return POD.from_uri(uri[0], **fs_kwargs)
-        elif uri and &#34;+&#34; in uri:
-            return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
         # Define protocal and path
         parts = urlsplit(uri)
@@ -1458,8 +1454,6 @@ def from_uri(cls, uri=None, **fs_kwargs):
             )
         else:
             return POD.from_uri(uri[0], **fs_kwargs)
-    elif uri and &#34;+&#34; in uri:
-        return POD.from_uri(uri.split(&#34;+&#34;), **fs_kwargs)
 
     # Define protocal and path
     parts = urlsplit(uri)

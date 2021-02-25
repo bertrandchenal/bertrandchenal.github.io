@@ -37,9 +37,9 @@ repo = Repo('some/local/path')
 repo = Repo('file://some/local/path')
 # From an S3 location
 repo = Repo('s3://my_bucket')
-# Chain uri with `+` to enable caching
-repo = Repo('memory://+s3://my_bucket')
-repo = Repo('file:///tmp/local_cache+s3://my_bucket')
+# Use a list of uri to enable caching
+repo = Repo(['memory://', 's3://my_bucket'])
+repo = Repo(['file:///tmp/local_cache', 's3://my_bucket'])
 </code></pre>
 <p>S3 authentication is handled by
 <a href="https://s3fs.readthedocs.io/en/latest/#credentials" title="s3fs credentials">s3fs</a>. So you can either put your credentials in a
@@ -55,13 +55,8 @@ repo = Repo(pod=pod)
 <h2 id="access-collections">Access collections</h2>
 <p>Create one or several collections:</p>
 <pre><code class="language-python"># Define schema
-schema = Schema(
-&quot;&quot;&quot;
-timestamp int *
-value float
-&quot;&quot;&quot;
-)
-# Create one collections
+schema = Schema(timestamp='int*', value='float')
+# Create one collection
 repo.create_collection(schema, 'my_collection')
 # Create a few more
 labels = ['one', 'or_more', 'labels']
@@ -86,7 +81,7 @@ the <code>gc</code> method, which returns the number of deleted files.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#39;&#39;&#39;
+<pre><code class="python">&#34;&#34;&#34;
 
 The `Repo` class manage the organisation of a storage location. It
 provides creation and deletion of collections, synchronization with
@@ -105,9 +100,9 @@ repo = Repo(&#39;some/local/path&#39;)
 repo = Repo(&#39;file://some/local/path&#39;)
 # From an S3 location
 repo = Repo(&#39;s3://my_bucket&#39;)
-# Chain uri with `+` to enable caching
-repo = Repo(&#39;memory://+s3://my_bucket&#39;)
-repo = Repo(&#39;file:///tmp/local_cache+s3://my_bucket&#39;)
+# Use a list of uri to enable caching
+repo = Repo([&#39;memory://&#39;, &#39;s3://my_bucket&#39;])
+repo = Repo([&#39;file:///tmp/local_cache&#39;, &#39;s3://my_bucket&#39;])
 ```
 
 S3 authentication is handled by
@@ -133,13 +128,8 @@ repo = Repo(pod=pod)
 Create one or several collections:
 ```python
 # Define schema
-schema = Schema(
-&#34;&#34;&#34;
-timestamp int *
-value float
-&#34;&#34;&#34;
-)
-# Create one collections
+schema = Schema(timestamp=&#39;int*&#39;, value=&#39;float&#39;)
+# Create one collection
 repo.create_collection(schema, &#39;my_collection&#39;)
 # Create a few more
 labels = [&#39;one&#39;, &#39;or_more&#39;, &#39;labels&#39;]
@@ -168,7 +158,7 @@ the `gc` method, which returns the number of deleted files.
 ```python
 nb_file_deleted = repo.gc()
 ```
-&#39;&#39;&#39;
+&#34;&#34;&#34;
 
 
 from .changelog import zero_hash
@@ -181,12 +171,12 @@ __all__ = [&#34;Repo&#34;]
 
 
 class Repo:
-    schema = Schema([&#34;label str*&#34;, &#34;meta O&#34;], kind=&#34;kv&#34;)
+    schema = Schema.kv(label=&#34;str*&#34;, meta=&#34;O&#34;)
 
     def __init__(self, uri=None, pod=None):
         &#34;&#34;&#34;
-        `uri`
-        : a string representing a storage location
+        `uri` : a string or a list of string representing a storage
+        location
 
         `pod`
         : a `lakota.pod.POD` instance
@@ -372,6 +362,31 @@ class Repo:
         or deleted concurrently.
         &#34;&#34;&#34;
         return self.registry.merge()
+
+    def rename(self, from_label, to_label):
+        &#34;&#34;&#34;
+        Change the label a collection
+        &#34;&#34;&#34;
+        frm = self.collection_series.frame()
+        if to_label in frm[&#34;label&#34;]:
+            raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
+
+        # replace in label column
+        start, stop = frm.start(), frm.stop()
+        labels = frm[&#34;label&#34;]
+        mask = labels == from_label
+        labels[mask] = to_label
+        frm[&#34;label&#34;] = labels
+
+        # Re-order frame
+        frm = frm.sorted()
+        self.collection_series.write(
+            frm,
+            start=min(
+                frm.start(), start
+            ),  # Make sure we over-write the previous content
+            stop=max(frm.stop(), stop),  # same
+        )
 
     def gc(self):
         &#34;&#34;&#34;
@@ -418,9 +433,9 @@ class Repo:
 <span>(</span><span>uri=None, pod=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><dl>
-<dt><code>uri</code></dt>
-<dd>a string representing a storage location</dd>
+<div class="desc"><p><code>uri</code> : a string or a list of string representing a storage
+location</p>
+<dl>
 <dt><code>pod</code></dt>
 <dd>a <code><a title="lakota.pod.POD" href="pod.html#lakota.pod.POD">POD</a></code> instance</dd>
 </dl></div>
@@ -429,12 +444,12 @@ class Repo:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Repo:
-    schema = Schema([&#34;label str*&#34;, &#34;meta O&#34;], kind=&#34;kv&#34;)
+    schema = Schema.kv(label=&#34;str*&#34;, meta=&#34;O&#34;)
 
     def __init__(self, uri=None, pod=None):
         &#34;&#34;&#34;
-        `uri`
-        : a string representing a storage location
+        `uri` : a string or a list of string representing a storage
+        location
 
         `pod`
         : a `lakota.pod.POD` instance
@@ -620,6 +635,31 @@ class Repo:
         or deleted concurrently.
         &#34;&#34;&#34;
         return self.registry.merge()
+
+    def rename(self, from_label, to_label):
+        &#34;&#34;&#34;
+        Change the label a collection
+        &#34;&#34;&#34;
+        frm = self.collection_series.frame()
+        if to_label in frm[&#34;label&#34;]:
+            raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
+
+        # replace in label column
+        start, stop = frm.start(), frm.stop()
+        labels = frm[&#34;label&#34;]
+        mask = labels == from_label
+        labels[mask] = to_label
+        frm[&#34;label&#34;] = labels
+
+        # Re-order frame
+        frm = frm.sorted()
+        self.collection_series.write(
+            frm,
+            start=min(
+                frm.start(), start
+            ),  # Make sure we over-write the previous content
+            stop=max(frm.stop(), stop),  # same
+        )
 
     def gc(self):
         &#34;&#34;&#34;
@@ -968,6 +1008,41 @@ or deleted concurrently.</p></div>
     return Collection(name, schema, meta[&#34;path&#34;], self)</code></pre>
 </details>
 </dd>
+<dt id="lakota.repo.Repo.rename"><code class="name flex">
+<span>def <span class="ident">rename</span></span>(<span>self, from_label, to_label)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Change the label a collection</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rename(self, from_label, to_label):
+    &#34;&#34;&#34;
+    Change the label a collection
+    &#34;&#34;&#34;
+    frm = self.collection_series.frame()
+    if to_label in frm[&#34;label&#34;]:
+        raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
+
+    # replace in label column
+    start, stop = frm.start(), frm.stop()
+    labels = frm[&#34;label&#34;]
+    mask = labels == from_label
+    labels[mask] = to_label
+    frm[&#34;label&#34;] = labels
+
+    # Re-order frame
+    frm = frm.sorted()
+    self.collection_series.write(
+        frm,
+        start=min(
+            frm.start(), start
+        ),  # Make sure we over-write the previous content
+        stop=max(frm.stop(), stop),  # same
+    )</code></pre>
+</details>
+</dd>
 <dt id="lakota.repo.Repo.search"><code class="name flex">
 <span>def <span class="ident">search</span></span>(<span>self, label=None, mode=None)</span>
 </code></dt>
@@ -1029,6 +1104,7 @@ or deleted concurrently.</p></div>
 <li><code><a title="lakota.repo.Repo.push" href="#lakota.repo.Repo.push">push</a></code></li>
 <li><code><a title="lakota.repo.Repo.refresh" href="#lakota.repo.Repo.refresh">refresh</a></code></li>
 <li><code><a title="lakota.repo.Repo.reify" href="#lakota.repo.Repo.reify">reify</a></code></li>
+<li><code><a title="lakota.repo.Repo.rename" href="#lakota.repo.Repo.rename">rename</a></code></li>
 <li><code><a title="lakota.repo.Repo.schema" href="#lakota.repo.Repo.schema">schema</a></code></li>
 <li><code><a title="lakota.repo.Repo.search" href="#lakota.repo.Repo.search">search</a></code></li>
 </ul>

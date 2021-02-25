@@ -29,7 +29,16 @@
 <pre><code class="python">from bisect import bisect_left, bisect_right
 from collections import defaultdict
 
-from numpy import argsort, array_equal, asarray, concatenate, ndarray, rec, unique, arange
+from numpy import (
+    arange,
+    argsort,
+    array_equal,
+    asarray,
+    concatenate,
+    ndarray,
+    rec,
+    unique,
+)
 
 from .schema import Schema
 from .sexpr import AST, Alias
@@ -52,9 +61,7 @@ class Frame:
         self.schema = schema
         if DataFrame is not None and isinstance(columns, DataFrame):
             columns = {c: columns[c].values for c in columns}
-        else:
-            columns = schema.cast(columns)
-        self.columns = columns
+        self.columns = schema.cast(columns)
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
@@ -96,7 +103,7 @@ class Frame:
     def df(self, *columns):
         if DataFrame is None:
             raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-        return DataFrame({c: self[c] for c in self.schema.columns})
+        return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})
 
     def argsort(self):
         idx_cols = list(self.schema.idx)
@@ -105,7 +112,6 @@ class Frame:
         return argsort(arr, kind=&#34;mergesort&#34;)
 
     def is_sorted(self):
-        return True
         idx_cols = list(self.schema.idx)
         if len(idx_cols) == 1:
             arr = self[idx_cols[0]]
@@ -146,10 +152,10 @@ class Frame:
     def sorted(self):
         return self.mask(self.argsort())
 
-    def mask(self, mask):
+    def mask(self, mask, env=None):
         # if mask is a string, eval it first
         if isinstance(mask, str):
-            mask = self.eval(mask)
+            mask = self.eval(mask, env=env)
         cols = {}
         # Apply mask to each column
         for name in self.columns:
@@ -160,10 +166,12 @@ class Frame:
         # Return new frame
         return Frame(self.schema, cols)
 
-    def eval(self, expr):
+    def eval(self, expr, env=None):
         ast = AST.parse(expr)
-        env = self.eval_env()
-        res = ast.eval(env)
+        eval_env = self.eval_env()
+        if env is not None:
+            eval_env.update(env)
+        res = ast.eval(eval_env)
         return res
 
     def eval_env(self):
@@ -184,7 +192,7 @@ class Frame:
 
     def rows(self):
         for pos in range(len(self)):
-            values = self.schema.row(pos)
+            values = self.schema.row(self, pos)
             yield dict(zip(self.schema.columns, values))
 
     def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
@@ -227,7 +235,11 @@ class Frame:
         return Frame(self.schema, cols)
 
     def __eq__(self, other):
+        other = self.schema.cast(other)
         return all(array_equal(self[c], other[c]) for c in self.schema.columns)
+
+    def get(self, name, default=None):
+        return self.columns.get(name, default)
 
     def __contains__(self, column):
         return column in self.columns
@@ -391,9 +403,7 @@ class Frame:
         self.schema = schema
         if DataFrame is not None and isinstance(columns, DataFrame):
             columns = {c: columns[c].values for c in columns}
-        else:
-            columns = schema.cast(columns)
-        self.columns = columns
+        self.columns = schema.cast(columns)
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
@@ -435,7 +445,7 @@ class Frame:
     def df(self, *columns):
         if DataFrame is None:
             raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-        return DataFrame({c: self[c] for c in self.schema.columns})
+        return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})
 
     def argsort(self):
         idx_cols = list(self.schema.idx)
@@ -444,7 +454,6 @@ class Frame:
         return argsort(arr, kind=&#34;mergesort&#34;)
 
     def is_sorted(self):
-        return True
         idx_cols = list(self.schema.idx)
         if len(idx_cols) == 1:
             arr = self[idx_cols[0]]
@@ -485,10 +494,10 @@ class Frame:
     def sorted(self):
         return self.mask(self.argsort())
 
-    def mask(self, mask):
+    def mask(self, mask, env=None):
         # if mask is a string, eval it first
         if isinstance(mask, str):
-            mask = self.eval(mask)
+            mask = self.eval(mask, env=env)
         cols = {}
         # Apply mask to each column
         for name in self.columns:
@@ -499,10 +508,12 @@ class Frame:
         # Return new frame
         return Frame(self.schema, cols)
 
-    def eval(self, expr):
+    def eval(self, expr, env=None):
         ast = AST.parse(expr)
-        env = self.eval_env()
-        res = ast.eval(env)
+        eval_env = self.eval_env()
+        if env is not None:
+            eval_env.update(env)
+        res = ast.eval(eval_env)
         return res
 
     def eval_env(self):
@@ -523,7 +534,7 @@ class Frame:
 
     def rows(self):
         for pos in range(len(self)):
-            values = self.schema.row(pos)
+            values = self.schema.row(self, pos)
             yield dict(zip(self.schema.columns, values))
 
     def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
@@ -566,7 +577,11 @@ class Frame:
         return Frame(self.schema, cols)
 
     def __eq__(self, other):
+        other = self.schema.cast(other)
         return all(array_equal(self[c], other[c]) for c in self.schema.columns)
+
+    def get(self, name, default=None):
+        return self.columns.get(name, default)
 
     def __contains__(self, column):
         return column in self.columns
@@ -842,7 +857,7 @@ def empty(self):
 <pre><code class="python">def df(self, *columns):
     if DataFrame is None:
         raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-    return DataFrame({c: self[c] for c in self.schema.columns})</code></pre>
+    return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.drop"><code class="name flex">
@@ -860,7 +875,7 @@ def empty(self):
 </details>
 </dd>
 <dt id="lakota.frame.Frame.eval"><code class="name flex">
-<span>def <span class="ident">eval</span></span>(<span>self, expr)</span>
+<span>def <span class="ident">eval</span></span>(<span>self, expr, env=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -868,10 +883,12 @@ def empty(self):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def eval(self, expr):
+<pre><code class="python">def eval(self, expr, env=None):
     ast = AST.parse(expr)
-    env = self.eval_env()
-    res = ast.eval(env)
+    eval_env = self.eval_env()
+    if env is not None:
+        eval_env.update(env)
+    res = ast.eval(eval_env)
     return res</code></pre>
 </details>
 </dd>
@@ -890,6 +907,19 @@ def empty(self):
         &#34;floor&#34;: floor,
         &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
     }</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, name, default=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, name, default=None):
+    return self.columns.get(name, default)</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.index"><code class="name flex">
@@ -950,7 +980,6 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def is_sorted(self):
-    return True
     idx_cols = list(self.schema.idx)
     if len(idx_cols) == 1:
         arr = self[idx_cols[0]]
@@ -977,7 +1006,7 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.mask"><code class="name flex">
-<span>def <span class="ident">mask</span></span>(<span>self, mask)</span>
+<span>def <span class="ident">mask</span></span>(<span>self, mask, env=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -985,10 +1014,10 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def mask(self, mask):
+<pre><code class="python">def mask(self, mask, env=None):
     # if mask is a string, eval it first
     if isinstance(mask, str):
-        mask = self.eval(mask)
+        mask = self.eval(mask, env=env)
     cols = {}
     # Apply mask to each column
     for name in self.columns:
@@ -1109,7 +1138,7 @@ evaluated.</p></div>
 </summary>
 <pre><code class="python">def rows(self):
     for pos in range(len(self)):
-        values = self.schema.row(pos)
+        values = self.schema.row(self, pos)
         yield dict(zip(self.schema.columns, values))</code></pre>
 </details>
 </dd>
@@ -1217,6 +1246,7 @@ evaluated.</p></div>
 <li><code><a title="lakota.frame.Frame.eval" href="#lakota.frame.Frame.eval">eval</a></code></li>
 <li><code><a title="lakota.frame.Frame.eval_env" href="#lakota.frame.Frame.eval_env">eval_env</a></code></li>
 <li><code><a title="lakota.frame.Frame.from_segments" href="#lakota.frame.Frame.from_segments">from_segments</a></code></li>
+<li><code><a title="lakota.frame.Frame.get" href="#lakota.frame.Frame.get">get</a></code></li>
 <li><code><a title="lakota.frame.Frame.index" href="#lakota.frame.Frame.index">index</a></code></li>
 <li><code><a title="lakota.frame.Frame.index_slice" href="#lakota.frame.Frame.index_slice">index_slice</a></code></li>
 <li><code><a title="lakota.frame.Frame.is_sorted" href="#lakota.frame.Frame.is_sorted">is_sorted</a></code></li>
