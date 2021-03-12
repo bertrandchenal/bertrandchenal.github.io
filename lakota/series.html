@@ -28,6 +28,7 @@
 </summary>
 <pre><code class="python">from numpy import issubdtype
 
+from .batch import Batch
 from .changelog import phi
 from .commit import Commit
 from .frame import Frame
@@ -66,16 +67,20 @@ class Series:
         stop=None,
         before=None,
         closed=&#34;l&#34;,
+        from_ci=None,
     ):
         &#34;&#34;&#34;
         Find matching segments
         &#34;&#34;&#34;
-        leaf_rev = self.changelog.leaf(before=before)
-        if not leaf_rev:
-            return
 
-        leaf_ci = leaf_rev.commit(self.collection)
-        return leaf_ci.segments(self.label, self.pod, start, stop, closed=closed)
+        if not from_ci:
+            # Find leaf commit
+            leaf_rev = self.changelog.leaf(before=before)
+            if not leaf_rev:
+                return
+            from_ci = leaf_rev.commit(self.collection)
+
+        return from_ci.segments(self.label, self.pod, start, stop, closed=closed)
 
     def period(self, rev):
         &#34;&#34;&#34;
@@ -154,7 +159,10 @@ class Series:
         batch = self.collection.batch
         if batch:
             ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
-            batch.append(*ci_info)
+            if isinstance(batch, Batch):
+                batch.append(*ci_info)
+            else:
+                return ci_info
             return
         self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)
 
@@ -547,16 +555,20 @@ concurrent management of series.</p></div>
         stop=None,
         before=None,
         closed=&#34;l&#34;,
+        from_ci=None,
     ):
         &#34;&#34;&#34;
         Find matching segments
         &#34;&#34;&#34;
-        leaf_rev = self.changelog.leaf(before=before)
-        if not leaf_rev:
-            return
 
-        leaf_ci = leaf_rev.commit(self.collection)
-        return leaf_ci.segments(self.label, self.pod, start, stop, closed=closed)
+        if not from_ci:
+            # Find leaf commit
+            leaf_rev = self.changelog.leaf(before=before)
+            if not leaf_rev:
+                return
+            from_ci = leaf_rev.commit(self.collection)
+
+        return from_ci.segments(self.label, self.pod, start, stop, closed=closed)
 
     def period(self, rev):
         &#34;&#34;&#34;
@@ -635,7 +647,10 @@ concurrent management of series.</p></div>
         batch = self.collection.batch
         if batch:
             ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
-            batch.append(*ci_info)
+            if isinstance(batch, Batch):
+                batch.append(*ci_info)
+            else:
+                return ci_info
             return
         self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)
 
@@ -799,7 +814,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.Series.segments"><code class="name flex">
-<span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='l')</span>
+<span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='l', from_ci=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Find matching segments</p></div>
@@ -813,16 +828,20 @@ concurrent management of series.</p></div>
     stop=None,
     before=None,
     closed=&#34;l&#34;,
+    from_ci=None,
 ):
     &#34;&#34;&#34;
     Find matching segments
     &#34;&#34;&#34;
-    leaf_rev = self.changelog.leaf(before=before)
-    if not leaf_rev:
-        return
 
-    leaf_ci = leaf_rev.commit(self.collection)
-    return leaf_ci.segments(self.label, self.pod, start, stop, closed=closed)</code></pre>
+    if not from_ci:
+        # Find leaf commit
+        leaf_rev = self.changelog.leaf(before=before)
+        if not leaf_rev:
+            return
+        from_ci = leaf_rev.commit(self.collection)
+
+    return from_ci.segments(self.label, self.pod, start, stop, closed=closed)</code></pre>
 </details>
 </dd>
 <dt id="lakota.series.Series.write"><code class="name flex">
@@ -885,7 +904,10 @@ concurrent management of series.</p></div>
     batch = self.collection.batch
     if batch:
         ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
-        batch.append(*ci_info)
+        if isinstance(batch, Batch):
+            batch.append(*ci_info)
+        else:
+            return ci_info
         return
     self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)</code></pre>
 </details>

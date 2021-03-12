@@ -96,7 +96,7 @@ class POD:
     @classmethod
     def from_uri(cls, uri=None, **fs_kwargs):
         # multi-uri -&gt; CachePOD
-        if isinstance(uri, (tuple, list)):
+        if uri and isinstance(uri, (tuple, list)):
             if len(uri) &gt; 1:
                 return CachePOD(
                     local=POD.from_uri(uri[0], **fs_kwargs),
@@ -106,7 +106,7 @@ class POD:
                 return POD.from_uri(uri[0], **fs_kwargs)
 
         # Define protocal and path
-        parts = urlsplit(uri)
+        parts = urlsplit(uri or &#34;&#34;)
         scheme, path = parts.scheme, parts.path
         kwargs = parse_qs(parts.query)
         if not scheme:
@@ -159,11 +159,9 @@ class POD:
     def __truediv__(self, relpath):
         return self.cd(relpath)
 
-    def clear(self, *skip):
-        for key in self.ls():
-            if skip and key in skip:
-                continue
-            self.rm(key, recursive=True)
+    def rm_many(self, pathes, recursive=False):
+        for path in pathes:
+            self.rm(path, recursive=recursive)
 
     def walk(self, max_depth=None):
         if max_depth == 0:
@@ -442,7 +440,7 @@ class MemPOD(POD):
         parent_folder = self.store.get(parent_path)
         if parent_folder:
             # Note: Parent my not exists in the middle of a
-            # reccursive deletion
+            # recursive deletion
             parent_folder.rm(path[-1])
 
     def read(self, relpath, mode=&#34;rb&#34;):
@@ -1081,7 +1079,7 @@ def size(self):
         parent_folder = self.store.get(parent_path)
         if parent_folder:
             # Note: Parent my not exists in the middle of a
-            # reccursive deletion
+            # recursive deletion
             parent_folder.rm(path[-1])
 
     def read(self, relpath, mode=&#34;rb&#34;):
@@ -1254,7 +1252,7 @@ def split(cls, path):
     parent_folder = self.store.get(parent_path)
     if parent_folder:
         # Note: Parent my not exists in the middle of a
-        # reccursive deletion
+        # recursive deletion
         parent_folder.rm(path[-1])</code></pre>
 </details>
 </dd>
@@ -1320,7 +1318,7 @@ def split(cls, path):
     @classmethod
     def from_uri(cls, uri=None, **fs_kwargs):
         # multi-uri -&gt; CachePOD
-        if isinstance(uri, (tuple, list)):
+        if uri and isinstance(uri, (tuple, list)):
             if len(uri) &gt; 1:
                 return CachePOD(
                     local=POD.from_uri(uri[0], **fs_kwargs),
@@ -1330,7 +1328,7 @@ def split(cls, path):
                 return POD.from_uri(uri[0], **fs_kwargs)
 
         # Define protocal and path
-        parts = urlsplit(uri)
+        parts = urlsplit(uri or &#34;&#34;)
         scheme, path = parts.scheme, parts.path
         kwargs = parse_qs(parts.query)
         if not scheme:
@@ -1383,11 +1381,9 @@ def split(cls, path):
     def __truediv__(self, relpath):
         return self.cd(relpath)
 
-    def clear(self, *skip):
-        for key in self.ls():
-            if skip and key in skip:
-                continue
-            self.rm(key, recursive=True)
+    def rm_many(self, pathes, recursive=False):
+        for path in pathes:
+            self.rm(path, recursive=recursive)
 
     def walk(self, max_depth=None):
         if max_depth == 0:
@@ -1446,7 +1442,7 @@ def from_token(cls, token):
 <pre><code class="python">@classmethod
 def from_uri(cls, uri=None, **fs_kwargs):
     # multi-uri -&gt; CachePOD
-    if isinstance(uri, (tuple, list)):
+    if uri and isinstance(uri, (tuple, list)):
         if len(uri) &gt; 1:
             return CachePOD(
                 local=POD.from_uri(uri[0], **fs_kwargs),
@@ -1456,7 +1452,7 @@ def from_uri(cls, uri=None, **fs_kwargs):
             return POD.from_uri(uri[0], **fs_kwargs)
 
     # Define protocal and path
-    parts = urlsplit(uri)
+    parts = urlsplit(uri or &#34;&#34;)
     scheme, path = parts.scheme, parts.path
     kwargs = parse_qs(parts.query)
     if not scheme:
@@ -1510,8 +1506,8 @@ def from_uri(cls, uri=None, **fs_kwargs):
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="lakota.pod.POD.clear"><code class="name flex">
-<span>def <span class="ident">clear</span></span>(<span>self, *skip)</span>
+<dt id="lakota.pod.POD.rm_many"><code class="name flex">
+<span>def <span class="ident">rm_many</span></span>(<span>self, pathes, recursive=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1519,11 +1515,9 @@ def from_uri(cls, uri=None, **fs_kwargs):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clear(self, *skip):
-    for key in self.ls():
-        if skip and key in skip:
-            continue
-        self.rm(key, recursive=True)</code></pre>
+<pre><code class="python">def rm_many(self, pathes, recursive=False):
+    for path in pathes:
+        self.rm(path, recursive=recursive)</code></pre>
 </details>
 </dd>
 <dt id="lakota.pod.POD.walk"><code class="name flex">
@@ -1618,9 +1612,9 @@ def from_uri(cls, uri=None, **fs_kwargs):
 <li>
 <h4><code><a title="lakota.pod.POD" href="#lakota.pod.POD">POD</a></code></h4>
 <ul class="">
-<li><code><a title="lakota.pod.POD.clear" href="#lakota.pod.POD.clear">clear</a></code></li>
 <li><code><a title="lakota.pod.POD.from_token" href="#lakota.pod.POD.from_token">from_token</a></code></li>
 <li><code><a title="lakota.pod.POD.from_uri" href="#lakota.pod.POD.from_uri">from_uri</a></code></li>
+<li><code><a title="lakota.pod.POD.rm_many" href="#lakota.pod.POD.rm_many">rm_many</a></code></li>
 <li><code><a title="lakota.pod.POD.walk" href="#lakota.pod.POD.walk">walk</a></code></li>
 </ul>
 </li>

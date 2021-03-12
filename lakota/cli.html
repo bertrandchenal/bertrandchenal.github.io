@@ -547,12 +547,11 @@ def read(args):
         reduce = True
     else:
         columns = args.columns
-    before = strpt(args.before)
-    before = before and hextime(before.timestamp())
+
     query = series[columns][args.greater_than : args.less_than] @ {
         &#34;limit&#34;: args.limit,
         &#34;offset&#34;: args.offset,
-        &#34;before&#34;: before,
+        &#34;before&#34;: args.before,
     }
     if args.paginate:
         frames = query.paginate(args.paginate)
@@ -784,14 +783,16 @@ def squash(args):
     &#34;&#34;&#34;
     repo = get_repo(args)
     labels = repo.ls() if args.all else args.labels
+    trim = args.trim_before if args.trim and args.trim_before else args.trim
+
     if labels:
         for label in labels:
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash()
+            collection.squash(pack=args.pack, trim=trim)
     if args.all or not args.labels:
-        repo.registry.squash()
+        repo.registry.squash(pack=args.pack, trim=trim)
 
 
 def push(args):
@@ -863,6 +864,8 @@ def serve(args):
     repo_map = {}
     for item in args.repo_map:
         name, *uris = item.split()
+        if not uris:
+            raise ValueError(&#34;Missing uri in repo-map argument&#34;)
         repo_map[name] = uris
     server.run(repo_map, args.web_uri, debug=args.verbose)
 
@@ -880,6 +883,22 @@ def print_help(parser, args):
     if cmd and cmd.__doc__:
         print(cmd.__doc__)
     parser.parse_args([args.help_cmd, &#34;-h&#34;])
+
+
+def bool_like(v):
+    v = v.lower()
+    if v in (&#34;yes&#34;, &#34;true&#34;, &#34;t&#34;, &#34;y&#34;, &#34;1&#34;):
+        return True
+    elif v in (&#34;no&#34;, &#34;false&#34;, &#34;f&#34;, &#34;n&#34;, &#34;0&#34;):
+        return False
+    raise argparse.ArgumentTypeError(&#34;Boolean value expected.&#34;)
+
+
+def datetime_like(v):
+    try:
+        return strpt(v)
+    except:
+        raise argparse.ArgumentTypeError(&#34;Datetime-like value expected.&#34;)
 
 
 def run():
@@ -909,7 +928,7 @@ def run():
     parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
-    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None)
+    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
         &#34;--greater-than&#34;,
@@ -961,6 +980,22 @@ def run():
     # Add squash command
     parser_squash = subparsers.add_parser(&#34;squash&#34;)
     parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.add_argument(
+        &#34;-t&#34;, &#34;--trim&#34;, default=True, type=bool_like, help=&#34;Delete history&#34;
+    )
+    parser_squash.add_argument(
+        &#34;-b&#34;,
+        &#34;--trim-before&#34;,
+        type=datetime_like,
+        help=&#34;Delete revisions older than given date&#34;,
+    )
+    parser_squash.add_argument(
+        &#34;-p&#34;,
+        &#34;--pack&#34;,
+        default=True,
+        type=bool_like,
+        help=&#34;Create a new revision (aka defragment by re-writing all the series&#34;,
+    )
     parser_squash.add_argument(
         &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
     )
@@ -1072,6 +1107,24 @@ def run():
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="lakota.cli.bool_like"><code class="name flex">
+<span>def <span class="ident">bool_like</span></span>(<span>v)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def bool_like(v):
+    v = v.lower()
+    if v in (&#34;yes&#34;, &#34;true&#34;, &#34;t&#34;, &#34;y&#34;, &#34;1&#34;):
+        return True
+    elif v in (&#34;no&#34;, &#34;false&#34;, &#34;f&#34;, &#34;n&#34;, &#34;0&#34;):
+        return False
+    raise argparse.ArgumentTypeError(&#34;Boolean value expected.&#34;)</code></pre>
+</details>
+</dd>
 <dt id="lakota.cli.create"><code class="name flex">
 <span>def <span class="ident">create</span></span>(<span>args)</span>
 </code></dt>
@@ -1098,6 +1151,22 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     columns = dict(col.split(maxsplit=1) for col in args.columns)
     schema = Schema(**columns)
     repo.create_collection(schema, collection)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.datetime_like"><code class="name flex">
+<span>def <span class="ident">datetime_like</span></span>(<span>v)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def datetime_like(v):
+    try:
+        return strpt(v)
+    except:
+        raise argparse.ArgumentTypeError(&#34;Datetime-like value expected.&#34;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.delete"><code class="name flex">
@@ -1549,12 +1618,11 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
         reduce = True
     else:
         columns = args.columns
-    before = strpt(args.before)
-    before = before and hextime(before.timestamp())
+
     query = series[columns][args.greater_than : args.less_than] @ {
         &#34;limit&#34;: args.limit,
         &#34;offset&#34;: args.offset,
-        &#34;before&#34;: before,
+        &#34;before&#34;: args.before,
     }
     if args.paginate:
         frames = query.paginate(args.paginate)
@@ -1669,7 +1737,7 @@ Date: {timestamp}&#34;&#34;&#34;
     parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
-    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None)
+    parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
         &#34;--greater-than&#34;,
@@ -1721,6 +1789,22 @@ Date: {timestamp}&#34;&#34;&#34;
     # Add squash command
     parser_squash = subparsers.add_parser(&#34;squash&#34;)
     parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_squash.add_argument(
+        &#34;-t&#34;, &#34;--trim&#34;, default=True, type=bool_like, help=&#34;Delete history&#34;
+    )
+    parser_squash.add_argument(
+        &#34;-b&#34;,
+        &#34;--trim-before&#34;,
+        type=datetime_like,
+        help=&#34;Delete revisions older than given date&#34;,
+    )
+    parser_squash.add_argument(
+        &#34;-p&#34;,
+        &#34;--pack&#34;,
+        default=True,
+        type=bool_like,
+        help=&#34;Create a new revision (aka defragment by re-writing all the series&#34;,
+    )
     parser_squash.add_argument(
         &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
     )
@@ -1844,6 +1928,8 @@ Date: {timestamp}&#34;&#34;&#34;
     repo_map = {}
     for item in args.repo_map:
         name, *uris = item.split()
+        if not uris:
+            raise ValueError(&#34;Missing uri in repo-map argument&#34;)
         repo_map[name] = uris
     server.run(repo_map, args.web_uri, debug=args.verbose)</code></pre>
 </details>
@@ -1865,14 +1951,16 @@ repo changelog.</p></div>
     &#34;&#34;&#34;
     repo = get_repo(args)
     labels = repo.ls() if args.all else args.labels
+    trim = args.trim_before if args.trim and args.trim_before else args.trim
+
     if labels:
         for label in labels:
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash()
+            collection.squash(pack=args.pack, trim=trim)
     if args.all or not args.labels:
-        repo.registry.squash()</code></pre>
+        repo.registry.squash(pack=args.pack, trim=trim)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.write"><code class="name flex">
@@ -1923,7 +2011,9 @@ repo changelog.</p></div>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
+<li><code><a title="lakota.cli.bool_like" href="#lakota.cli.bool_like">bool_like</a></code></li>
 <li><code><a title="lakota.cli.create" href="#lakota.cli.create">create</a></code></li>
+<li><code><a title="lakota.cli.datetime_like" href="#lakota.cli.datetime_like">datetime_like</a></code></li>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
 <li><code><a title="lakota.cli.deploy" href="#lakota.cli.deploy">deploy</a></code></li>
 <li><code><a title="lakota.cli.export" href="#lakota.cli.export">export</a></code></li>

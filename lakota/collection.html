@@ -104,10 +104,13 @@ clct.squash()
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
+from datetime import datetime
 from itertools import chain
 
-from .changelog import Changelog, phi
-from .series import Commit, KVSeries, Series
+from .batch import Batch
+from .changelog import Changelog
+from .commit import Commit
+from .series import KVSeries, Series
 from .utils import Pool, hashed_path, logger
 
 __all__ = [&#34;Collection&#34;, &#34;Batch&#34;]
@@ -199,7 +202,9 @@ class Collection:
         if not heads:
             heads = [r for r in revisions if r.is_leaf]
 
-        if len(heads) &lt; 2:
+        # We may have multiple revision pointing to the same child
+        # (aka a previous commit). No need to merge again.
+        if len(set(r.digests.child for r in heads)) &lt; 2:
             return []
 
         # Reorganise revision as child-&gt;parents dict
@@ -221,16 +226,34 @@ class Collection:
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
+        self.batch = True
         for ci in other_ci:
             for pos in range(len(ci)):
                 row = ci.at(pos)
+                # Skip existing rows
                 if row in first_ci or row in root_ci:
                     continue
-                first_ci = first_ci.update(**row)
+
+                # Re-apply row
+                closed = row[&#34;closed&#34;]
+                if closed == &#34;b&#34;:
+                    # Closed commit can be applied as-is
+                    first_ci = first_ci.update(**row)
+                else:
+                    # Non-closed: we read and rewrite
+                    series = self / row[&#34;label&#34;]
+                    frm = series.frame(
+                        start=row[&#34;start&#34;], stop=row[&#34;stop&#34;], closed=closed, from_ci=ci
+                    )
+                    ci_info = series.write(
+                        frm
+                    )  # since batch is true series simply returns info
+                    first_ci = first_ci.update(*ci_info)
 
         # encode and commit
         payload = first_ci.encode()
-        revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+        revs = self.changelog.commit(payload, parents=set(h.child for h in heads))
+        self.batch = False
         return revs
 
     @staticmethod
@@ -243,24 +266,40 @@ class Collection:
             queue.extend(parents)
             yield rev
 
-    def squash(self, fast=False):
+    def squash(self, pack=True, trim=True):
         &#34;&#34;&#34;
-        Remove all past revisions, collapse history into one or few large
+        Remove past revisions, collapse history into one or few large
         frames. Returns newly created revisions.
+
+        If `pack` is False, no new revision is created. If set to
+        True, the new revisions created are a complete rewrite of the
+        collection, the goal being to defragment the multiple arrays
+        constituting the different series.
+
+        If `trim` is True, all revisions except the last one are
+        removed.  If set to False, the full history is kept. If set to
+        a datetime, all the revision older than the given value will be
+        deleted, keeping the recent history.
         &#34;&#34;&#34;
-        if fast:
+
+        # Read existing revisions
+        if trim:
+            before = trim if isinstance(trim, datetime) else None
+            revs = self.changelog.log(before=before)
+        else:
+            revs = []
+
+        if not pack:
             # Simply remove older commit
-            leaf = self.changelog.leaf()
-            if leaf:
-                self.changelog.pod.clear(leaf.path)
-                self.changelog.refresh()
+            self.changelog.pod.rm_many([r.path for r in revs[:-1]])
+            self.changelog.refresh()
             return []
 
         # Rewrite each series, based on `step` size arrays
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.multi(root=True) as batch:
+        with self.multi() as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -268,16 +307,13 @@ class Collection:
                 for frm in series.paginate(step):
                     series.write(frm)
 
-        if batch.revs:
-            revs = batch.revs
-        else:
-            leaf = self.changelog.leaf()
-            if leaf is None:
-                # Empty collection
-                return []
-            revs = [leaf]
-        skip = [r.path for r in revs]
-        self.changelog.pod.clear(*skip)
+        # Remove old revisions
+        to_remove = [r.path for r in revs]
+        if not batch.revs:
+            # No new revision created, keep the last one
+            to_remove = to_remove[:-1]
+        self.changelog.pod.rm_many(to_remove)
+
         self.changelog.refresh()
         return batch.revs
 
@@ -303,54 +339,7 @@ class Collection:
 
     @batch.setter
     def batch(self, b):
-        self._local.batch = b
-
-
-class Batch:
-    def __init__(self, collection, root=False):
-        self.collection = collection
-        self._ci_info = []
-        self.revs = None
-        self.root = root
-
-    def append(self, label, start, stop, all_dig, frame_len, embedded):
-        self._ci_info.append((label, start, stop, all_dig, frame_len, embedded))
-
-    def extend(self, *other_batches):
-        for b in other_batches:
-            self._ci_info.extend(b._ci_info)
-
-    def flush(self):
-        if len(self._ci_info) == 0:
-            return
-
-        changelog = self.collection.changelog
-        leaf_rev = None if self.root else changelog.leaf()
-        all_ci_info = iter(self._ci_info)
-
-        # Combine with last commit
-        if leaf_rev:
-            last_ci = leaf_rev.commit(self.collection)
-        else:
-            label, start, stop, all_dig, length, embedded = next(all_ci_info)
-            last_ci = Commit.one(
-                self.collection.schema,
-                label,
-                start,
-                stop,
-                all_dig,
-                length,
-                embedded=embedded,
-            )
-        for label, start, stop, all_dig, length, embedded in all_ci_info:
-            last_ci = last_ci.update(
-                label, start, stop, all_dig, length, embedded=embedded
-            )
-
-        # Save it
-        payload = last_ci.encode()
-        parent = leaf_rev.child if leaf_rev else phi
-        self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
+        self._local.batch = b</code></pre>
 </details>
 </section>
 <section>
@@ -376,7 +365,7 @@ class Batch:
     def __init__(self, collection, root=False):
         self.collection = collection
         self._ci_info = []
-        self.revs = None
+        self.revs = []
         self.root = root
 
     def append(self, label, start, stop, all_dig, frame_len, embedded):
@@ -587,7 +576,9 @@ class Batch:
         if not heads:
             heads = [r for r in revisions if r.is_leaf]
 
-        if len(heads) &lt; 2:
+        # We may have multiple revision pointing to the same child
+        # (aka a previous commit). No need to merge again.
+        if len(set(r.digests.child for r in heads)) &lt; 2:
             return []
 
         # Reorganise revision as child-&gt;parents dict
@@ -609,16 +600,34 @@ class Batch:
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
+        self.batch = True
         for ci in other_ci:
             for pos in range(len(ci)):
                 row = ci.at(pos)
+                # Skip existing rows
                 if row in first_ci or row in root_ci:
                     continue
-                first_ci = first_ci.update(**row)
+
+                # Re-apply row
+                closed = row[&#34;closed&#34;]
+                if closed == &#34;b&#34;:
+                    # Closed commit can be applied as-is
+                    first_ci = first_ci.update(**row)
+                else:
+                    # Non-closed: we read and rewrite
+                    series = self / row[&#34;label&#34;]
+                    frm = series.frame(
+                        start=row[&#34;start&#34;], stop=row[&#34;stop&#34;], closed=closed, from_ci=ci
+                    )
+                    ci_info = series.write(
+                        frm
+                    )  # since batch is true series simply returns info
+                    first_ci = first_ci.update(*ci_info)
 
         # encode and commit
         payload = first_ci.encode()
-        revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+        revs = self.changelog.commit(payload, parents=set(h.child for h in heads))
+        self.batch = False
         return revs
 
     @staticmethod
@@ -631,24 +640,40 @@ class Batch:
             queue.extend(parents)
             yield rev
 
-    def squash(self, fast=False):
+    def squash(self, pack=True, trim=True):
         &#34;&#34;&#34;
-        Remove all past revisions, collapse history into one or few large
+        Remove past revisions, collapse history into one or few large
         frames. Returns newly created revisions.
+
+        If `pack` is False, no new revision is created. If set to
+        True, the new revisions created are a complete rewrite of the
+        collection, the goal being to defragment the multiple arrays
+        constituting the different series.
+
+        If `trim` is True, all revisions except the last one are
+        removed.  If set to False, the full history is kept. If set to
+        a datetime, all the revision older than the given value will be
+        deleted, keeping the recent history.
         &#34;&#34;&#34;
-        if fast:
+
+        # Read existing revisions
+        if trim:
+            before = trim if isinstance(trim, datetime) else None
+            revs = self.changelog.log(before=before)
+        else:
+            revs = []
+
+        if not pack:
             # Simply remove older commit
-            leaf = self.changelog.leaf()
-            if leaf:
-                self.changelog.pod.clear(leaf.path)
-                self.changelog.refresh()
+            self.changelog.pod.rm_many([r.path for r in revs[:-1]])
+            self.changelog.refresh()
             return []
 
         # Rewrite each series, based on `step` size arrays
         step = 500_000
         all_labels = self.ls()
         # TODO run in parallel
-        with self.multi(root=True) as batch:
+        with self.multi() as batch:
             for label in all_labels:
                 logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
                 # Re-write each series
@@ -656,16 +681,13 @@ class Batch:
                 for frm in series.paginate(step):
                     series.write(frm)
 
-        if batch.revs:
-            revs = batch.revs
-        else:
-            leaf = self.changelog.leaf()
-            if leaf is None:
-                # Empty collection
-                return []
-            revs = [leaf]
-        skip = [r.path for r in revs]
-        self.changelog.pod.clear(*skip)
+        # Remove old revisions
+        to_remove = [r.path for r in revs]
+        if not batch.revs:
+            # No new revision created, keep the last one
+            to_remove = to_remove[:-1]
+        self.changelog.pod.rm_many(to_remove)
+
         self.changelog.refresh()
         return batch.revs
 
@@ -784,7 +806,9 @@ def batch(self):
     if not heads:
         heads = [r for r in revisions if r.is_leaf]
 
-    if len(heads) &lt; 2:
+    # We may have multiple revision pointing to the same child
+    # (aka a previous commit). No need to merge again.
+    if len(set(r.digests.child for r in heads)) &lt; 2:
         return []
 
     # Reorganise revision as child-&gt;parents dict
@@ -806,16 +830,34 @@ def batch(self):
     first_ci, *other_ci = [h.commit(self) for h in heads]
     root_ci = root.commit(self) if root else []
     # Pile all rows for all other commit into the first one
+    self.batch = True
     for ci in other_ci:
         for pos in range(len(ci)):
             row = ci.at(pos)
+            # Skip existing rows
             if row in first_ci or row in root_ci:
                 continue
-            first_ci = first_ci.update(**row)
+
+            # Re-apply row
+            closed = row[&#34;closed&#34;]
+            if closed == &#34;b&#34;:
+                # Closed commit can be applied as-is
+                first_ci = first_ci.update(**row)
+            else:
+                # Non-closed: we read and rewrite
+                series = self / row[&#34;label&#34;]
+                frm = series.frame(
+                    start=row[&#34;start&#34;], stop=row[&#34;stop&#34;], closed=closed, from_ci=ci
+                )
+                ci_info = series.write(
+                    frm
+                )  # since batch is true series simply returns info
+                first_ci = first_ci.update(*ci_info)
 
     # encode and commit
     payload = first_ci.encode()
-    revs = self.changelog.commit(payload, parents=[h.child for h in heads])
+    revs = self.changelog.commit(payload, parents=set(h.child for h in heads))
+    self.batch = False
     return revs</code></pre>
 </details>
 </dd>
@@ -931,33 +973,58 @@ def multi(self, root=None):
 </details>
 </dd>
 <dt id="lakota.collection.Collection.squash"><code class="name flex">
-<span>def <span class="ident">squash</span></span>(<span>self, fast=False)</span>
+<span>def <span class="ident">squash</span></span>(<span>self, pack=True, trim=True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Remove all past revisions, collapse history into one or few large
-frames. Returns newly created revisions.</p></div>
+<div class="desc"><p>Remove past revisions, collapse history into one or few large
+frames. Returns newly created revisions.</p>
+<p>If <code>pack</code> is False, no new revision is created. If set to
+True, the new revisions created are a complete rewrite of the
+collection, the goal being to defragment the multiple arrays
+constituting the different series.</p>
+<p>If <code>trim</code> is True, all revisions except the last one are
+removed.
+If set to False, the full history is kept. If set to
+a datetime, all the revision older than the given value will be
+deleted, keeping the recent history.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def squash(self, fast=False):
+<pre><code class="python">def squash(self, pack=True, trim=True):
     &#34;&#34;&#34;
-    Remove all past revisions, collapse history into one or few large
+    Remove past revisions, collapse history into one or few large
     frames. Returns newly created revisions.
+
+    If `pack` is False, no new revision is created. If set to
+    True, the new revisions created are a complete rewrite of the
+    collection, the goal being to defragment the multiple arrays
+    constituting the different series.
+
+    If `trim` is True, all revisions except the last one are
+    removed.  If set to False, the full history is kept. If set to
+    a datetime, all the revision older than the given value will be
+    deleted, keeping the recent history.
     &#34;&#34;&#34;
-    if fast:
+
+    # Read existing revisions
+    if trim:
+        before = trim if isinstance(trim, datetime) else None
+        revs = self.changelog.log(before=before)
+    else:
+        revs = []
+
+    if not pack:
         # Simply remove older commit
-        leaf = self.changelog.leaf()
-        if leaf:
-            self.changelog.pod.clear(leaf.path)
-            self.changelog.refresh()
+        self.changelog.pod.rm_many([r.path for r in revs[:-1]])
+        self.changelog.refresh()
         return []
 
     # Rewrite each series, based on `step` size arrays
     step = 500_000
     all_labels = self.ls()
     # TODO run in parallel
-    with self.multi(root=True) as batch:
+    with self.multi() as batch:
         for label in all_labels:
             logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
             # Re-write each series
@@ -965,16 +1032,13 @@ frames. Returns newly created revisions.</p></div>
             for frm in series.paginate(step):
                 series.write(frm)
 
-    if batch.revs:
-        revs = batch.revs
-    else:
-        leaf = self.changelog.leaf()
-        if leaf is None:
-            # Empty collection
-            return []
-        revs = [leaf]
-    skip = [r.path for r in revs]
-    self.changelog.pod.clear(*skip)
+    # Remove old revisions
+    to_remove = [r.path for r in revs]
+    if not batch.revs:
+        # No new revision created, keep the last one
+        to_remove = to_remove[:-1]
+    self.changelog.pod.rm_many(to_remove)
+
     self.changelog.refresh()
     return batch.revs</code></pre>
 </details>

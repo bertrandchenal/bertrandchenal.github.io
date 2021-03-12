@@ -135,7 +135,6 @@ def pod(repo, action, relpath=None):
         description: Relative path
     &#34;&#34;&#34;
     relpath = request.args.get(&#34;path&#34;)
-
     if action == &#34;ls&#34;:
         try:
             relpath = &#34;.&#34; if relpath is None else relpath
@@ -185,6 +184,11 @@ def pod(repo, action, relpath=None):
         return &#39;Action &#34;{action}&#34; not supported&#39;, 404
 
 
+def index(prefixes):
+    items = &#34;\n&#34;.join(f&#34;&lt;li&gt;&lt;a href={p}&gt;{p}&lt;/a&gt;&lt;/li&gt;&#34; for p in prefixes)
+    return f&#34;&lt;h4&gt;Available endpoints:&lt;/h4&gt;&lt;ul&gt;{items}&lt;/ul&gt;&#34;
+
+
 def run(repo_map, web_uri=None, debug=False):
     parts = urlsplit(web_uri)
     if not parts.scheme == &#34;http&#34;:
@@ -194,10 +198,15 @@ def run(repo_map, web_uri=None, debug=False):
 
     # Instanciate app and blueprint. Run app
     app = Flask(&#34;Lakota Repository&#34;)
+    prefixes = []
     for name, uri in repo_map.items():
         prefix = parts.path + &#34;/&#34; + name.strip(&#34;/&#34;)
         repo = Repo(uri)
         app.register_blueprint(pod_bp, url_prefix=prefix, url_defaults={&#34;repo&#34;: repo})
+        prefixes.append(prefix)
+
+    # Add index page
+    app.route(&#34;/&#34;)(lambda: index(prefixes))
     app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </section>
@@ -208,6 +217,20 @@ def run(repo_map, web_uri=None, debug=False):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="lakota.server.index"><code class="name flex">
+<span>def <span class="ident">index</span></span>(<span>prefixes)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def index(prefixes):
+    items = &#34;\n&#34;.join(f&#34;&lt;li&gt;&lt;a href={p}&gt;{p}&lt;/a&gt;&lt;/li&gt;&#34; for p in prefixes)
+    return f&#34;&lt;h4&gt;Available endpoints:&lt;/h4&gt;&lt;ul&gt;{items}&lt;/ul&gt;&#34;</code></pre>
+</details>
+</dd>
 <dt id="lakota.server.pod"><code class="name flex">
 <span>def <span class="ident">pod</span></span>(<span>repo, action, relpath=None)</span>
 </code></dt>
@@ -250,7 +273,6 @@ def pod(repo, action, relpath=None):
         description: Relative path
     &#34;&#34;&#34;
     relpath = request.args.get(&#34;path&#34;)
-
     if action == &#34;ls&#34;:
         try:
             relpath = &#34;.&#34; if relpath is None else relpath
@@ -318,10 +340,15 @@ def pod(repo, action, relpath=None):
 
     # Instanciate app and blueprint. Run app
     app = Flask(&#34;Lakota Repository&#34;)
+    prefixes = []
     for name, uri in repo_map.items():
         prefix = parts.path + &#34;/&#34; + name.strip(&#34;/&#34;)
         repo = Repo(uri)
         app.register_blueprint(pod_bp, url_prefix=prefix, url_defaults={&#34;repo&#34;: repo})
+        prefixes.append(prefix)
+
+    # Add index page
+    app.route(&#34;/&#34;)(lambda: index(prefixes))
     app.run(parts.hostname, debug=debug, port=parts.port)</code></pre>
 </details>
 </dd>
@@ -343,6 +370,7 @@ def pod(repo, action, relpath=None):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="lakota.server.index" href="#lakota.server.index">index</a></code></li>
 <li><code><a title="lakota.server.pod" href="#lakota.server.pod">pod</a></code></li>
 <li><code><a title="lakota.server.run" href="#lakota.server.run">run</a></code></li>
 </ul>
