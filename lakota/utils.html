@@ -33,7 +33,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Flag
 from hashlib import sha1
 from itertools import islice
@@ -61,9 +61,12 @@ class Settings:
     debug: bool
     verify_ssl: bool
     embed_max_size: int
+    page_len: int
 
 
-settings = Settings(threaded=True, verify_ssl=True, debug=False, embed_max_size=1024)
+settings = Settings(
+    threaded=True, verify_ssl=True, debug=False, embed_max_size=1024, page_len=500_000
+)
 
 
 def chunky(collection, size=100):
@@ -108,6 +111,18 @@ def drange(start, end, delta, right_closed=False):
     start = strpt(start)
     end = strpt(end)
     return arange(start, end, delta).astype(&#34;M8[s]&#34;)
+
+
+def paginate(start, stop, **delta_kw):
+    step = start
+    delta = timedelta(**delta_kw)
+    assert delta.total_seconds() &gt; 0, &#34;Delta of zero length!&#34;
+    while True:
+        next_step = step + delta
+        yield step, min(next_step, stop)
+        if next_step &gt;= stop:
+            break
+        step = next_step
 
 
 def hashed_path(digest, depth=2):
@@ -260,10 +275,10 @@ class Interval:
 
 
 class Closed(Flag):
-    NONE = n = 0
-    RIGHT = r = 1
-    LEFT = l = 2
-    BOTH = b = 3
+    NONE = n = 0  # 00
+    RIGHT = r = 1  # 01
+    LEFT = l = 2  # 10
+    BOTH = b = 3  # 11
 
     @property
     def left(self):
@@ -277,13 +292,6 @@ class Closed(Flag):
         return (self &amp; Closed.RIGHT) | (other &amp; Closed.LEFT)
 
     def set_right(self, other):
-        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)
-
-    def close_left(self, other):
-        return
-        return self.set_left(Closed.LEFT)
-
-    def close_right(self, other):
         return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
 </details>
 </section>
@@ -472,6 +480,27 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
     return wrapper</code></pre>
 </details>
 </dd>
+<dt id="lakota.utils.paginate"><code class="name flex">
+<span>def <span class="ident">paginate</span></span>(<span>start, stop, **delta_kw)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def paginate(start, stop, **delta_kw):
+    step = start
+    delta = timedelta(**delta_kw)
+    assert delta.total_seconds() &gt; 0, &#34;Delta of zero length!&#34;
+    while True:
+        next_step = step + delta
+        yield step, min(next_step, stop)
+        if next_step &gt;= stop:
+            break
+        step = next_step</code></pre>
+</details>
+</dd>
 <dt id="lakota.utils.pretty_nb"><code class="name flex">
 <span>def <span class="ident">pretty_nb</span></span>(<span>number)</span>
 </code></dt>
@@ -627,10 +656,10 @@ def timeit(title=&#34;&#34;):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Closed(Flag):
-    NONE = n = 0
-    RIGHT = r = 1
-    LEFT = l = 2
-    BOTH = b = 3
+    NONE = n = 0  # 00
+    RIGHT = r = 1  # 01
+    LEFT = l = 2  # 10
+    BOTH = b = 3  # 11
 
     @property
     def left(self):
@@ -644,13 +673,6 @@ def timeit(title=&#34;&#34;):
         return (self &amp; Closed.RIGHT) | (other &amp; Closed.LEFT)
 
     def set_right(self, other):
-        return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)
-
-    def close_left(self, other):
-        return
-        return self.set_left(Closed.LEFT)
-
-    def close_right(self, other):
         return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -722,33 +744,6 @@ def right(self):
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="lakota.utils.Closed.close_left"><code class="name flex">
-<span>def <span class="ident">close_left</span></span>(<span>self, other)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def close_left(self, other):
-    return
-    return self.set_left(Closed.LEFT)</code></pre>
-</details>
-</dd>
-<dt id="lakota.utils.Closed.close_right"><code class="name flex">
-<span>def <span class="ident">close_right</span></span>(<span>self, other)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def close_right(self, other):
-    return (self &amp; Closed.LEFT) | (other &amp; Closed.RIGHT)</code></pre>
-</details>
-</dd>
 <dt id="lakota.utils.Closed.set_left"><code class="name flex">
 <span>def <span class="ident">set_left</span></span>(<span>self, other)</span>
 </code></dt>
@@ -889,10 +884,10 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int)</span>
+<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int)</p></div>
+<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -901,7 +896,8 @@ def bisect(cls, nb_seconds):
     threaded: bool
     debug: bool
     verify_ssl: bool
-    embed_max_size: int</code></pre>
+    embed_max_size: int
+    page_len: int</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -910,6 +906,10 @@ def bisect(cls, nb_seconds):
 <div class="desc"></div>
 </dd>
 <dt id="lakota.utils.Settings.embed_max_size"><code class="name">var <span class="ident">embed_max_size</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Settings.page_len"><code class="name">var <span class="ident">page_len</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -949,6 +949,7 @@ def bisect(cls, nb_seconds):
 <li><code><a title="lakota.utils.hexdigest" href="#lakota.utils.hexdigest">hexdigest</a></code></li>
 <li><code><a title="lakota.utils.hextime" href="#lakota.utils.hextime">hextime</a></code></li>
 <li><code><a title="lakota.utils.memoize" href="#lakota.utils.memoize">memoize</a></code></li>
+<li><code><a title="lakota.utils.paginate" href="#lakota.utils.paginate">paginate</a></code></li>
 <li><code><a title="lakota.utils.pretty_nb" href="#lakota.utils.pretty_nb">pretty_nb</a></code></li>
 <li><code><a title="lakota.utils.profile_object" href="#lakota.utils.profile_object">profile_object</a></code></li>
 <li><code><a title="lakota.utils.skip" href="#lakota.utils.skip">skip</a></code></li>
@@ -968,8 +969,6 @@ def bisect(cls, nb_seconds):
 <li><code><a title="lakota.utils.Closed.NONE" href="#lakota.utils.Closed.NONE">NONE</a></code></li>
 <li><code><a title="lakota.utils.Closed.RIGHT" href="#lakota.utils.Closed.RIGHT">RIGHT</a></code></li>
 <li><code><a title="lakota.utils.Closed.b" href="#lakota.utils.Closed.b">b</a></code></li>
-<li><code><a title="lakota.utils.Closed.close_left" href="#lakota.utils.Closed.close_left">close_left</a></code></li>
-<li><code><a title="lakota.utils.Closed.close_right" href="#lakota.utils.Closed.close_right">close_right</a></code></li>
 <li><code><a title="lakota.utils.Closed.l" href="#lakota.utils.Closed.l">l</a></code></li>
 <li><code><a title="lakota.utils.Closed.left" href="#lakota.utils.Closed.left">left</a></code></li>
 <li><code><a title="lakota.utils.Closed.n" href="#lakota.utils.Closed.n">n</a></code></li>
@@ -998,6 +997,7 @@ def bisect(cls, nb_seconds):
 <ul class="">
 <li><code><a title="lakota.utils.Settings.debug" href="#lakota.utils.Settings.debug">debug</a></code></li>
 <li><code><a title="lakota.utils.Settings.embed_max_size" href="#lakota.utils.Settings.embed_max_size">embed_max_size</a></code></li>
+<li><code><a title="lakota.utils.Settings.page_len" href="#lakota.utils.Settings.page_len">page_len</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
 <li><code><a title="lakota.utils.Settings.verify_ssl" href="#lakota.utils.Settings.verify_ssl">verify_ssl</a></code></li>
 </ul>

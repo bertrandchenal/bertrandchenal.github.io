@@ -79,7 +79,6 @@ class Series:
             if not leaf_rev:
                 return
             from_ci = leaf_rev.commit(self.collection)
-
         return from_ci.segments(self.label, self.pod, start, stop, closed=closed)
 
     def period(self, rev):
@@ -164,7 +163,9 @@ class Series:
             else:
                 return ci_info
             return
-        self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)
+        return self.commit(
+            start, stop, all_dig, len(frame), root=root, embedded=embedded
+        )
 
     def commit(self, start, stop, all_dig, length, root=False, embedded=None):
         # root force commit on phi
@@ -195,7 +196,7 @@ class Series:
     def __len__(self):
         return len(Query(self, select=list(self.schema.idx)))
 
-    def paginate(self, step=100_000, **kw):
+    def paginate(self, step=settings.page_len, **kw):
         return Query(self).paginate(step=step, **kw)
 
     def frame(self, **kw):
@@ -268,7 +269,7 @@ class Query:
         frm = self.frame(**kw)
         return frm.df()
 
-    def paginate(self, step=100_000, **kw):
+    def paginate(self, step=settings.page_len, **kw):
         if step &lt;= 0:
             raise ValueError(&#34;step argument must be &gt; 0&#34;)
         qr = self @ kw
@@ -342,8 +343,12 @@ class KVSeries(Series):
                 &#34;label&#34;: keep_keys,
                 &#34;meta&#34;: keep_meta,
             }
+
         # Write result to db
-        self.write(new_frm, start=start, stop=stop)
+        revs = self.write(new_frm, start=start, stop=stop)
+        return revs
+
+    # TODO debug &#34;ghost&#34; labels (they don&#39;t appears in repo ls but collection.ls works)
 
     # def delete(self, *keys):
     #     if not keys:
@@ -429,8 +434,10 @@ concurrent management of series.</p></div>
                 &#34;label&#34;: keep_keys,
                 &#34;meta&#34;: keep_meta,
             }
+
         # Write result to db
-        self.write(new_frm, start=start, stop=stop)</code></pre>
+        revs = self.write(new_frm, start=start, stop=stop)
+        return revs</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -470,8 +477,10 @@ concurrent management of series.</p></div>
             &#34;label&#34;: keep_keys,
             &#34;meta&#34;: keep_meta,
         }
+
     # Write result to db
-    self.write(new_frm, start=start, stop=stop)</code></pre>
+    revs = self.write(new_frm, start=start, stop=stop)
+    return revs</code></pre>
 </details>
 </dd>
 <dt id="lakota.series.KVSeries.write"><code class="name flex">
@@ -567,7 +576,6 @@ concurrent management of series.</p></div>
             if not leaf_rev:
                 return
             from_ci = leaf_rev.commit(self.collection)
-
         return from_ci.segments(self.label, self.pod, start, stop, closed=closed)
 
     def period(self, rev):
@@ -652,7 +660,9 @@ concurrent management of series.</p></div>
             else:
                 return ci_info
             return
-        self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)
+        return self.commit(
+            start, stop, all_dig, len(frame), root=root, embedded=embedded
+        )
 
     def commit(self, start, stop, all_dig, length, root=False, embedded=None):
         # root force commit on phi
@@ -683,7 +693,7 @@ concurrent management of series.</p></div>
     def __len__(self):
         return len(Query(self, select=list(self.schema.idx)))
 
-    def paginate(self, step=100_000, **kw):
+    def paginate(self, step=settings.page_len, **kw):
         return Query(self).paginate(step=step, **kw)
 
     def frame(self, **kw):
@@ -780,7 +790,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.Series.paginate"><code class="name flex">
-<span>def <span class="ident">paginate</span></span>(<span>self, step=100000, **kw)</span>
+<span>def <span class="ident">paginate</span></span>(<span>self, step=500000, **kw)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -788,7 +798,7 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def paginate(self, step=100_000, **kw):
+<pre><code class="python">def paginate(self, step=settings.page_len, **kw):
     return Query(self).paginate(step=step, **kw)</code></pre>
 </details>
 </dd>
@@ -840,7 +850,6 @@ concurrent management of series.</p></div>
         if not leaf_rev:
             return
         from_ci = leaf_rev.commit(self.collection)
-
     return from_ci.segments(self.label, self.pod, start, stop, closed=closed)</code></pre>
 </details>
 </dd>
@@ -909,7 +918,9 @@ concurrent management of series.</p></div>
         else:
             return ci_info
         return
-    self.commit(start, stop, all_dig, len(frame), root=root, embedded=embedded)</code></pre>
+    return self.commit(
+        start, stop, all_dig, len(frame), root=root, embedded=embedded
+    )</code></pre>
 </details>
 </dd>
 </dl>

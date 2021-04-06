@@ -533,6 +533,11 @@ class Commit:
         )
         return f&#34;&lt;Commit {items}&gt;&#34;
 
+    def match(self, label):
+        (matches,) = where(self.label == label)
+        for pos in matches:
+            yield self.at(pos)
+
     def segments(self, label, pod, start=None, stop=None, closed=&#34;b&#34;):
         closed = Closed[closed]
         # If start (or stop) is not set, and the left (right) side is
@@ -543,11 +548,11 @@ class Commit:
         if stop is None:
             closed = closed.set_right(Closed.RIGHT)
         res = []
-        (matches,) = where(self.label == label)
-        for pos in matches:
-            arr_start = tuple(arr[pos] for arr in self.start.values())
-            arr_stop = tuple(arr[pos] for arr in self.stop.values())
-            arr_closed = Closed[self.closed[pos]]
+
+        for row in self.match(label):
+            arr_start = row[&#34;start&#34;]
+            arr_stop = row[&#34;stop&#34;]
+            arr_closed = Closed[row[&#34;closed&#34;]]
             if start:
                 if start &gt; arr_stop:
                     # start is on the right of the array
@@ -555,26 +560,31 @@ class Commit:
                 elif not arr_closed.right and start == arr_stop:
                     # Same
                     continue
-                elif start &gt;= arr_start:
-                    # closed &#34;win&#34; over arr_closed on the left
+                elif start &gt; arr_start:
+                    # `closed` &#34;win&#34; over arr_closed on the left
                     arr_closed = arr_closed.set_left(closed)
                     arr_start = start
+                elif start == arr_start and arr_closed.left:
+                    # `closed` &#34;win&#34; only if array left is not already
+                    # open
+                    arr_closed = arr_closed.set_left(closed)
 
             if stop:
                 if stop &lt; arr_start:
                     continue
                 elif not arr_closed.left and stop == arr_start:
                     continue
-                elif stop &lt;= arr_stop:
+                elif stop &lt; arr_stop:
                     # closed &#34;win&#34; over arr_closed on the right
                     arr_closed = arr_closed.set_right(closed)
                     arr_stop = stop
+                elif stop == arr_stop and arr_closed.right:
+                    arr_closed = arr_closed.set_right(closed)
 
-            digest = [arr[pos] for arr in self.digest.values()]
             sgm = Segment(
                 self,
                 pod,
-                digest,
+                row[&#34;digest&#34;],
                 start=arr_start,
                 stop=arr_stop,
                 closed=arr_closed,
@@ -956,6 +966,11 @@ class Segment:
         )
         return f&#34;&lt;Commit {items}&gt;&#34;
 
+    def match(self, label):
+        (matches,) = where(self.label == label)
+        for pos in matches:
+            yield self.at(pos)
+
     def segments(self, label, pod, start=None, stop=None, closed=&#34;b&#34;):
         closed = Closed[closed]
         # If start (or stop) is not set, and the left (right) side is
@@ -966,11 +981,11 @@ class Segment:
         if stop is None:
             closed = closed.set_right(Closed.RIGHT)
         res = []
-        (matches,) = where(self.label == label)
-        for pos in matches:
-            arr_start = tuple(arr[pos] for arr in self.start.values())
-            arr_stop = tuple(arr[pos] for arr in self.stop.values())
-            arr_closed = Closed[self.closed[pos]]
+
+        for row in self.match(label):
+            arr_start = row[&#34;start&#34;]
+            arr_stop = row[&#34;stop&#34;]
+            arr_closed = Closed[row[&#34;closed&#34;]]
             if start:
                 if start &gt; arr_stop:
                     # start is on the right of the array
@@ -978,26 +993,31 @@ class Segment:
                 elif not arr_closed.right and start == arr_stop:
                     # Same
                     continue
-                elif start &gt;= arr_start:
-                    # closed &#34;win&#34; over arr_closed on the left
+                elif start &gt; arr_start:
+                    # `closed` &#34;win&#34; over arr_closed on the left
                     arr_closed = arr_closed.set_left(closed)
                     arr_start = start
+                elif start == arr_start and arr_closed.left:
+                    # `closed` &#34;win&#34; only if array left is not already
+                    # open
+                    arr_closed = arr_closed.set_left(closed)
 
             if stop:
                 if stop &lt; arr_start:
                     continue
                 elif not arr_closed.left and stop == arr_start:
                     continue
-                elif stop &lt;= arr_stop:
+                elif stop &lt; arr_stop:
                     # closed &#34;win&#34; over arr_closed on the right
                     arr_closed = arr_closed.set_right(closed)
                     arr_stop = stop
+                elif stop == arr_stop and arr_closed.right:
+                    arr_closed = arr_closed.set_right(closed)
 
-            digest = [arr[pos] for arr in self.digest.values()]
             sgm = Segment(
                 self,
                 pod,
-                digest,
+                row[&#34;digest&#34;],
                 start=arr_start,
                 stop=arr_stop,
                 closed=arr_closed,
@@ -1280,6 +1300,21 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
     )</code></pre>
 </details>
 </dd>
+<dt id="lakota.commit.Commit.match"><code class="name flex">
+<span>def <span class="ident">match</span></span>(<span>self, label)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def match(self, label):
+    (matches,) = where(self.label == label)
+    for pos in matches:
+        yield self.at(pos)</code></pre>
+</details>
+</dd>
 <dt id="lakota.commit.Commit.rename_label"><code class="name flex">
 <span>def <span class="ident">rename_label</span></span>(<span>self, from_label, to_label)</span>
 </code></dt>
@@ -1324,11 +1359,11 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
     if stop is None:
         closed = closed.set_right(Closed.RIGHT)
     res = []
-    (matches,) = where(self.label == label)
-    for pos in matches:
-        arr_start = tuple(arr[pos] for arr in self.start.values())
-        arr_stop = tuple(arr[pos] for arr in self.stop.values())
-        arr_closed = Closed[self.closed[pos]]
+
+    for row in self.match(label):
+        arr_start = row[&#34;start&#34;]
+        arr_stop = row[&#34;stop&#34;]
+        arr_closed = Closed[row[&#34;closed&#34;]]
         if start:
             if start &gt; arr_stop:
                 # start is on the right of the array
@@ -1336,26 +1371,31 @@ def one(cls, schema, label, start, stop, digest, length, closed=&#34;b&#34;, emb
             elif not arr_closed.right and start == arr_stop:
                 # Same
                 continue
-            elif start &gt;= arr_start:
-                # closed &#34;win&#34; over arr_closed on the left
+            elif start &gt; arr_start:
+                # `closed` &#34;win&#34; over arr_closed on the left
                 arr_closed = arr_closed.set_left(closed)
                 arr_start = start
+            elif start == arr_start and arr_closed.left:
+                # `closed` &#34;win&#34; only if array left is not already
+                # open
+                arr_closed = arr_closed.set_left(closed)
 
         if stop:
             if stop &lt; arr_start:
                 continue
             elif not arr_closed.left and stop == arr_start:
                 continue
-            elif stop &lt;= arr_stop:
+            elif stop &lt; arr_stop:
                 # closed &#34;win&#34; over arr_closed on the right
                 arr_closed = arr_closed.set_right(closed)
                 arr_stop = stop
+            elif stop == arr_stop and arr_closed.right:
+                arr_closed = arr_closed.set_right(closed)
 
-        digest = [arr[pos] for arr in self.digest.values()]
         sgm = Segment(
             self,
             pod,
-            digest,
+            row[&#34;digest&#34;],
             start=arr_start,
             stop=arr_stop,
             closed=arr_closed,
@@ -1665,6 +1705,7 @@ def frame(self):
 <li><code><a title="lakota.commit.Commit.label_codec" href="#lakota.commit.Commit.label_codec">label_codec</a></code></li>
 <li><code><a title="lakota.commit.Commit.len_codec" href="#lakota.commit.Commit.len_codec">len_codec</a></code></li>
 <li><code><a title="lakota.commit.Commit.mask" href="#lakota.commit.Commit.mask">mask</a></code></li>
+<li><code><a title="lakota.commit.Commit.match" href="#lakota.commit.Commit.match">match</a></code></li>
 <li><code><a title="lakota.commit.Commit.one" href="#lakota.commit.Commit.one">one</a></code></li>
 <li><code><a title="lakota.commit.Commit.rename_label" href="#lakota.commit.Commit.rename_label">rename_label</a></code></li>
 <li><code><a title="lakota.commit.Commit.segments" href="#lakota.commit.Commit.segments">segments</a></code></li>

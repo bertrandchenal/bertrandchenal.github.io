@@ -111,7 +111,7 @@ from .batch import Batch
 from .changelog import Changelog
 from .commit import Commit
 from .series import KVSeries, Series
-from .utils import Pool, hashed_path, logger
+from .utils import Pool, hashed_path, logger, settings
 
 __all__ = [&#34;Collection&#34;, &#34;Batch&#34;]
 
@@ -137,7 +137,7 @@ class Collection:
         return self.series(name)
 
     def __iter__(self):
-        return iter(self.ls())
+        return (self.series(n) for n in self.ls())
 
     def ls(self):
         rev = self.changelog.leaf()
@@ -281,6 +281,7 @@ class Collection:
         a datetime, all the revision older than the given value will be
         deleted, keeping the recent history.
         &#34;&#34;&#34;
+        logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
 
         # Read existing revisions
         if trim:
@@ -296,15 +297,19 @@ class Collection:
             return []
 
         # Rewrite each series, based on `step` size arrays
-        step = 500_000
         all_labels = self.ls()
+        leaf = self.changelog.leaf()
+        commit = leaf and leaf.commit(self)
         # TODO run in parallel
         with self.multi() as batch:
             for label in all_labels:
-                logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
-                # Re-write each series
+                logger.info(&#39;Squash series &#34;%s/%s&#34;&#39;, self.label, label)
+                # Re-write each series. We use _find_squash_start to
+                # fast-forward in the series (we bet on the fact that
+                # most series are append-only)
+                start = self._find_squash_start(commit, label)
                 series = self / label
-                for frm in series.paginate(step):
+                for frm in series.paginate(start=start, closed=&#34;r&#34;):
                     series.write(frm)
 
         # Remove old revisions
@@ -316,6 +321,26 @@ class Collection:
 
         self.changelog.refresh()
         return batch.revs
+
+    def _find_squash_start(self, commit, label):
+        &#34;&#34;&#34;
+        Find the first &#34;small&#34; segment , and return its start values.
+        &#34;&#34;&#34;
+        rows = list(commit.match(label))
+        if (
+            len(rows) &lt; 4
+        ):  # TODO this should be a param (we should be able to force-squash)
+            return rows[-1][&#34;stop&#34;]
+
+        # Define a minimal acceptable len
+        total_len = sum(row[&#34;length&#34;] for row in rows)
+        threshold = min(settings.page_len, total_len / 4)
+
+        for row in rows[:-1]:
+            # Stop at first small row
+            if row[&#34;length&#34;] &lt; threshold:
+                return row[&#34;start&#34;]
+        return rows[-1][&#34;stop&#34;]
 
     def digests(self):
         for rev in self.changelog.log():
@@ -511,7 +536,7 @@ class Collection:
         return self.series(name)
 
     def __iter__(self):
-        return iter(self.ls())
+        return (self.series(n) for n in self.ls())
 
     def ls(self):
         rev = self.changelog.leaf()
@@ -655,6 +680,7 @@ class Collection:
         a datetime, all the revision older than the given value will be
         deleted, keeping the recent history.
         &#34;&#34;&#34;
+        logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
 
         # Read existing revisions
         if trim:
@@ -670,15 +696,19 @@ class Collection:
             return []
 
         # Rewrite each series, based on `step` size arrays
-        step = 500_000
         all_labels = self.ls()
+        leaf = self.changelog.leaf()
+        commit = leaf and leaf.commit(self)
         # TODO run in parallel
         with self.multi() as batch:
             for label in all_labels:
-                logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
-                # Re-write each series
+                logger.info(&#39;Squash series &#34;%s/%s&#34;&#39;, self.label, label)
+                # Re-write each series. We use _find_squash_start to
+                # fast-forward in the series (we bet on the fact that
+                # most series are append-only)
+                start = self._find_squash_start(commit, label)
                 series = self / label
-                for frm in series.paginate(step):
+                for frm in series.paginate(start=start, closed=&#34;r&#34;):
                     series.write(frm)
 
         # Remove old revisions
@@ -690,6 +720,26 @@ class Collection:
 
         self.changelog.refresh()
         return batch.revs
+
+    def _find_squash_start(self, commit, label):
+        &#34;&#34;&#34;
+        Find the first &#34;small&#34; segment , and return its start values.
+        &#34;&#34;&#34;
+        rows = list(commit.match(label))
+        if (
+            len(rows) &lt; 4
+        ):  # TODO this should be a param (we should be able to force-squash)
+            return rows[-1][&#34;stop&#34;]
+
+        # Define a minimal acceptable len
+        total_len = sum(row[&#34;length&#34;] for row in rows)
+        threshold = min(settings.page_len, total_len / 4)
+
+        for row in rows[:-1]:
+            # Stop at first small row
+            if row[&#34;length&#34;] &lt; threshold:
+                return row[&#34;start&#34;]
+        return rows[-1][&#34;stop&#34;]
 
     def digests(self):
         for rev in self.changelog.log():
@@ -1006,6 +1056,7 @@ deleted, keeping the recent history.</p></div>
     a datetime, all the revision older than the given value will be
     deleted, keeping the recent history.
     &#34;&#34;&#34;
+    logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
 
     # Read existing revisions
     if trim:
@@ -1021,15 +1072,19 @@ deleted, keeping the recent history.</p></div>
         return []
 
     # Rewrite each series, based on `step` size arrays
-    step = 500_000
     all_labels = self.ls()
+    leaf = self.changelog.leaf()
+    commit = leaf and leaf.commit(self)
     # TODO run in parallel
     with self.multi() as batch:
         for label in all_labels:
-            logger.info(&#39;SQUASH label &#34;%s&#34;&#39;, label)
-            # Re-write each series
+            logger.info(&#39;Squash series &#34;%s/%s&#34;&#39;, self.label, label)
+            # Re-write each series. We use _find_squash_start to
+            # fast-forward in the series (we bet on the fact that
+            # most series are append-only)
+            start = self._find_squash_start(commit, label)
             series = self / label
-            for frm in series.paginate(step):
+            for frm in series.paginate(start=start, closed=&#34;r&#34;):
                 series.write(frm)
 
     # Remove old revisions
