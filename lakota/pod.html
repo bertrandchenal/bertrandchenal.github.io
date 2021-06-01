@@ -380,9 +380,9 @@ class MemPOD(POD):
 
     def write(self, relpath, data, mode=&#34;rb&#34;):
         if self.isfile(relpath):
-            logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+            logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
             return
-        logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
 
         current_path = tuple()
         relpath = self.split(relpath)
@@ -398,7 +398,9 @@ class MemPOD(POD):
                 current_file = self.store.get(current_path)
                 if current_file is not None:
                     assert isinstance(current_file, File)
-                    logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+                    logger.debug(
+                        &#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath)
+                    )
                 else:
                     self.store.set(current_path, File(data))
             else:
@@ -444,6 +446,7 @@ class MemPOD(POD):
             parent_folder.rm(path[-1])
 
     def read(self, relpath, mode=&#34;rb&#34;):
+        logger.debug(&#34;READ memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
         path = self.parts + self.split(relpath)
         item = self.store.get(path)
         if not isinstance(item, File):
@@ -1019,9 +1022,9 @@ def size(self):
 
     def write(self, relpath, data, mode=&#34;rb&#34;):
         if self.isfile(relpath):
-            logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+            logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
             return
-        logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
 
         current_path = tuple()
         relpath = self.split(relpath)
@@ -1037,7 +1040,9 @@ def size(self):
                 current_file = self.store.get(current_path)
                 if current_file is not None:
                     assert isinstance(current_file, File)
-                    logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+                    logger.debug(
+                        &#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath)
+                    )
                 else:
                     self.store.set(current_path, File(data))
             else:
@@ -1083,6 +1088,7 @@ def size(self):
             parent_folder.rm(path[-1])
 
     def read(self, relpath, mode=&#34;rb&#34;):
+        logger.debug(&#34;READ memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
         path = self.parts + self.split(relpath)
         item = self.store.get(path)
         if not isinstance(item, File):
@@ -1213,6 +1219,7 @@ def split(cls, path):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
+    logger.debug(&#34;READ memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
     path = self.parts + self.split(relpath)
     item = self.store.get(path)
     if not isinstance(item, File):
@@ -1267,9 +1274,9 @@ def split(cls, path):
 </summary>
 <pre><code class="python">def write(self, relpath, data, mode=&#34;rb&#34;):
     if self.isfile(relpath):
-        logger.debug(&#34;SKIP-WRITE %s %s&#34;, self.path, relpath)
+        logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
         return
-    logger.debug(&#34;WRITE %s %s&#34;, self.parts, relpath)
+    logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
 
     current_path = tuple()
     relpath = self.split(relpath)
@@ -1285,7 +1292,9 @@ def split(cls, path):
             current_file = self.store.get(current_path)
             if current_file is not None:
                 assert isinstance(current_file, File)
-                logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, relpath)
+                logger.debug(
+                    &#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath)
+                )
             else:
                 self.store.set(current_path, File(data))
         else:

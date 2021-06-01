@@ -26,13 +26,13 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from numpy import issubdtype
+<pre><code class="python">from numpy import ascontiguousarray, dtype, issubdtype
 
 from .batch import Batch
 from .changelog import phi
 from .commit import Commit
 from .frame import Frame
-from .utils import Interval, Pool, hashed_path, hexdigest, settings
+from .utils import Closed, Interval, Pool, hashed_path, hexdigest, settings
 
 __all__ = [&#34;Series&#34;, &#34;KVSeries&#34;]
 
@@ -66,7 +66,7 @@ class Series:
         start=None,
         stop=None,
         before=None,
-        closed=&#34;l&#34;,
+        closed=&#34;LEFT&#34;,
         from_ci=None,
     ):
         &#34;&#34;&#34;
@@ -107,7 +107,7 @@ class Series:
         target = min_period * size
         return Interval.bisect(target)
 
-    def write(self, frame, start=None, stop=None, root=False):
+    def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
         # Each commit is like a frame. A row in this frame represent a
         # write (aka a segment) and contains one digest per series
         # column + 2*N extra columns that encode start-stop values (N
@@ -127,14 +127,25 @@ class Series:
         embedded = {}
         with Pool() as pool:
             for name in self.schema:
+                # Cast array &amp; check len
                 arr = self.schema[name].cast(frame[name])
                 if arr_length is None:
                     arr_length = len(arr)
                 elif len(arr) != arr_length:
                     raise ValueError(&#34;Length mismatch&#34;)
+                # Encode content
                 data = self.schema[name].codec.encode(arr)
-                digest = hexdigest(data)
+                # Create digest (based on actual array for simple
+                # type, based on encoded content for O and U)
+                codec = self.schema[name].codec
+                if issubdtype(codec.dt, &#34;M&#34;):
+                    digest = hexdigest(ascontiguousarray(arr.view(&#34;i8&#34;)))
+                elif codec.dt in (dtype(&#34;O&#34;), dtype(&#34;U&#34;)):
+                    digest = hexdigest(data)
+                else:
+                    digest = hexdigest(ascontiguousarray(arr))
                 all_dig.append(digest)
+
                 if (
                     len(data) &lt; settings.embed_max_size
                 ):  # every small array gets embedded
@@ -157,17 +168,25 @@ class Series:
         # Create new digest
         batch = self.collection.batch
         if batch:
-            ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
+            ci_info = (self.label, start, stop, all_dig, len(frame), closed, embedded)
             if isinstance(batch, Batch):
                 batch.append(*ci_info)
             else:
                 return ci_info
             return
         return self.commit(
-            start, stop, all_dig, len(frame), root=root, embedded=embedded
+            start,
+            stop,
+            all_dig,
+            len(frame),
+            root=root,
+            closed=closed,
+            embedded=embedded,
         )
 
-    def commit(self, start, stop, all_dig, length, root=False, embedded=None):
+    def commit(
+        self, start, stop, all_dig, length, root=False, closed=&#34;b&#34;, embedded=None
+    ):
         # root force commit on phi
         leaf_rev = None if root else self.changelog.leaf()
 
@@ -175,12 +194,25 @@ class Series:
         if leaf_rev:
             leaf_ci = leaf_rev.commit(self.collection)
             new_ci = leaf_ci.update(
-                self.label, start, stop, all_dig, length, embedded=embedded
+                self.label,
+                start,
+                stop,
+                all_dig,
+                length,
+                closed=closed,
+                embedded=embedded,
             )
             # TODO early return if new_ci == leaf_ci
         else:
             new_ci = Commit.one(
-                self.schema, self.label, start, stop, all_dig, length, embedded=embedded
+                self.schema,
+                self.label,
+                start,
+                stop,
+                all_dig,
+                length,
+                closed=closed,
+                embedded=embedded,
             )
 
         payload = new_ci.encode()
@@ -210,20 +242,18 @@ class Query:
     def __init__(self, series, **kw):
         self.series = series
         self.params = {
-            &#34;closed&#34;: &#34;l&#34;,
+            &#34;closed&#34;: &#34;LEFT&#34;,
         }
         for k, v in kw.items():
             self.set_param(k, v)
 
     def set_param(self, key, value):
         if key == &#34;closed&#34;:
-            if not value in (&#34;l&#34;, &#34;r&#34;, &#34;b&#34;, &#34;n&#34;):
-                raise ValueError(f&#34;Unsupported value {value} for closed&#34;)
-            self.params[&#34;closed&#34;] = value
+            self.params[&#34;closed&#34;] = Closed.cast(value)
         elif key in (&#34;start&#34;, &#34;stop&#34;):
             self.params[key] = self.series.schema.deserialize(value)
         else:
-            if not key in (&#34;limit&#34;, &#34;offset&#34;, &#34;before&#34;, &#34;select&#34;):
+            if not key in (&#34;limit&#34;, &#34;offset&#34;, &#34;before&#34;, &#34;select&#34;, &#34;from_ci&#34;):
                 raise ValueError(f&#34;Unsupported parameter: {key}&#34;)
             self.params[key] = value
 
@@ -243,7 +273,7 @@ class Query:
         return Query(self.series, **params)
 
     def segments(self):
-        keys = (&#34;start&#34;, &#34;stop&#34;, &#34;before&#34;, &#34;closed&#34;)
+        keys = (&#34;start&#34;, &#34;stop&#34;, &#34;before&#34;, &#34;closed&#34;, &#34;from_ci&#34;)
         kw = {k: self.params.get(k) for k in keys}
         segments = self.series.segments(**kw)
         return segments
@@ -279,8 +309,9 @@ class Query:
         pos = qr.params.get(&#34;offset&#34;) or 0
         while True:
             lmt = step if limit is None else min(step, limit)
+            offset = pos
             frm = Frame.from_segments(
-                qr.series.schema, segments, limit=lmt, offset=pos, select=select
+                qr.series.schema, segments, limit=lmt, offset=offset, select=select
             )
             if len(frm) == 0:
                 return
@@ -291,7 +322,7 @@ class Query:
 
 
 class KVSeries(Series):
-    def write(self, frame, start=None, stop=None, root=False):
+    def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
         if root or not (start is None is stop):
             return super().write(frame, start=start, stop=stop, root=root)
 
@@ -300,13 +331,13 @@ class KVSeries(Series):
 
         start = self.schema.row(frame, pos=0, full=False)
         stop = self.schema.row(frame, pos=-1, full=False)
-        segments = self.segments(start, stop, closed=&#34;b&#34;)
+        segments = self.segments(start, stop, closed=&#34;BOTH&#34;)
         db_frm = Frame.from_segments(  # TODO paginate
             self.schema, segments
         )  # Maybe paginate on large results
 
         if db_frm.empty:
-            return super().write(frame)
+            return super().write(frame, closed=closed)
 
         if db_frm == frame:
             # Nothing to do
@@ -318,7 +349,7 @@ class KVSeries(Series):
         non_idx = [c for c in self.schema if c not in self.schema.idx]
         reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
         new_frm = new_frm.reduce(**reduce_kw)
-        return super().write(new_frm)
+        return super().write(new_frm)  # XXX pass closed ?
 
     def delete(self, *keys):
         # XXX we have 4 delete method (on series, kvseries, collection
@@ -331,7 +362,7 @@ class KVSeries(Series):
 
         # XXX use changelog pack ?
         start, stop = min(keys), max(keys)
-        frm = self[start:stop].frame(closed=&#34;b&#34;)
+        frm = self[start:stop].frame(closed=&#34;BOTH&#34;)
         # Keep only keys not given as argument
         # FIXME use frame.mask to filter it
         items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
@@ -347,8 +378,6 @@ class KVSeries(Series):
         # Write result to db
         revs = self.write(new_frm, start=start, stop=stop)
         return revs
-
-    # TODO debug &#34;ghost&#34; labels (they don&#39;t appears in repo ls but collection.ls works)
 
     # def delete(self, *keys):
     #     if not keys:
@@ -382,7 +411,7 @@ concurrent management of series.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class KVSeries(Series):
-    def write(self, frame, start=None, stop=None, root=False):
+    def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
         if root or not (start is None is stop):
             return super().write(frame, start=start, stop=stop, root=root)
 
@@ -391,13 +420,13 @@ concurrent management of series.</p></div>
 
         start = self.schema.row(frame, pos=0, full=False)
         stop = self.schema.row(frame, pos=-1, full=False)
-        segments = self.segments(start, stop, closed=&#34;b&#34;)
+        segments = self.segments(start, stop, closed=&#34;BOTH&#34;)
         db_frm = Frame.from_segments(  # TODO paginate
             self.schema, segments
         )  # Maybe paginate on large results
 
         if db_frm.empty:
-            return super().write(frame)
+            return super().write(frame, closed=closed)
 
         if db_frm == frame:
             # Nothing to do
@@ -409,7 +438,7 @@ concurrent management of series.</p></div>
         non_idx = [c for c in self.schema if c not in self.schema.idx]
         reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
         new_frm = new_frm.reduce(**reduce_kw)
-        return super().write(new_frm)
+        return super().write(new_frm)  # XXX pass closed ?
 
     def delete(self, *keys):
         # XXX we have 4 delete method (on series, kvseries, collection
@@ -422,7 +451,7 @@ concurrent management of series.</p></div>
 
         # XXX use changelog pack ?
         start, stop = min(keys), max(keys)
-        frm = self[start:stop].frame(closed=&#34;b&#34;)
+        frm = self[start:stop].frame(closed=&#34;BOTH&#34;)
         # Keep only keys not given as argument
         # FIXME use frame.mask to filter it
         items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
@@ -465,7 +494,7 @@ concurrent management of series.</p></div>
 
     # XXX use changelog pack ?
     start, stop = min(keys), max(keys)
-    frm = self[start:stop].frame(closed=&#34;b&#34;)
+    frm = self[start:stop].frame(closed=&#34;BOTH&#34;)
     # Keep only keys not given as argument
     # FIXME use frame.mask to filter it
     items = [(k, s) for k, s in zip(frm[&#34;label&#34;], frm[&#34;meta&#34;]) if k not in keys]
@@ -484,7 +513,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.KVSeries.write"><code class="name flex">
-<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False)</span>
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, closed='b', root=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -492,7 +521,7 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write(self, frame, start=None, stop=None, root=False):
+<pre><code class="python">def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
     if root or not (start is None is stop):
         return super().write(frame, start=start, stop=stop, root=root)
 
@@ -501,13 +530,13 @@ concurrent management of series.</p></div>
 
     start = self.schema.row(frame, pos=0, full=False)
     stop = self.schema.row(frame, pos=-1, full=False)
-    segments = self.segments(start, stop, closed=&#34;b&#34;)
+    segments = self.segments(start, stop, closed=&#34;BOTH&#34;)
     db_frm = Frame.from_segments(  # TODO paginate
         self.schema, segments
     )  # Maybe paginate on large results
 
     if db_frm.empty:
-        return super().write(frame)
+        return super().write(frame, closed=closed)
 
     if db_frm == frame:
         # Nothing to do
@@ -519,7 +548,7 @@ concurrent management of series.</p></div>
     non_idx = [c for c in self.schema if c not in self.schema.idx]
     reduce_kw.update({c: f&#34;(first self.{c})&#34; for c in non_idx})
     new_frm = new_frm.reduce(**reduce_kw)
-    return super().write(new_frm)</code></pre>
+    return super().write(new_frm)  # XXX pass closed ?</code></pre>
 </details>
 </dd>
 </dl>
@@ -563,7 +592,7 @@ concurrent management of series.</p></div>
         start=None,
         stop=None,
         before=None,
-        closed=&#34;l&#34;,
+        closed=&#34;LEFT&#34;,
         from_ci=None,
     ):
         &#34;&#34;&#34;
@@ -604,7 +633,7 @@ concurrent management of series.</p></div>
         target = min_period * size
         return Interval.bisect(target)
 
-    def write(self, frame, start=None, stop=None, root=False):
+    def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
         # Each commit is like a frame. A row in this frame represent a
         # write (aka a segment) and contains one digest per series
         # column + 2*N extra columns that encode start-stop values (N
@@ -624,14 +653,25 @@ concurrent management of series.</p></div>
         embedded = {}
         with Pool() as pool:
             for name in self.schema:
+                # Cast array &amp; check len
                 arr = self.schema[name].cast(frame[name])
                 if arr_length is None:
                     arr_length = len(arr)
                 elif len(arr) != arr_length:
                     raise ValueError(&#34;Length mismatch&#34;)
+                # Encode content
                 data = self.schema[name].codec.encode(arr)
-                digest = hexdigest(data)
+                # Create digest (based on actual array for simple
+                # type, based on encoded content for O and U)
+                codec = self.schema[name].codec
+                if issubdtype(codec.dt, &#34;M&#34;):
+                    digest = hexdigest(ascontiguousarray(arr.view(&#34;i8&#34;)))
+                elif codec.dt in (dtype(&#34;O&#34;), dtype(&#34;U&#34;)):
+                    digest = hexdigest(data)
+                else:
+                    digest = hexdigest(ascontiguousarray(arr))
                 all_dig.append(digest)
+
                 if (
                     len(data) &lt; settings.embed_max_size
                 ):  # every small array gets embedded
@@ -654,17 +694,25 @@ concurrent management of series.</p></div>
         # Create new digest
         batch = self.collection.batch
         if batch:
-            ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
+            ci_info = (self.label, start, stop, all_dig, len(frame), closed, embedded)
             if isinstance(batch, Batch):
                 batch.append(*ci_info)
             else:
                 return ci_info
             return
         return self.commit(
-            start, stop, all_dig, len(frame), root=root, embedded=embedded
+            start,
+            stop,
+            all_dig,
+            len(frame),
+            root=root,
+            closed=closed,
+            embedded=embedded,
         )
 
-    def commit(self, start, stop, all_dig, length, root=False, embedded=None):
+    def commit(
+        self, start, stop, all_dig, length, root=False, closed=&#34;b&#34;, embedded=None
+    ):
         # root force commit on phi
         leaf_rev = None if root else self.changelog.leaf()
 
@@ -672,12 +720,25 @@ concurrent management of series.</p></div>
         if leaf_rev:
             leaf_ci = leaf_rev.commit(self.collection)
             new_ci = leaf_ci.update(
-                self.label, start, stop, all_dig, length, embedded=embedded
+                self.label,
+                start,
+                stop,
+                all_dig,
+                length,
+                closed=closed,
+                embedded=embedded,
             )
             # TODO early return if new_ci == leaf_ci
         else:
             new_ci = Commit.one(
-                self.schema, self.label, start, stop, all_dig, length, embedded=embedded
+                self.schema,
+                self.label,
+                start,
+                stop,
+                all_dig,
+                length,
+                closed=closed,
+                embedded=embedded,
             )
 
         payload = new_ci.encode()
@@ -709,7 +770,7 @@ concurrent management of series.</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="lakota.series.Series.commit"><code class="name flex">
-<span>def <span class="ident">commit</span></span>(<span>self, start, stop, all_dig, length, root=False, embedded=None)</span>
+<span>def <span class="ident">commit</span></span>(<span>self, start, stop, all_dig, length, root=False, closed='b', embedded=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -717,7 +778,9 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def commit(self, start, stop, all_dig, length, root=False, embedded=None):
+<pre><code class="python">def commit(
+    self, start, stop, all_dig, length, root=False, closed=&#34;b&#34;, embedded=None
+):
     # root force commit on phi
     leaf_rev = None if root else self.changelog.leaf()
 
@@ -725,12 +788,25 @@ concurrent management of series.</p></div>
     if leaf_rev:
         leaf_ci = leaf_rev.commit(self.collection)
         new_ci = leaf_ci.update(
-            self.label, start, stop, all_dig, length, embedded=embedded
+            self.label,
+            start,
+            stop,
+            all_dig,
+            length,
+            closed=closed,
+            embedded=embedded,
         )
         # TODO early return if new_ci == leaf_ci
     else:
         new_ci = Commit.one(
-            self.schema, self.label, start, stop, all_dig, length, embedded=embedded
+            self.schema,
+            self.label,
+            start,
+            stop,
+            all_dig,
+            length,
+            closed=closed,
+            embedded=embedded,
         )
 
     payload = new_ci.encode()
@@ -824,7 +900,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.Series.segments"><code class="name flex">
-<span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='l', from_ci=None)</span>
+<span>def <span class="ident">segments</span></span>(<span>self, start=None, stop=None, before=None, closed='LEFT', from_ci=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Find matching segments</p></div>
@@ -837,7 +913,7 @@ concurrent management of series.</p></div>
     start=None,
     stop=None,
     before=None,
-    closed=&#34;l&#34;,
+    closed=&#34;LEFT&#34;,
     from_ci=None,
 ):
     &#34;&#34;&#34;
@@ -854,7 +930,7 @@ concurrent management of series.</p></div>
 </details>
 </dd>
 <dt id="lakota.series.Series.write"><code class="name flex">
-<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, root=False)</span>
+<span>def <span class="ident">write</span></span>(<span>self, frame, start=None, stop=None, closed='b', root=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -862,7 +938,7 @@ concurrent management of series.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write(self, frame, start=None, stop=None, root=False):
+<pre><code class="python">def write(self, frame, start=None, stop=None, closed=&#34;b&#34;, root=False):
     # Each commit is like a frame. A row in this frame represent a
     # write (aka a segment) and contains one digest per series
     # column + 2*N extra columns that encode start-stop values (N
@@ -882,14 +958,25 @@ concurrent management of series.</p></div>
     embedded = {}
     with Pool() as pool:
         for name in self.schema:
+            # Cast array &amp; check len
             arr = self.schema[name].cast(frame[name])
             if arr_length is None:
                 arr_length = len(arr)
             elif len(arr) != arr_length:
                 raise ValueError(&#34;Length mismatch&#34;)
+            # Encode content
             data = self.schema[name].codec.encode(arr)
-            digest = hexdigest(data)
+            # Create digest (based on actual array for simple
+            # type, based on encoded content for O and U)
+            codec = self.schema[name].codec
+            if issubdtype(codec.dt, &#34;M&#34;):
+                digest = hexdigest(ascontiguousarray(arr.view(&#34;i8&#34;)))
+            elif codec.dt in (dtype(&#34;O&#34;), dtype(&#34;U&#34;)):
+                digest = hexdigest(data)
+            else:
+                digest = hexdigest(ascontiguousarray(arr))
             all_dig.append(digest)
+
             if (
                 len(data) &lt; settings.embed_max_size
             ):  # every small array gets embedded
@@ -912,14 +999,20 @@ concurrent management of series.</p></div>
     # Create new digest
     batch = self.collection.batch
     if batch:
-        ci_info = (self.label, start, stop, all_dig, len(frame), embedded)
+        ci_info = (self.label, start, stop, all_dig, len(frame), closed, embedded)
         if isinstance(batch, Batch):
             batch.append(*ci_info)
         else:
             return ci_info
         return
     return self.commit(
-        start, stop, all_dig, len(frame), root=root, embedded=embedded
+        start,
+        stop,
+        all_dig,
+        len(frame),
+        root=root,
+        closed=closed,
+        embedded=embedded,
     )</code></pre>
 </details>
 </dd>

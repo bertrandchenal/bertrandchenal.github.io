@@ -204,7 +204,7 @@ class Repo:
             series = self.registry.series(&#34;archive&#34;)
         else:
             series = self.collection_series
-        qr = series[start:stop] @ {&#34;closed&#34;: &#34;b&#34;}
+        qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
 
         frm = qr.frame()
         for l in frm[&#34;label&#34;]:
@@ -223,9 +223,9 @@ class Repo:
             raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
 
         if from_frm:
-            frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;b&#34;))
+            frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
         else:
-            frm = series.frame(start=label, stop=label, closed=&#34;b&#34;)
+            frm = series.frame(start=label, stop=label, closed=&#34;BOTH&#34;)
 
         if frm.empty:
             return None
@@ -247,7 +247,7 @@ class Repo:
             schema, Schema
         ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
         meta = []
-        schema_dump = schema.dump()
+        schema_dump = schema.dumps()
 
         # TODO assert collection does not already exists!
 
@@ -312,7 +312,7 @@ class Repo:
     def refresh(self):
         self.registry.refresh()
 
-    def push(self, remote, *labels):
+    def push(self, remote, *labels, shallow=False):
         &#34;&#34;&#34;
         Push local revisions (and related segments) to `remote` Repo.
         `remote`
@@ -321,9 +321,9 @@ class Repo:
         `labels`
         : The collections to push. If not given, all collections are pushed
         &#34;&#34;&#34;
-        return remote.pull(self, *labels)
+        return remote.pull(self, *labels, shallow=shallow)
 
-    def pull(self, remote, *labels):
+    def pull(self, remote, *labels, shallow=False):
         &#34;&#34;&#34;
         Pull revisions from `remote` Repo (and related segments).
         `remote`
@@ -335,7 +335,7 @@ class Repo:
 
         assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
         # Pull registry
-        self.registry.pull(remote.registry)
+        self.registry.pull(remote.registry, shallow=shallow)
         # Extract frames
         local_cache = {l.label: l for l in self.search()}
         remote_cache = {r.label: r for r in remote.search()}
@@ -354,7 +354,7 @@ class Repo:
                         &#34;incompatible meta-info.&#34;
                     )
                     raise ValueError(msg)
-            l_clct.pull(r_clct)
+            l_clct.pull(r_clct, shallow=shallow)
 
     def merge(self):
         &#34;&#34;&#34;
@@ -477,7 +477,7 @@ location</p>
             series = self.registry.series(&#34;archive&#34;)
         else:
             series = self.collection_series
-        qr = series[start:stop] @ {&#34;closed&#34;: &#34;b&#34;}
+        qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
 
         frm = qr.frame()
         for l in frm[&#34;label&#34;]:
@@ -496,9 +496,9 @@ location</p>
             raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
 
         if from_frm:
-            frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;b&#34;))
+            frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
         else:
-            frm = series.frame(start=label, stop=label, closed=&#34;b&#34;)
+            frm = series.frame(start=label, stop=label, closed=&#34;BOTH&#34;)
 
         if frm.empty:
             return None
@@ -520,7 +520,7 @@ location</p>
             schema, Schema
         ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
         meta = []
-        schema_dump = schema.dump()
+        schema_dump = schema.dumps()
 
         # TODO assert collection does not already exists!
 
@@ -585,7 +585,7 @@ location</p>
     def refresh(self):
         self.registry.refresh()
 
-    def push(self, remote, *labels):
+    def push(self, remote, *labels, shallow=False):
         &#34;&#34;&#34;
         Push local revisions (and related segments) to `remote` Repo.
         `remote`
@@ -594,9 +594,9 @@ location</p>
         `labels`
         : The collections to push. If not given, all collections are pushed
         &#34;&#34;&#34;
-        return remote.pull(self, *labels)
+        return remote.pull(self, *labels, shallow=shallow)
 
-    def pull(self, remote, *labels):
+    def pull(self, remote, *labels, shallow=False):
         &#34;&#34;&#34;
         Pull revisions from `remote` Repo (and related segments).
         `remote`
@@ -608,7 +608,7 @@ location</p>
 
         assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
         # Pull registry
-        self.registry.pull(remote.registry)
+        self.registry.pull(remote.registry, shallow=shallow)
         # Extract frames
         local_cache = {l.label: l for l in self.search()}
         remote_cache = {r.label: r for r in remote.search()}
@@ -627,7 +627,7 @@ location</p>
                         &#34;incompatible meta-info.&#34;
                     )
                     raise ValueError(msg)
-            l_clct.pull(r_clct)
+            l_clct.pull(r_clct, shallow=shallow)
 
     def merge(self):
         &#34;&#34;&#34;
@@ -736,9 +736,9 @@ location</p>
         raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
 
     if from_frm:
-        frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;b&#34;))
+        frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
     else:
-        frm = series.frame(start=label, stop=label, closed=&#34;b&#34;)
+        frm = series.frame(start=label, stop=label, closed=&#34;BOTH&#34;)
 
     if frm.empty:
         return None
@@ -777,7 +777,7 @@ location</p>
         schema, Schema
     ), &#34;The schema parameter must be an instance of lakota.Schema&#34;
     meta = []
-    schema_dump = schema.dump()
+    schema_dump = schema.dumps()
 
     # TODO assert collection does not already exists!
 
@@ -906,7 +906,7 @@ or deleted concurrently.</p></div>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.pull"><code class="name flex">
-<span>def <span class="ident">pull</span></span>(<span>self, remote, *labels)</span>
+<span>def <span class="ident">pull</span></span>(<span>self, remote, *labels, shallow=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><dl>
@@ -920,7 +920,7 @@ or deleted concurrently.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def pull(self, remote, *labels):
+<pre><code class="python">def pull(self, remote, *labels, shallow=False):
     &#34;&#34;&#34;
     Pull revisions from `remote` Repo (and related segments).
     `remote`
@@ -932,7 +932,7 @@ or deleted concurrently.</p></div>
 
     assert isinstance(remote, Repo), &#34;A Repo instance is required&#34;
     # Pull registry
-    self.registry.pull(remote.registry)
+    self.registry.pull(remote.registry, shallow=shallow)
     # Extract frames
     local_cache = {l.label: l for l in self.search()}
     remote_cache = {r.label: r for r in remote.search()}
@@ -951,11 +951,11 @@ or deleted concurrently.</p></div>
                     &#34;incompatible meta-info.&#34;
                 )
                 raise ValueError(msg)
-        l_clct.pull(r_clct)</code></pre>
+        l_clct.pull(r_clct, shallow=shallow)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.push"><code class="name flex">
-<span>def <span class="ident">push</span></span>(<span>self, remote, *labels)</span>
+<span>def <span class="ident">push</span></span>(<span>self, remote, *labels, shallow=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><dl>
@@ -969,7 +969,7 @@ or deleted concurrently.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def push(self, remote, *labels):
+<pre><code class="python">def push(self, remote, *labels, shallow=False):
     &#34;&#34;&#34;
     Push local revisions (and related segments) to `remote` Repo.
     `remote`
@@ -978,7 +978,7 @@ or deleted concurrently.</p></div>
     `labels`
     : The collections to push. If not given, all collections are pushed
     &#34;&#34;&#34;
-    return remote.pull(self, *labels)</code></pre>
+    return remote.pull(self, *labels, shallow=shallow)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.refresh"><code class="name flex">
@@ -1061,7 +1061,7 @@ or deleted concurrently.</p></div>
         series = self.registry.series(&#34;archive&#34;)
     else:
         series = self.collection_series
-    qr = series[start:stop] @ {&#34;closed&#34;: &#34;b&#34;}
+    qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
 
     frm = qr.frame()
     for l in frm[&#34;label&#34;]:

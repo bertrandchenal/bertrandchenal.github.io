@@ -467,10 +467,11 @@ timestamp,value
 
 import argparse
 import csv
+import json
 import os
 import sys
 from datetime import datetime
-from io import StringIO
+from io import BytesIO, StringIO
 from itertools import chain
 
 from tabulate import tabulate
@@ -500,12 +501,12 @@ def get_collection(repo, label):
     exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
 
 
-def get_series(repo, label):
+def get_series(repo, label, auto_create=False):
     if not &#34;/&#34; in label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
     c_label, s_label = label.split(&#34;/&#34;, 1)
     collection = get_collection(repo, c_label)
-    if label in collection:
+    if auto_create or label in collection:
         return collection / s_label
     match = [s for s in collection.ls() if s.startswith(s_label)]
     if len(match) == 1:
@@ -594,14 +595,16 @@ def export(args):
             logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
         pod = export_pod.cd(clc_name)
         logger.info(&#39;Export collection &#34;%s&#34;&#39;, clc_name)
-        export_collection(pod, clc)
+        schema = clc.schema.dumps()
+        pod.write(&#34;_schema.json&#34;, json.dumps(schema).encode())
+        for srs in clc:
+            # Read series
+            export_series(pod, srs, args.file_type)
 
 
-def export_collection(pod, collection):
-    for srs_name in collection.ls():
-        # Read series
-        srs = collection / srs_name
-        frm = srs.frame()
+def export_series(pod, series, file_type):
+    if file_type == &#34;csv&#34;:
+        frm = series.frame()
         columns = list(frm)
         # Save series as csv in buff
         buff = StringIO()
@@ -611,7 +614,14 @@ def export_collection(pod, collection):
         writer.writerows(rows)
         # Write generated content in pod
         buff.seek(0)
-        pod.write(f&#34;{srs_name}.csv&#34;, buff.read().encode())
+        pod.write(f&#34;{series.label}.csv&#34;, buff.read().encode())
+
+    elif file_type == &#34;parquet&#34;:
+        df = series.df()
+        data = df.to_parquet(compression=&#34;brotli&#34;)
+        pod.write(f&#34;{series.label}.parquet&#34;, data)
+    else:
+        exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)
 
 
 def import_(args):
@@ -620,21 +630,26 @@ def import_(args):
     names = args.collection or import_pod.ls()
     for clc_name in names:
         clc = repo / clc_name
-        if clc is None:
-            logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
-            continue
         pod = import_pod.cd(clc_name)
+        if clc is None:
+            json_schema = pod.read(&#34;_schema.json&#34;).decode()
+            schema = Schema.loads(json.loads(json_schema))
+            clc = repo.create_collection(schema, clc_name)
         logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
-        import_collection(pod, clc)
+        for file_name in pod.ls():
+            if file_name.startswith(&#34;_&#34;):
+                continue
+            import_series(pod, clc, file_name, args.file_type)
 
 
-def import_collection(pod, collection):
+def import_series(from_pod, collection, file_name, file_type):
+    if not file_type in (&#34;csv&#34;, &#34;parquet&#34;):
+        exit(f&#39;Invalid file_type &#34;{file_type}&#34;&#39;)
+
+    stem, ext = file_name.rsplit(&#34;.&#34;, 1)
     column_names = sorted(collection.schema)
-    for file_name in pod.ls():
-        # Read file
-        stem, ext = file_name.rsplit(&#34;.&#34;, 1)
-        assert ext == &#34;csv&#34;
-        buff = StringIO(pod.read(file_name).decode())
+    if ext == file_type == &#34;csv&#34;:
+        buff = StringIO(from_pod.read(file_name).decode())
         reader = csv.reader(buff)
         headers = next(reader)
         assert sorted(headers) == column_names
@@ -642,6 +657,15 @@ def import_collection(pod, collection):
         frm = dict(zip(headers, columns))
         srs = collection / stem
         srs.write(frm)
+
+    elif ext == file_type == &#34;parquet&#34;:
+        from pandas import read_parquet
+
+        buff = BytesIO(from_pod.read(file_name))
+        df = read_parquet(buff)
+        assert sorted(df.columns) == column_names
+        srs = collection / stem
+        srs.write(df)
 
 
 def length(args):
@@ -685,7 +709,7 @@ def rev(args):
             exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
     else:
         collection = repo.collection_series
-
+        series = None
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
         timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
@@ -697,7 +721,7 @@ Date: {timestamp}&#34;&#34;&#34;
         if not args.extended:
             continue
         ci = rev.commit(collection)
-        if series:
+        if series is not None:
             ci = ci.mask(ci.label == series.label)
         starts = list(map(fmt, zip(*ci.start.values())))
         stops = list(map(fmt, zip(*ci.stop.values())))
@@ -767,7 +791,7 @@ def write(args):
     ```
     &#34;&#34;&#34;
     repo = get_repo(args)
-    series = get_series(repo, args.label)
+    series = get_series(repo, args.label, auto_create=True)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
     schema = series.schema
@@ -803,9 +827,9 @@ def squash(args):
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash(pack=args.pack, trim=trim)
+            collection.squash(trim=trim)
     if args.all or not args.labels:
-        repo.registry.squash(pack=args.pack, trim=trim)
+        repo.registry.squash(trim=trim)
 
 
 def push(args):
@@ -822,7 +846,7 @@ def push(args):
     &#34;&#34;&#34;
     repo = get_repo(args)
     remote_repo = Repo(args.remote)
-    repo.push(remote_repo, *args.labels)
+    repo.push(remote_repo, *args.labels, shallow=args.shallow)
 
 
 def pull(args):
@@ -831,7 +855,7 @@ def pull(args):
     &#34;&#34;&#34;
     repo = get_repo(args)
     remote_reg = Repo(args.remote)
-    repo.pull(remote_reg, *args.labels)
+    repo.pull(remote_reg, *args.labels, shallow=args.shallow)
 
 
 def delete(args):
@@ -959,16 +983,22 @@ def run():
 
     # Add export command
     parser_export = subparsers.add_parser(&#34;export&#34;)
-    parser_export.add_argument(&#34;uri&#34;)
+    parser_export.add_argument(&#34;uri&#34;, help=&#34;Where to save the export&#34;)
     parser_export.add_argument(
-        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Export only the given collestion(s)&#34;
+        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Export only the given collection(s)&#34;
+    )
+    parser_export.add_argument(
+        &#34;--file-type&#34;, &#34;-T&#34;, default=&#34;csv&#34;, help=&#34;File type: csv (default) or parquet &#34;
     )
     parser_export.set_defaults(func=export)
 
     parser_import = subparsers.add_parser(&#34;import&#34;)
-    parser_import.add_argument(&#34;uri&#34;)
+    parser_import.add_argument(&#34;uri&#34;, help=&#34;From where to import collections&#34;)
     parser_import.add_argument(
-        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Import only the given collestion(s)&#34;
+        &#34;--file-type&#34;, &#34;-T&#34;, default=&#34;csv&#34;, help=&#34;File type: csv (default) or parquet&#34;
+    )
+    parser_import.add_argument(
+        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Import only the given collection(s)&#34;
     )
     parser_import.set_defaults(func=import_)
 
@@ -1003,13 +1033,6 @@ def run():
         help=&#34;Delete revisions older than given date&#34;,
     )
     parser_squash.add_argument(
-        &#34;-p&#34;,
-        &#34;--pack&#34;,
-        default=True,
-        type=bool_like,
-        help=&#34;Create a new revision (aka defragment by re-writing all the series)&#34;,
-    )
-    parser_squash.add_argument(
         &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
     )
     parser_squash.set_defaults(func=squash)
@@ -1018,12 +1041,24 @@ def run():
     parser_push = subparsers.add_parser(&#34;push&#34;)
     parser_push.add_argument(&#34;remote&#34;)
     parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.add_argument(
+        &#34;-s&#34;,
+        &#34;--shallow&#34;,
+        action=&#34;store_true&#34;,
+        help=&#34;Shallow push (send only last revision)&#34;,
+    )
     parser_push.set_defaults(func=push)
 
     # Add pull command
     parser_pull = subparsers.add_parser(&#34;pull&#34;)
     parser_pull.add_argument(&#34;remote&#34;)
     parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.add_argument(
+        &#34;-s&#34;,
+        &#34;--shallow&#34;,
+        action=&#34;store_true&#34;,
+        help=&#34;Shallow pull (fetch only last revision)&#34;,
+    )
     parser_pull.set_defaults(func=pull)
 
     # Add create command
@@ -1253,11 +1288,15 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
             logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
         pod = export_pod.cd(clc_name)
         logger.info(&#39;Export collection &#34;%s&#34;&#39;, clc_name)
-        export_collection(pod, clc)</code></pre>
+        schema = clc.schema.dumps()
+        pod.write(&#34;_schema.json&#34;, json.dumps(schema).encode())
+        for srs in clc:
+            # Read series
+            export_series(pod, srs, args.file_type)</code></pre>
 </details>
 </dd>
-<dt id="lakota.cli.export_collection"><code class="name flex">
-<span>def <span class="ident">export_collection</span></span>(<span>pod, collection)</span>
+<dt id="lakota.cli.export_series"><code class="name flex">
+<span>def <span class="ident">export_series</span></span>(<span>pod, series, file_type)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1265,11 +1304,9 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def export_collection(pod, collection):
-    for srs_name in collection.ls():
-        # Read series
-        srs = collection / srs_name
-        frm = srs.frame()
+<pre><code class="python">def export_series(pod, series, file_type):
+    if file_type == &#34;csv&#34;:
+        frm = series.frame()
         columns = list(frm)
         # Save series as csv in buff
         buff = StringIO()
@@ -1279,7 +1316,14 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
         writer.writerows(rows)
         # Write generated content in pod
         buff.seek(0)
-        pod.write(f&#34;{srs_name}.csv&#34;, buff.read().encode())</code></pre>
+        pod.write(f&#34;{series.label}.csv&#34;, buff.read().encode())
+
+    elif file_type == &#34;parquet&#34;:
+        df = series.df()
+        data = df.to_parquet(compression=&#34;brotli&#34;)
+        pod.write(f&#34;{series.label}.parquet&#34;, data)
+    else:
+        exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.gc"><code class="name flex">
@@ -1339,7 +1383,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 </details>
 </dd>
 <dt id="lakota.cli.get_series"><code class="name flex">
-<span>def <span class="ident">get_series</span></span>(<span>repo, label)</span>
+<span>def <span class="ident">get_series</span></span>(<span>repo, label, auto_create=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1347,12 +1391,12 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_series(repo, label):
+<pre><code class="python">def get_series(repo, label, auto_create=False):
     if not &#34;/&#34; in label:
         exit(f&#39;Label argument should have the form &#34;collection/series&#34;&#39;)
     c_label, s_label = label.split(&#34;/&#34;, 1)
     collection = get_collection(repo, c_label)
-    if label in collection:
+    if auto_create or label in collection:
         return collection / s_label
     match = [s for s in collection.ls() if s.startswith(s_label)]
     if len(match) == 1:
@@ -1375,16 +1419,20 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     names = args.collection or import_pod.ls()
     for clc_name in names:
         clc = repo / clc_name
-        if clc is None:
-            logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
-            continue
         pod = import_pod.cd(clc_name)
+        if clc is None:
+            json_schema = pod.read(&#34;_schema.json&#34;).decode()
+            schema = Schema.loads(json.loads(json_schema))
+            clc = repo.create_collection(schema, clc_name)
         logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
-        import_collection(pod, clc)</code></pre>
+        for file_name in pod.ls():
+            if file_name.startswith(&#34;_&#34;):
+                continue
+            import_series(pod, clc, file_name, args.file_type)</code></pre>
 </details>
 </dd>
-<dt id="lakota.cli.import_collection"><code class="name flex">
-<span>def <span class="ident">import_collection</span></span>(<span>pod, collection)</span>
+<dt id="lakota.cli.import_series"><code class="name flex">
+<span>def <span class="ident">import_series</span></span>(<span>from_pod, collection, file_name, file_type)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1392,20 +1440,30 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def import_collection(pod, collection):
+<pre><code class="python">def import_series(from_pod, collection, file_name, file_type):
+    if not file_type in (&#34;csv&#34;, &#34;parquet&#34;):
+        exit(f&#39;Invalid file_type &#34;{file_type}&#34;&#39;)
+
+    stem, ext = file_name.rsplit(&#34;.&#34;, 1)
     column_names = sorted(collection.schema)
-    for file_name in pod.ls():
-        # Read file
-        stem, ext = file_name.rsplit(&#34;.&#34;, 1)
-        assert ext == &#34;csv&#34;
-        buff = StringIO(pod.read(file_name).decode())
+    if ext == file_type == &#34;csv&#34;:
+        buff = StringIO(from_pod.read(file_name).decode())
         reader = csv.reader(buff)
         headers = next(reader)
         assert sorted(headers) == column_names
         columns = zip(*reader)
         frm = dict(zip(headers, columns))
         srs = collection / stem
-        srs.write(frm)</code></pre>
+        srs.write(frm)
+
+    elif ext == file_type == &#34;parquet&#34;:
+        from pandas import read_parquet
+
+        buff = BytesIO(from_pod.read(file_name))
+        df = read_parquet(buff)
+        assert sorted(df.columns) == column_names
+        srs = collection / stem
+        srs.write(df)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.length"><code class="name flex">
@@ -1541,7 +1599,7 @@ $ lakota len my_collection/my_series
     &#34;&#34;&#34;
     repo = get_repo(args)
     remote_reg = Repo(args.remote)
-    repo.pull(remote_reg, *args.labels)</code></pre>
+    repo.pull(remote_reg, *args.labels, shallow=args.shallow)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.push"><code class="name flex">
@@ -1572,7 +1630,7 @@ $ lakota len my_collection/my_series
     &#34;&#34;&#34;
     repo = get_repo(args)
     remote_repo = Repo(args.remote)
-    repo.push(remote_repo, *args.labels)</code></pre>
+    repo.push(remote_repo, *args.labels, shallow=args.shallow)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.read"><code class="name flex">
@@ -1699,7 +1757,7 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
             exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
     else:
         collection = repo.collection_series
-
+        series = None
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
         timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
@@ -1711,7 +1769,7 @@ Date: {timestamp}&#34;&#34;&#34;
         if not args.extended:
             continue
         ci = rev.commit(collection)
-        if series:
+        if series is not None:
             ci = ci.mask(ci.label == series.label)
         starts = list(map(fmt, zip(*ci.start.values())))
         stops = list(map(fmt, zip(*ci.stop.values())))
@@ -1781,16 +1839,22 @@ Date: {timestamp}&#34;&#34;&#34;
 
     # Add export command
     parser_export = subparsers.add_parser(&#34;export&#34;)
-    parser_export.add_argument(&#34;uri&#34;)
+    parser_export.add_argument(&#34;uri&#34;, help=&#34;Where to save the export&#34;)
     parser_export.add_argument(
-        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Export only the given collestion(s)&#34;
+        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Export only the given collection(s)&#34;
+    )
+    parser_export.add_argument(
+        &#34;--file-type&#34;, &#34;-T&#34;, default=&#34;csv&#34;, help=&#34;File type: csv (default) or parquet &#34;
     )
     parser_export.set_defaults(func=export)
 
     parser_import = subparsers.add_parser(&#34;import&#34;)
-    parser_import.add_argument(&#34;uri&#34;)
+    parser_import.add_argument(&#34;uri&#34;, help=&#34;From where to import collections&#34;)
     parser_import.add_argument(
-        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Import only the given collestion(s)&#34;
+        &#34;--file-type&#34;, &#34;-T&#34;, default=&#34;csv&#34;, help=&#34;File type: csv (default) or parquet&#34;
+    )
+    parser_import.add_argument(
+        &#34;--collection&#34;, &#34;-c&#34;, nargs=&#34;*&#34;, help=&#34;Import only the given collection(s)&#34;
     )
     parser_import.set_defaults(func=import_)
 
@@ -1825,13 +1889,6 @@ Date: {timestamp}&#34;&#34;&#34;
         help=&#34;Delete revisions older than given date&#34;,
     )
     parser_squash.add_argument(
-        &#34;-p&#34;,
-        &#34;--pack&#34;,
-        default=True,
-        type=bool_like,
-        help=&#34;Create a new revision (aka defragment by re-writing all the series)&#34;,
-    )
-    parser_squash.add_argument(
         &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
     )
     parser_squash.set_defaults(func=squash)
@@ -1840,12 +1897,24 @@ Date: {timestamp}&#34;&#34;&#34;
     parser_push = subparsers.add_parser(&#34;push&#34;)
     parser_push.add_argument(&#34;remote&#34;)
     parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.add_argument(
+        &#34;-s&#34;,
+        &#34;--shallow&#34;,
+        action=&#34;store_true&#34;,
+        help=&#34;Shallow push (send only last revision)&#34;,
+    )
     parser_push.set_defaults(func=push)
 
     # Add pull command
     parser_pull = subparsers.add_parser(&#34;pull&#34;)
     parser_pull.add_argument(&#34;remote&#34;)
     parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.add_argument(
+        &#34;-s&#34;,
+        &#34;--shallow&#34;,
+        action=&#34;store_true&#34;,
+        help=&#34;Shallow pull (fetch only last revision)&#34;,
+    )
     parser_pull.set_defaults(func=pull)
 
     # Add create command
@@ -1984,9 +2053,9 @@ repo changelog.</p></div>
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash(pack=args.pack, trim=trim)
+            collection.squash(trim=trim)
     if args.all or not args.labels:
-        repo.registry.squash(pack=args.pack, trim=trim)</code></pre>
+        repo.registry.squash(trim=trim)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.write"><code class="name flex">
@@ -2008,7 +2077,7 @@ repo changelog.</p></div>
     ```
     &#34;&#34;&#34;
     repo = get_repo(args)
-    series = get_series(repo, args.label)
+    series = get_series(repo, args.label, auto_create=True)
     reader = csv.reader(sys.stdin)
     columns = zip(*reader)
     schema = series.schema
@@ -2043,13 +2112,13 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
 <li><code><a title="lakota.cli.deploy" href="#lakota.cli.deploy">deploy</a></code></li>
 <li><code><a title="lakota.cli.export" href="#lakota.cli.export">export</a></code></li>
-<li><code><a title="lakota.cli.export_collection" href="#lakota.cli.export_collection">export_collection</a></code></li>
+<li><code><a title="lakota.cli.export_series" href="#lakota.cli.export_series">export_series</a></code></li>
 <li><code><a title="lakota.cli.gc" href="#lakota.cli.gc">gc</a></code></li>
 <li><code><a title="lakota.cli.get_collection" href="#lakota.cli.get_collection">get_collection</a></code></li>
 <li><code><a title="lakota.cli.get_repo" href="#lakota.cli.get_repo">get_repo</a></code></li>
 <li><code><a title="lakota.cli.get_series" href="#lakota.cli.get_series">get_series</a></code></li>
 <li><code><a title="lakota.cli.import_" href="#lakota.cli.import_">import_</a></code></li>
-<li><code><a title="lakota.cli.import_collection" href="#lakota.cli.import_collection">import_collection</a></code></li>
+<li><code><a title="lakota.cli.import_series" href="#lakota.cli.import_series">import_series</a></code></li>
 <li><code><a title="lakota.cli.length" href="#lakota.cli.length">length</a></code></li>
 <li><code><a title="lakota.cli.ls" href="#lakota.cli.ls">ls</a></code></li>
 <li><code><a title="lakota.cli.merge" href="#lakota.cli.merge">merge</a></code></li>
