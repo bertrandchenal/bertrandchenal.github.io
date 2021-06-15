@@ -185,16 +185,6 @@ class Frame:
     def empty(self):
         return len(self) == 0
 
-    def rowdict(self, *idx):
-        pos = self.index(self.schema.deserialize(idx), right=False)
-        values = self.schema.row(self, pos)
-        return dict(zip(self.schema.columns, values))
-
-    def rows(self):
-        for pos in range(len(self)):
-            values = self.schema.row(self, pos)
-            yield dict(zip(self.schema.columns, values))
-
     def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
         &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
         default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
@@ -251,7 +241,27 @@ class Frame:
         return len(values)
 
     def keys(self):
-        return iter(self.columns)
+        return list(self.columns)
+
+    def values(self, map_dtype=None):
+        &#34;&#34;&#34;
+        Return iterator on frame columns. If given, `map_dtype` will also
+        convert the type of returned arrays (see `map_dtype` method on
+        `SchemaColumn`).
+        &#34;&#34;&#34;
+        if not map_dtype:
+            return list(self.columns.values())
+        return [self.schema[k].map_dtype(self[k], style=map_dtype) for k in self.keys()]
+
+    def records(self, map_dtype=&#34;default&#34;):
+        &#34;&#34;&#34;
+        Return a list of dict. If `map_dtype` is set, the values of the
+        dicts will be typed based on selected style (see `map_dtype`
+        method on `SchemaColumn`)
+        &#34;&#34;&#34;
+        keys = self.keys()
+        for vals in zip(*self.values(map_dtype=map_dtype)):
+            yield dict(zip(keys, vals))
 
     def start(self):
         return self.schema.row(self, pos=0, full=False)
@@ -527,16 +537,6 @@ class Frame:
     def empty(self):
         return len(self) == 0
 
-    def rowdict(self, *idx):
-        pos = self.index(self.schema.deserialize(idx), right=False)
-        values = self.schema.row(self, pos)
-        return dict(zip(self.schema.columns, values))
-
-    def rows(self):
-        for pos in range(len(self)):
-            values = self.schema.row(self, pos)
-            yield dict(zip(self.schema.columns, values))
-
     def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
         &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
         default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
@@ -593,7 +593,27 @@ class Frame:
         return len(values)
 
     def keys(self):
-        return iter(self.columns)
+        return list(self.columns)
+
+    def values(self, map_dtype=None):
+        &#34;&#34;&#34;
+        Return iterator on frame columns. If given, `map_dtype` will also
+        convert the type of returned arrays (see `map_dtype` method on
+        `SchemaColumn`).
+        &#34;&#34;&#34;
+        if not map_dtype:
+            return list(self.columns.values())
+        return [self.schema[k].map_dtype(self[k], style=map_dtype) for k in self.keys()]
+
+    def records(self, map_dtype=&#34;default&#34;):
+        &#34;&#34;&#34;
+        Return a list of dict. If `map_dtype` is set, the values of the
+        dicts will be typed based on selected style (see `map_dtype`
+        method on `SchemaColumn`)
+        &#34;&#34;&#34;
+        keys = self.keys()
+        for vals in zip(*self.values(map_dtype=map_dtype)):
+            yield dict(zip(keys, vals))
 
     def start(self):
         return self.schema.row(self, pos=0, full=False)
@@ -1002,7 +1022,7 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def keys(self):
-    return iter(self.columns)</code></pre>
+    return list(self.columns)</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.mask"><code class="name flex">
@@ -1027,6 +1047,28 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
         cols[name] = arr[mask]
     # Return new frame
     return Frame(self.schema, cols)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.records"><code class="name flex">
+<span>def <span class="ident">records</span></span>(<span>self, map_dtype='default')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return a list of dict. If <code>map_dtype</code> is set, the values of the
+dicts will be typed based on selected style (see <code>map_dtype</code>
+method on <code>SchemaColumn</code>)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def records(self, map_dtype=&#34;default&#34;):
+    &#34;&#34;&#34;
+    Return a list of dict. If `map_dtype` is set, the values of the
+    dicts will be typed based on selected style (see `map_dtype`
+    method on `SchemaColumn`)
+    &#34;&#34;&#34;
+    keys = self.keys()
+    for vals in zip(*self.values(map_dtype=map_dtype)):
+        yield dict(zip(keys, vals))</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.reduce"><code class="name flex">
@@ -1112,36 +1154,6 @@ evaluated.</p></div>
     return Frame(schema, res)</code></pre>
 </details>
 </dd>
-<dt id="lakota.frame.Frame.rowdict"><code class="name flex">
-<span>def <span class="ident">rowdict</span></span>(<span>self, *idx)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def rowdict(self, *idx):
-    pos = self.index(self.schema.deserialize(idx), right=False)
-    values = self.schema.row(self, pos)
-    return dict(zip(self.schema.columns, values))</code></pre>
-</details>
-</dd>
-<dt id="lakota.frame.Frame.rows"><code class="name flex">
-<span>def <span class="ident">rows</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def rows(self):
-    for pos in range(len(self)):
-        values = self.schema.row(self, pos)
-        yield dict(zip(self.schema.columns, values))</code></pre>
-</details>
-</dd>
 <dt id="lakota.frame.Frame.select"><code class="name flex">
 <span>def <span class="ident">select</span></span>(<span>self, keep)</span>
 </code></dt>
@@ -1217,6 +1229,28 @@ evaluated.</p></div>
     return self.schema.row(self, pos=-1, full=False)</code></pre>
 </details>
 </dd>
+<dt id="lakota.frame.Frame.values"><code class="name flex">
+<span>def <span class="ident">values</span></span>(<span>self, map_dtype=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return iterator on frame columns. If given, <code>map_dtype</code> will also
+convert the type of returned arrays (see <code>map_dtype</code> method on
+<code>SchemaColumn</code>).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def values(self, map_dtype=None):
+    &#34;&#34;&#34;
+    Return iterator on frame columns. If given, `map_dtype` will also
+    convert the type of returned arrays (see `map_dtype` method on
+    `SchemaColumn`).
+    &#34;&#34;&#34;
+    if not map_dtype:
+        return list(self.columns.values())
+    return [self.schema[k].map_dtype(self[k], style=map_dtype) for k in self.keys()]</code></pre>
+</details>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -1253,14 +1287,14 @@ evaluated.</p></div>
 <li><code><a title="lakota.frame.Frame.keys" href="#lakota.frame.Frame.keys">keys</a></code></li>
 <li><code><a title="lakota.frame.Frame.mask" href="#lakota.frame.Frame.mask">mask</a></code></li>
 <li><code><a title="lakota.frame.Frame.read_segments" href="#lakota.frame.Frame.read_segments">read_segments</a></code></li>
+<li><code><a title="lakota.frame.Frame.records" href="#lakota.frame.Frame.records">records</a></code></li>
 <li><code><a title="lakota.frame.Frame.reduce" href="#lakota.frame.Frame.reduce">reduce</a></code></li>
-<li><code><a title="lakota.frame.Frame.rowdict" href="#lakota.frame.Frame.rowdict">rowdict</a></code></li>
-<li><code><a title="lakota.frame.Frame.rows" href="#lakota.frame.Frame.rows">rows</a></code></li>
 <li><code><a title="lakota.frame.Frame.select" href="#lakota.frame.Frame.select">select</a></code></li>
 <li><code><a title="lakota.frame.Frame.slice" href="#lakota.frame.Frame.slice">slice</a></code></li>
 <li><code><a title="lakota.frame.Frame.sorted" href="#lakota.frame.Frame.sorted">sorted</a></code></li>
 <li><code><a title="lakota.frame.Frame.start" href="#lakota.frame.Frame.start">start</a></code></li>
 <li><code><a title="lakota.frame.Frame.stop" href="#lakota.frame.Frame.stop">stop</a></code></li>
+<li><code><a title="lakota.frame.Frame.values" href="#lakota.frame.Frame.values">values</a></code></li>
 </ul>
 </li>
 </ul>

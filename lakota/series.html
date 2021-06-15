@@ -235,6 +235,7 @@ class Series:
         return Query(self, **kw).frame()
 
     def df(self, **kw):
+        # TODO implement order (to &#34;tail&#34; a series)! (or .start and .stop based on last rev)
         return Query(self, **kw).df()
 
 
@@ -761,6 +762,7 @@ concurrent management of series.</p></div>
         return Query(self, **kw).frame()
 
     def df(self, **kw):
+        # TODO implement order (to &#34;tail&#34; a series)! (or .start and .stop based on last rev)
         return Query(self, **kw).df()</code></pre>
 </details>
 <h3>Subclasses</h3>
@@ -824,6 +826,7 @@ concurrent management of series.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def df(self, **kw):
+    # TODO implement order (to &#34;tail&#34; a series)! (or .start and .stop based on last rev)
     return Query(self, **kw).df()</code></pre>
 </details>
 </dd>

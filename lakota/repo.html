@@ -82,7 +82,6 @@ the <code>gc</code> method, which returns the number of deleted files.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">&#34;&#34;&#34;
-
 The `Repo` class manage the organisation of a storage location. It
 provides creation and deletion of collections, synchronization with
 remote repositories and garbage collection.
@@ -185,9 +184,7 @@ class Repo:
         folder, filename = hashed_path(zero_hash)
         self.pod = pod
         path = folder / filename
-        # TODO harmonize code between &#39;normal&#39; collection and archive ones
         self.registry = Collection(&#34;registry&#34;, self.schema, path, self)
-        self.collection_series = self.registry.series(&#34;collection&#34;)
 
     def ls(self):
         return [item.label for item in self.search()]
@@ -195,17 +192,13 @@ class Repo:
     def __iter__(self):
         return self.search()
 
-    def search(self, label=None, mode=None):
+    def search(self, label=None, namespace=&#34;collection&#34;):
         if label:
             start = stop = (label,)
         else:
             start = stop = None
-        if mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            series = self.collection_series
+        series = self.registry.series(namespace)
         qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
-
         frm = qr.frame()
         for l in frm[&#34;label&#34;]:
             yield self.collection(l, frm)
@@ -213,15 +206,8 @@ class Repo:
     def __truediv__(self, name):
         return self.collection(name)
 
-    def collection(self, label, from_frm=None, mode=None):
-        # TODO rename mode into namespace/package/pack/archive ???
-        if mode is None:
-            series = self.collection_series
-        elif mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
-
+    def collection(self, label, from_frm=None, namespace=&#34;collection&#34;):
+        series = self.registry.series(namespace)
         if from_frm:
             frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
         else:
@@ -232,7 +218,9 @@ class Repo:
         meta = frm[&#34;meta&#34;][-1]
         return self.reify(label, meta)
 
-    def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+    def create_collection(
+        self, schema, *labels, raise_if_exists=True, namespace=&#34;collection&#34;
+    ):
         &#34;&#34;&#34;
         `schema`
         : A `lakota.schema.Schema` instance
@@ -251,23 +239,17 @@ class Repo:
 
         # TODO assert collection does not already exists!
 
-        if mode is None:
-            series = self.collection_series
-        elif mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            raise ValueError(f&#39;Unexpected mode &#34;{mode}&#34;&#39;)
-
+        series = self.registry.series(namespace)
         for label in labels:
             label = label.strip()
             if len(label) == 0:
-                raise ValueError(f&#34;Invalid label&#34;)
+                raise ValueError(f&#34;Invalid label: {label}&#34;)
 
             key = label.encode()
             # Use digest to create collection folder (based on mode and label)
             digest = hexdigest(key)
-            if mode:
-                digest = hexdigest(digest.encode(), mode.encode())
+            if namespace != &#34;collection&#34;:
+                digest = hexdigest(digest.encode(), namespace.encode())
             folder, filename = hashed_path(digest)
             meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
@@ -288,7 +270,7 @@ class Repo:
             return archive
         return self.create_collection(collection.schema, label, mode=&#34;archive&#34;)
 
-    def delete(self, *labels):
+    def delete(self, *labels, namespace=&#34;collection&#34;):
         &#34;&#34;&#34;
         Delete one or more collections
 
@@ -302,7 +284,8 @@ class Repo:
             if not clct:
                 continue
             to_remove.append(clct.changelog.pod)
-        self.collection_series.delete(*labels)
+        series = self.registry.series(namespace)
+        series.delete(*labels)
         for pod in to_remove:
             try:
                 pod.rm(&#34;.&#34;, recursive=True)
@@ -363,11 +346,12 @@ class Repo:
         &#34;&#34;&#34;
         return self.registry.merge()
 
-    def rename(self, from_label, to_label):
+    def rename(self, from_label, to_label, namespace=&#34;collection&#34;):
         &#34;&#34;&#34;
         Change the label a collection
         &#34;&#34;&#34;
-        frm = self.collection_series.frame()
+        series = self.registry.series(namespace)
+        frm = series.frame()
         if to_label in frm[&#34;label&#34;]:
             raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
@@ -380,7 +364,7 @@ class Repo:
 
         # Re-order frame
         frm = frm.sorted()
-        self.collection_series.write(
+        series.write(
             frm,
             start=min(
                 frm.start(), start
@@ -394,11 +378,10 @@ class Repo:
         ones.
         &#34;&#34;&#34;
         # XXX remove old revisions (anything before a pack commit)
-
-        active_digests = set()
-        for mode in (None, &#34;archive&#34;):
-            active_digests.update(self.registry.digests())
-            for clct in self.search(mode=mode):
+        # TODO tests concurrent execution of gc()
+        active_digests = set(self.registry.digests())
+        for namespace in self.registry.ls():
+            for clct in self.search(namespace=namespace):
                 active_digests.update(clct.digests())
 
         base_folders = self.pod.ls()
@@ -458,9 +441,7 @@ location</p>
         folder, filename = hashed_path(zero_hash)
         self.pod = pod
         path = folder / filename
-        # TODO harmonize code between &#39;normal&#39; collection and archive ones
         self.registry = Collection(&#34;registry&#34;, self.schema, path, self)
-        self.collection_series = self.registry.series(&#34;collection&#34;)
 
     def ls(self):
         return [item.label for item in self.search()]
@@ -468,17 +449,13 @@ location</p>
     def __iter__(self):
         return self.search()
 
-    def search(self, label=None, mode=None):
+    def search(self, label=None, namespace=&#34;collection&#34;):
         if label:
             start = stop = (label,)
         else:
             start = stop = None
-        if mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            series = self.collection_series
+        series = self.registry.series(namespace)
         qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
-
         frm = qr.frame()
         for l in frm[&#34;label&#34;]:
             yield self.collection(l, frm)
@@ -486,15 +463,8 @@ location</p>
     def __truediv__(self, name):
         return self.collection(name)
 
-    def collection(self, label, from_frm=None, mode=None):
-        # TODO rename mode into namespace/package/pack/archive ???
-        if mode is None:
-            series = self.collection_series
-        elif mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
-
+    def collection(self, label, from_frm=None, namespace=&#34;collection&#34;):
+        series = self.registry.series(namespace)
         if from_frm:
             frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
         else:
@@ -505,7 +475,9 @@ location</p>
         meta = frm[&#34;meta&#34;][-1]
         return self.reify(label, meta)
 
-    def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+    def create_collection(
+        self, schema, *labels, raise_if_exists=True, namespace=&#34;collection&#34;
+    ):
         &#34;&#34;&#34;
         `schema`
         : A `lakota.schema.Schema` instance
@@ -524,23 +496,17 @@ location</p>
 
         # TODO assert collection does not already exists!
 
-        if mode is None:
-            series = self.collection_series
-        elif mode == &#34;archive&#34;:
-            series = self.registry.series(&#34;archive&#34;)
-        else:
-            raise ValueError(f&#39;Unexpected mode &#34;{mode}&#34;&#39;)
-
+        series = self.registry.series(namespace)
         for label in labels:
             label = label.strip()
             if len(label) == 0:
-                raise ValueError(f&#34;Invalid label&#34;)
+                raise ValueError(f&#34;Invalid label: {label}&#34;)
 
             key = label.encode()
             # Use digest to create collection folder (based on mode and label)
             digest = hexdigest(key)
-            if mode:
-                digest = hexdigest(digest.encode(), mode.encode())
+            if namespace != &#34;collection&#34;:
+                digest = hexdigest(digest.encode(), namespace.encode())
             folder, filename = hashed_path(digest)
             meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
@@ -561,7 +527,7 @@ location</p>
             return archive
         return self.create_collection(collection.schema, label, mode=&#34;archive&#34;)
 
-    def delete(self, *labels):
+    def delete(self, *labels, namespace=&#34;collection&#34;):
         &#34;&#34;&#34;
         Delete one or more collections
 
@@ -575,7 +541,8 @@ location</p>
             if not clct:
                 continue
             to_remove.append(clct.changelog.pod)
-        self.collection_series.delete(*labels)
+        series = self.registry.series(namespace)
+        series.delete(*labels)
         for pod in to_remove:
             try:
                 pod.rm(&#34;.&#34;, recursive=True)
@@ -636,11 +603,12 @@ location</p>
         &#34;&#34;&#34;
         return self.registry.merge()
 
-    def rename(self, from_label, to_label):
+    def rename(self, from_label, to_label, namespace=&#34;collection&#34;):
         &#34;&#34;&#34;
         Change the label a collection
         &#34;&#34;&#34;
-        frm = self.collection_series.frame()
+        series = self.registry.series(namespace)
+        frm = series.frame()
         if to_label in frm[&#34;label&#34;]:
             raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
@@ -653,7 +621,7 @@ location</p>
 
         # Re-order frame
         frm = frm.sorted()
-        self.collection_series.write(
+        series.write(
             frm,
             start=min(
                 frm.start(), start
@@ -667,11 +635,10 @@ location</p>
         ones.
         &#34;&#34;&#34;
         # XXX remove old revisions (anything before a pack commit)
-
-        active_digests = set()
-        for mode in (None, &#34;archive&#34;):
-            active_digests.update(self.registry.digests())
-            for clct in self.search(mode=mode):
+        # TODO tests concurrent execution of gc()
+        active_digests = set(self.registry.digests())
+        for namespace in self.registry.ls():
+            for clct in self.search(namespace=namespace):
                 active_digests.update(clct.digests())
 
         base_folders = self.pod.ls()
@@ -718,7 +685,7 @@ location</p>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.collection"><code class="name flex">
-<span>def <span class="ident">collection</span></span>(<span>self, label, from_frm=None, mode=None)</span>
+<span>def <span class="ident">collection</span></span>(<span>self, label, from_frm=None, namespace='collection')</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -726,15 +693,8 @@ location</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def collection(self, label, from_frm=None, mode=None):
-    # TODO rename mode into namespace/package/pack/archive ???
-    if mode is None:
-        series = self.collection_series
-    elif mode == &#34;archive&#34;:
-        series = self.registry.series(&#34;archive&#34;)
-    else:
-        raise ValueError(f&#39;Unexpected mode: &#34;{mode}&#34;&#39;)
-
+<pre><code class="python">def collection(self, label, from_frm=None, namespace=&#34;collection&#34;):
+    series = self.registry.series(namespace)
     if from_frm:
         frm = from_frm.slice(*from_frm.index_slice([label], [label], closed=&#34;BOTH&#34;))
     else:
@@ -747,7 +707,7 @@ location</p>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.create_collection"><code class="name flex">
-<span>def <span class="ident">create_collection</span></span>(<span>self, schema, *labels, raise_if_exists=True, mode=None)</span>
+<span>def <span class="ident">create_collection</span></span>(<span>self, schema, *labels, raise_if_exists=True, namespace='collection')</span>
 </code></dt>
 <dd>
 <div class="desc"><dl>
@@ -762,7 +722,9 @@ location</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def create_collection(self, schema, *labels, raise_if_exists=True, mode=None):
+<pre><code class="python">def create_collection(
+    self, schema, *labels, raise_if_exists=True, namespace=&#34;collection&#34;
+):
     &#34;&#34;&#34;
     `schema`
     : A `lakota.schema.Schema` instance
@@ -781,23 +743,17 @@ location</p>
 
     # TODO assert collection does not already exists!
 
-    if mode is None:
-        series = self.collection_series
-    elif mode == &#34;archive&#34;:
-        series = self.registry.series(&#34;archive&#34;)
-    else:
-        raise ValueError(f&#39;Unexpected mode &#34;{mode}&#34;&#39;)
-
+    series = self.registry.series(namespace)
     for label in labels:
         label = label.strip()
         if len(label) == 0:
-            raise ValueError(f&#34;Invalid label&#34;)
+            raise ValueError(f&#34;Invalid label: {label}&#34;)
 
         key = label.encode()
         # Use digest to create collection folder (based on mode and label)
         digest = hexdigest(key)
-        if mode:
-            digest = hexdigest(digest.encode(), mode.encode())
+        if namespace != &#34;collection&#34;:
+            digest = hexdigest(digest.encode(), namespace.encode())
         folder, filename = hashed_path(digest)
         meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
@@ -809,7 +765,7 @@ location</p>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.delete"><code class="name flex">
-<span>def <span class="ident">delete</span></span>(<span>self, *labels)</span>
+<span>def <span class="ident">delete</span></span>(<span>self, *labels, namespace='collection')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Delete one or more collections</p>
@@ -821,7 +777,7 @@ location</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def delete(self, *labels):
+<pre><code class="python">def delete(self, *labels, namespace=&#34;collection&#34;):
     &#34;&#34;&#34;
     Delete one or more collections
 
@@ -835,7 +791,8 @@ location</p>
         if not clct:
             continue
         to_remove.append(clct.changelog.pod)
-    self.collection_series.delete(*labels)
+    series = self.registry.series(namespace)
+    series.delete(*labels)
     for pod in to_remove:
         try:
             pod.rm(&#34;.&#34;, recursive=True)
@@ -859,11 +816,10 @@ ones.</p></div>
     ones.
     &#34;&#34;&#34;
     # XXX remove old revisions (anything before a pack commit)
-
-    active_digests = set()
-    for mode in (None, &#34;archive&#34;):
-        active_digests.update(self.registry.digests())
-        for clct in self.search(mode=mode):
+    # TODO tests concurrent execution of gc()
+    active_digests = set(self.registry.digests())
+    for namespace in self.registry.ls():
+        for clct in self.search(namespace=namespace):
             active_digests.update(clct.digests())
 
     base_folders = self.pod.ls()
@@ -1009,7 +965,7 @@ or deleted concurrently.</p></div>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.rename"><code class="name flex">
-<span>def <span class="ident">rename</span></span>(<span>self, from_label, to_label)</span>
+<span>def <span class="ident">rename</span></span>(<span>self, from_label, to_label, namespace='collection')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Change the label a collection</p></div>
@@ -1017,11 +973,12 @@ or deleted concurrently.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def rename(self, from_label, to_label):
+<pre><code class="python">def rename(self, from_label, to_label, namespace=&#34;collection&#34;):
     &#34;&#34;&#34;
     Change the label a collection
     &#34;&#34;&#34;
-    frm = self.collection_series.frame()
+    series = self.registry.series(namespace)
+    frm = series.frame()
     if to_label in frm[&#34;label&#34;]:
         raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
@@ -1034,7 +991,7 @@ or deleted concurrently.</p></div>
 
     # Re-order frame
     frm = frm.sorted()
-    self.collection_series.write(
+    series.write(
         frm,
         start=min(
             frm.start(), start
@@ -1044,7 +1001,7 @@ or deleted concurrently.</p></div>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.search"><code class="name flex">
-<span>def <span class="ident">search</span></span>(<span>self, label=None, mode=None)</span>
+<span>def <span class="ident">search</span></span>(<span>self, label=None, namespace='collection')</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1052,17 +1009,13 @@ or deleted concurrently.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def search(self, label=None, mode=None):
+<pre><code class="python">def search(self, label=None, namespace=&#34;collection&#34;):
     if label:
         start = stop = (label,)
     else:
         start = stop = None
-    if mode == &#34;archive&#34;:
-        series = self.registry.series(&#34;archive&#34;)
-    else:
-        series = self.collection_series
+    series = self.registry.series(namespace)
     qr = series[start:stop] @ {&#34;closed&#34;: &#34;BOTH&#34;}
-
     frm = qr.frame()
     for l in frm[&#34;label&#34;]:
         yield self.collection(l, frm)</code></pre>

@@ -129,7 +129,7 @@ class Collection:
     def series(self, label):
         label = label.strip()
         if len(label) == 0:
-            raise ValueError(f&#34;Invalid label&#34;)
+            raise ValueError(f&#34;Invalid label: &#39;{label}&#39;&#34;)
         cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
         return cls(label, self)
 
@@ -533,7 +533,7 @@ class Collection:
     def series(self, label):
         label = label.strip()
         if len(label) == 0:
-            raise ValueError(f&#34;Invalid label&#34;)
+            raise ValueError(f&#34;Invalid label: &#39;{label}&#39;&#34;)
         cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
         return cls(label, self)
 
@@ -1016,7 +1016,7 @@ def multi(self, root=None):
 <pre><code class="python">def series(self, label):
     label = label.strip()
     if len(label) == 0:
-        raise ValueError(f&#34;Invalid label&#34;)
+        raise ValueError(f&#34;Invalid label: &#39;{label}&#39;&#34;)
     cls = KVSeries if self.schema.kind == &#34;kv&#34; else Series
     return cls(label, self)</code></pre>
 </details>

@@ -28,6 +28,7 @@
 </summary>
 <pre><code class="python">import shlex
 from dataclasses import dataclass
+from datetime import datetime
 
 from numcodecs import registry
 from numpy import asarray, ascontiguousarray, dtype, frombuffer, issubdtype, ndarray
@@ -42,6 +43,20 @@ ALIASES = {
 }
 
 __all__ = [&#34;Schema&#34;]
+
+# Provide conversion between numpy and python types
+DTYPE_MAP = {
+    &#34;default&#34;: {
+        dtype(&#34;&lt;M8[s]&#34;): datetime,
+        dtype(&#34;float64&#34;): float,
+        dtype(&#34;int64&#34;): int,
+    },
+    &#34;epoch&#34;: {
+        dtype(&#34;&lt;M8[s]&#34;): int,
+        dtype(&#34;float64&#34;): float,
+        dtype(&#34;int64&#34;): int,
+    },
+}
 
 
 class Codec:
@@ -133,6 +148,14 @@ class SchemaColumn:
             return arr
         return asarray(arr, dtype=self.codec.dt)
 
+    def map_dtype(self, arr, style=&#34;default&#34;):
+        &#34;&#34;&#34;
+        Return `arr` (based on numpy types) converted to python
+        type. `style` can be default or `epoch`.
+        &#34;&#34;&#34;
+        mapping = DTYPE_MAP[style]
+        return arr.astype(mapping[self.codec.dt])
+
     def cast_scalar(self, value):
         return dtype(self.codec.dt).type(value)
 
@@ -215,6 +238,7 @@ class Schema:
         return {&#34;kind&#34;: self.kind, &#34;columns&#34;: columns}
 
     def __iter__(self):
+        # TODO return self.columns.values and add an ls method (to behave like repo.ls)
         return iter(self.columns.keys())
 
     def __repr__(self):
@@ -345,6 +369,7 @@ class SeriesDefinition:
         return {&#34;kind&#34;: self.kind, &#34;columns&#34;: columns}
 
     def __iter__(self):
+        # TODO return self.columns.values and add an ls method (to behave like repo.ls)
         return iter(self.columns.keys())
 
     def __repr__(self):
