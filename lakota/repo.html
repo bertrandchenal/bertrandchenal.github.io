@@ -159,12 +159,17 @@ nb_file_deleted = repo.gc()
 ```
 &#34;&#34;&#34;
 
+import csv
+import json
+from io import BytesIO, StringIO
+from itertools import chain
+from time import time
 
 from .changelog import zero_hash
 from .collection import Collection
 from .pod import POD
 from .schema import Schema
-from .utils import Pool, hashed_path, hexdigest, logger
+from .utils import Pool, hashed_path, hexdigest, hextime, logger, settings
 
 __all__ = [&#34;Repo&#34;]
 
@@ -237,7 +242,7 @@ class Repo:
         meta = []
         schema_dump = schema.dumps()
 
-        # TODO assert collection does not already exists!
+        # TODO assert collection does not already exists! (and use raise_if_exists)
 
         series = self.registry.series(namespace)
         for label in labels:
@@ -377,29 +382,154 @@ class Repo:
         Loop on all series, collect all used digests, and delete obsolete
         ones.
         &#34;&#34;&#34;
-        # XXX remove old revisions (anything before a pack commit)
-        # TODO tests concurrent execution of gc()
+        logger.info(&#34;Start GC&#34;)
+        # Collect digests across folders
+        base_folders = self.pod.ls()
+        with Pool() as pool:
+            for folder in base_folders:
+                pool.submit(self._walk_folder, folder)
+        all_dig = set(chain(*pool.results))
+
+        # Collect digest from changelogs. Because commits are written
+        # after the segments, we minimize chance to bury data created
+        # concurrently.
+        self.refresh()
         active_digests = set(self.registry.digests())
         for namespace in self.registry.ls():
             for clct in self.search(namespace=namespace):
                 active_digests.update(clct.digests())
 
-        base_folders = self.pod.ls()
-        with Pool() as pool:
-            for folder in base_folders:
-                pool.submit(self._gc_folder, folder, active_digests)
-        count = sum(pool.results)
-        return count
+        nb_hard_del = 0
+        nb_soft_del = 0
+        current_ts_ext = f&#34;.{hextime()}&#34;
+        deadline = hextime(time() - settings.timeout)
+        # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
+        inactive = all_dig - active_digests
+        for dig in inactive:
+            if not &#34;.&#34; in dig:
+                # Disable digest
+                folder, filename = hashed_path(dig)
+                path = str(folder / filename)
+                self.pod.mv(path, path + current_ts_ext, missing_ok=True)
+                nb_soft_del += 1
+                continue
 
-    def _gc_folder(self, folder, active_digests):
-        count = 0
+            # Inactive file, check timestamp &amp; delete or re-enable it
+            dig, ext = dig.split(&#34;.&#34;)
+
+            if ext &gt; deadline:
+                # ext contains a ts created recently, we can not act on it yet
+                continue
+
+            folder, filename = hashed_path(dig)
+            path = str(folder / filename)
+
+            if dig in active_digests:
+                # Re-enable by removing extension
+                self.pod.mv(path + f&#34;.{ext}&#34;, path, missing_ok=True)
+            else:
+                # Permanent deletion
+                self.pod.rm(path + f&#34;.{ext}&#34;, missing_ok=True)
+                nb_hard_del += 1
+
+        logger.info(
+            &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+            nb_hard_del,
+            nb_soft_del,
+        )
+        return nb_hard_del, nb_soft_del
+
+    def _walk_folder(self, folder):
+        digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
-            digest = folder + filename.replace(&#34;/&#34;, &#34;&#34;)
-            if digest not in active_digests:
-                count += 1
-                pod.rm(filename, missing_ok=True)
-        return count</code></pre>
+            digs.append(folder + filename.replace(&#34;/&#34;, &#34;&#34;))
+
+        return digs
+
+    def import_collections(self, src, collections=None):
+        &#34;&#34;&#34;
+        Import collections from given `src`. It can url accepted by
+        `POD.from_uri` or a `POD` instance. `collections` is the list of
+        collections to load (all collection are loaded if not set).
+        &#34;&#34;&#34;
+        if not isinstance(src, POD):
+            src = POD.from_uri(src)
+        names = collections or src.ls()
+        for clc_name in names:
+            clc = self / clc_name
+            pod = src.cd(clc_name)
+            if clc is None:
+                json_schema = pod.read(&#34;_schema.json&#34;).decode()
+                schema = Schema.loads(json.loads(json_schema))
+                clc = self.create_collection(schema, clc_name)
+            logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
+            for file_name in pod.ls():
+                if file_name.startswith(&#34;_&#34;):
+                    continue
+                self.import_series(pod, clc, file_name)
+
+    def import_series(self, from_pod, collection, filename):
+        stem, ext = filename.rsplit(&#34;.&#34;, 1)
+        column_names = sorted(collection.schema)
+        if ext == &#34;csv&#34;:
+            buff = StringIO(from_pod.read(filename).decode())
+            reader = csv.reader(buff)
+            headers = next(reader)
+            assert sorted(headers) == column_names
+            columns = zip(*reader)
+            frm = dict(zip(headers, columns))
+            srs = collection / stem
+            srs.write(frm)
+
+        elif ext == &#34;parquet&#34;:
+            from pandas import read_parquet
+
+            buff = BytesIO(from_pod.read(filename))
+            df = read_parquet(buff)
+            assert sorted(df.columns) == column_names
+            srs = collection / stem
+            srs.write(df)
+        else:
+            raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)
+
+    def export_collections(self, dest, collections=None, file_type=&#34;csv&#34;):
+        if not isinstance(dest, POD):
+            dest = POD.from_uri(dest)
+
+        names = collections or self.ls()
+        for clc_name in names:
+            clc = self / clc_name
+            if clc is None:
+                logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
+            pod = dest.cd(clc_name)
+            logger.info(&#39;Export collection &#34;%s&#34;&#39;, clc_name)
+            schema = clc.schema.dumps()
+            pod.write(&#34;_schema.json&#34;, json.dumps(schema).encode())
+            for srs in clc:
+                # Read series
+                self.export_series(pod, srs, file_type)
+
+    def export_series(self, pod, series, file_type):
+        if file_type == &#34;csv&#34;:
+            frm = series.frame()
+            columns = list(frm)
+            # Save series as csv in buff
+            buff = StringIO()
+            writer = csv.writer(buff)
+            writer.writerow(columns)
+            rows = zip(*(frm[c] for c in columns))
+            writer.writerows(rows)
+            # Write generated content in pod
+            buff.seek(0)
+            pod.write(f&#34;{series.label}.csv&#34;, buff.read().encode())
+
+        elif file_type == &#34;parquet&#34;:
+            df = series.df()
+            data = df.to_parquet(compression=&#34;brotli&#34;)
+            pod.write(f&#34;{series.label}.parquet&#34;, data)
+        else:
+            exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
 </details>
 </section>
 <section>
@@ -494,7 +624,7 @@ location</p>
         meta = []
         schema_dump = schema.dumps()
 
-        # TODO assert collection does not already exists!
+        # TODO assert collection does not already exists! (and use raise_if_exists)
 
         series = self.registry.series(namespace)
         for label in labels:
@@ -634,29 +764,154 @@ location</p>
         Loop on all series, collect all used digests, and delete obsolete
         ones.
         &#34;&#34;&#34;
-        # XXX remove old revisions (anything before a pack commit)
-        # TODO tests concurrent execution of gc()
+        logger.info(&#34;Start GC&#34;)
+        # Collect digests across folders
+        base_folders = self.pod.ls()
+        with Pool() as pool:
+            for folder in base_folders:
+                pool.submit(self._walk_folder, folder)
+        all_dig = set(chain(*pool.results))
+
+        # Collect digest from changelogs. Because commits are written
+        # after the segments, we minimize chance to bury data created
+        # concurrently.
+        self.refresh()
         active_digests = set(self.registry.digests())
         for namespace in self.registry.ls():
             for clct in self.search(namespace=namespace):
                 active_digests.update(clct.digests())
 
-        base_folders = self.pod.ls()
-        with Pool() as pool:
-            for folder in base_folders:
-                pool.submit(self._gc_folder, folder, active_digests)
-        count = sum(pool.results)
-        return count
+        nb_hard_del = 0
+        nb_soft_del = 0
+        current_ts_ext = f&#34;.{hextime()}&#34;
+        deadline = hextime(time() - settings.timeout)
+        # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
+        inactive = all_dig - active_digests
+        for dig in inactive:
+            if not &#34;.&#34; in dig:
+                # Disable digest
+                folder, filename = hashed_path(dig)
+                path = str(folder / filename)
+                self.pod.mv(path, path + current_ts_ext, missing_ok=True)
+                nb_soft_del += 1
+                continue
 
-    def _gc_folder(self, folder, active_digests):
-        count = 0
+            # Inactive file, check timestamp &amp; delete or re-enable it
+            dig, ext = dig.split(&#34;.&#34;)
+
+            if ext &gt; deadline:
+                # ext contains a ts created recently, we can not act on it yet
+                continue
+
+            folder, filename = hashed_path(dig)
+            path = str(folder / filename)
+
+            if dig in active_digests:
+                # Re-enable by removing extension
+                self.pod.mv(path + f&#34;.{ext}&#34;, path, missing_ok=True)
+            else:
+                # Permanent deletion
+                self.pod.rm(path + f&#34;.{ext}&#34;, missing_ok=True)
+                nb_hard_del += 1
+
+        logger.info(
+            &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+            nb_hard_del,
+            nb_soft_del,
+        )
+        return nb_hard_del, nb_soft_del
+
+    def _walk_folder(self, folder):
+        digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
-            digest = folder + filename.replace(&#34;/&#34;, &#34;&#34;)
-            if digest not in active_digests:
-                count += 1
-                pod.rm(filename, missing_ok=True)
-        return count</code></pre>
+            digs.append(folder + filename.replace(&#34;/&#34;, &#34;&#34;))
+
+        return digs
+
+    def import_collections(self, src, collections=None):
+        &#34;&#34;&#34;
+        Import collections from given `src`. It can url accepted by
+        `POD.from_uri` or a `POD` instance. `collections` is the list of
+        collections to load (all collection are loaded if not set).
+        &#34;&#34;&#34;
+        if not isinstance(src, POD):
+            src = POD.from_uri(src)
+        names = collections or src.ls()
+        for clc_name in names:
+            clc = self / clc_name
+            pod = src.cd(clc_name)
+            if clc is None:
+                json_schema = pod.read(&#34;_schema.json&#34;).decode()
+                schema = Schema.loads(json.loads(json_schema))
+                clc = self.create_collection(schema, clc_name)
+            logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
+            for file_name in pod.ls():
+                if file_name.startswith(&#34;_&#34;):
+                    continue
+                self.import_series(pod, clc, file_name)
+
+    def import_series(self, from_pod, collection, filename):
+        stem, ext = filename.rsplit(&#34;.&#34;, 1)
+        column_names = sorted(collection.schema)
+        if ext == &#34;csv&#34;:
+            buff = StringIO(from_pod.read(filename).decode())
+            reader = csv.reader(buff)
+            headers = next(reader)
+            assert sorted(headers) == column_names
+            columns = zip(*reader)
+            frm = dict(zip(headers, columns))
+            srs = collection / stem
+            srs.write(frm)
+
+        elif ext == &#34;parquet&#34;:
+            from pandas import read_parquet
+
+            buff = BytesIO(from_pod.read(filename))
+            df = read_parquet(buff)
+            assert sorted(df.columns) == column_names
+            srs = collection / stem
+            srs.write(df)
+        else:
+            raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)
+
+    def export_collections(self, dest, collections=None, file_type=&#34;csv&#34;):
+        if not isinstance(dest, POD):
+            dest = POD.from_uri(dest)
+
+        names = collections or self.ls()
+        for clc_name in names:
+            clc = self / clc_name
+            if clc is None:
+                logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
+            pod = dest.cd(clc_name)
+            logger.info(&#39;Export collection &#34;%s&#34;&#39;, clc_name)
+            schema = clc.schema.dumps()
+            pod.write(&#34;_schema.json&#34;, json.dumps(schema).encode())
+            for srs in clc:
+                # Read series
+                self.export_series(pod, srs, file_type)
+
+    def export_series(self, pod, series, file_type):
+        if file_type == &#34;csv&#34;:
+            frm = series.frame()
+            columns = list(frm)
+            # Save series as csv in buff
+            buff = StringIO()
+            writer = csv.writer(buff)
+            writer.writerow(columns)
+            rows = zip(*(frm[c] for c in columns))
+            writer.writerows(rows)
+            # Write generated content in pod
+            buff.seek(0)
+            pod.write(f&#34;{series.label}.csv&#34;, buff.read().encode())
+
+        elif file_type == &#34;parquet&#34;:
+            df = series.df()
+            data = df.to_parquet(compression=&#34;brotli&#34;)
+            pod.write(f&#34;{series.label}.parquet&#34;, data)
+        else:
+            exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -741,7 +996,7 @@ location</p>
     meta = []
     schema_dump = schema.dumps()
 
-    # TODO assert collection does not already exists!
+    # TODO assert collection does not already exists! (and use raise_if_exists)
 
     series = self.registry.series(namespace)
     for label in labels:
@@ -800,6 +1055,64 @@ location</p>
             continue</code></pre>
 </details>
 </dd>
+<dt id="lakota.repo.Repo.export_collections"><code class="name flex">
+<span>def <span class="ident">export_collections</span></span>(<span>self, dest, collections=None, file_type='csv')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def export_collections(self, dest, collections=None, file_type=&#34;csv&#34;):
+    if not isinstance(dest, POD):
+        dest = POD.from_uri(dest)
+
+    names = collections or self.ls()
+    for clc_name in names:
+        clc = self / clc_name
+        if clc is None:
+            logger.warn(&#39;Collection &#34;%s&#34; not found&#39;, clc_name)
+        pod = dest.cd(clc_name)
+        logger.info(&#39;Export collection &#34;%s&#34;&#39;, clc_name)
+        schema = clc.schema.dumps()
+        pod.write(&#34;_schema.json&#34;, json.dumps(schema).encode())
+        for srs in clc:
+            # Read series
+            self.export_series(pod, srs, file_type)</code></pre>
+</details>
+</dd>
+<dt id="lakota.repo.Repo.export_series"><code class="name flex">
+<span>def <span class="ident">export_series</span></span>(<span>self, pod, series, file_type)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def export_series(self, pod, series, file_type):
+    if file_type == &#34;csv&#34;:
+        frm = series.frame()
+        columns = list(frm)
+        # Save series as csv in buff
+        buff = StringIO()
+        writer = csv.writer(buff)
+        writer.writerow(columns)
+        rows = zip(*(frm[c] for c in columns))
+        writer.writerows(rows)
+        # Write generated content in pod
+        buff.seek(0)
+        pod.write(f&#34;{series.label}.csv&#34;, buff.read().encode())
+
+    elif file_type == &#34;parquet&#34;:
+        df = series.df()
+        data = df.to_parquet(compression=&#34;brotli&#34;)
+        pod.write(f&#34;{series.label}.parquet&#34;, data)
+    else:
+        exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
+</details>
+</dd>
 <dt id="lakota.repo.Repo.gc"><code class="name flex">
 <span>def <span class="ident">gc</span></span>(<span>self)</span>
 </code></dt>
@@ -815,19 +1128,130 @@ ones.</p></div>
     Loop on all series, collect all used digests, and delete obsolete
     ones.
     &#34;&#34;&#34;
-    # XXX remove old revisions (anything before a pack commit)
-    # TODO tests concurrent execution of gc()
+    logger.info(&#34;Start GC&#34;)
+    # Collect digests across folders
+    base_folders = self.pod.ls()
+    with Pool() as pool:
+        for folder in base_folders:
+            pool.submit(self._walk_folder, folder)
+    all_dig = set(chain(*pool.results))
+
+    # Collect digest from changelogs. Because commits are written
+    # after the segments, we minimize chance to bury data created
+    # concurrently.
+    self.refresh()
     active_digests = set(self.registry.digests())
     for namespace in self.registry.ls():
         for clct in self.search(namespace=namespace):
             active_digests.update(clct.digests())
 
-    base_folders = self.pod.ls()
-    with Pool() as pool:
-        for folder in base_folders:
-            pool.submit(self._gc_folder, folder, active_digests)
-    count = sum(pool.results)
-    return count</code></pre>
+    nb_hard_del = 0
+    nb_soft_del = 0
+    current_ts_ext = f&#34;.{hextime()}&#34;
+    deadline = hextime(time() - settings.timeout)
+    # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
+    inactive = all_dig - active_digests
+    for dig in inactive:
+        if not &#34;.&#34; in dig:
+            # Disable digest
+            folder, filename = hashed_path(dig)
+            path = str(folder / filename)
+            self.pod.mv(path, path + current_ts_ext, missing_ok=True)
+            nb_soft_del += 1
+            continue
+
+        # Inactive file, check timestamp &amp; delete or re-enable it
+        dig, ext = dig.split(&#34;.&#34;)
+
+        if ext &gt; deadline:
+            # ext contains a ts created recently, we can not act on it yet
+            continue
+
+        folder, filename = hashed_path(dig)
+        path = str(folder / filename)
+
+        if dig in active_digests:
+            # Re-enable by removing extension
+            self.pod.mv(path + f&#34;.{ext}&#34;, path, missing_ok=True)
+        else:
+            # Permanent deletion
+            self.pod.rm(path + f&#34;.{ext}&#34;, missing_ok=True)
+            nb_hard_del += 1
+
+    logger.info(
+        &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+        nb_hard_del,
+        nb_soft_del,
+    )
+    return nb_hard_del, nb_soft_del</code></pre>
+</details>
+</dd>
+<dt id="lakota.repo.Repo.import_collections"><code class="name flex">
+<span>def <span class="ident">import_collections</span></span>(<span>self, src, collections=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Import collections from given <code>src</code>. It can url accepted by
+<code>POD.from_uri</code> or a <code>POD</code> instance. <code>collections</code> is the list of
+collections to load (all collection are loaded if not set).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def import_collections(self, src, collections=None):
+    &#34;&#34;&#34;
+    Import collections from given `src`. It can url accepted by
+    `POD.from_uri` or a `POD` instance. `collections` is the list of
+    collections to load (all collection are loaded if not set).
+    &#34;&#34;&#34;
+    if not isinstance(src, POD):
+        src = POD.from_uri(src)
+    names = collections or src.ls()
+    for clc_name in names:
+        clc = self / clc_name
+        pod = src.cd(clc_name)
+        if clc is None:
+            json_schema = pod.read(&#34;_schema.json&#34;).decode()
+            schema = Schema.loads(json.loads(json_schema))
+            clc = self.create_collection(schema, clc_name)
+        logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
+        for file_name in pod.ls():
+            if file_name.startswith(&#34;_&#34;):
+                continue
+            self.import_series(pod, clc, file_name)</code></pre>
+</details>
+</dd>
+<dt id="lakota.repo.Repo.import_series"><code class="name flex">
+<span>def <span class="ident">import_series</span></span>(<span>self, from_pod, collection, filename)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def import_series(self, from_pod, collection, filename):
+    stem, ext = filename.rsplit(&#34;.&#34;, 1)
+    column_names = sorted(collection.schema)
+    if ext == &#34;csv&#34;:
+        buff = StringIO(from_pod.read(filename).decode())
+        reader = csv.reader(buff)
+        headers = next(reader)
+        assert sorted(headers) == column_names
+        columns = zip(*reader)
+        frm = dict(zip(headers, columns))
+        srs = collection / stem
+        srs.write(frm)
+
+    elif ext == &#34;parquet&#34;:
+        from pandas import read_parquet
+
+        buff = BytesIO(from_pod.read(filename))
+        df = read_parquet(buff)
+        assert sorted(df.columns) == column_names
+        srs = collection / stem
+        srs.write(df)
+    else:
+        raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.ls"><code class="name flex">
@@ -1050,7 +1474,11 @@ or deleted concurrently.</p></div>
 <li><code><a title="lakota.repo.Repo.collection" href="#lakota.repo.Repo.collection">collection</a></code></li>
 <li><code><a title="lakota.repo.Repo.create_collection" href="#lakota.repo.Repo.create_collection">create_collection</a></code></li>
 <li><code><a title="lakota.repo.Repo.delete" href="#lakota.repo.Repo.delete">delete</a></code></li>
+<li><code><a title="lakota.repo.Repo.export_collections" href="#lakota.repo.Repo.export_collections">export_collections</a></code></li>
+<li><code><a title="lakota.repo.Repo.export_series" href="#lakota.repo.Repo.export_series">export_series</a></code></li>
 <li><code><a title="lakota.repo.Repo.gc" href="#lakota.repo.Repo.gc">gc</a></code></li>
+<li><code><a title="lakota.repo.Repo.import_collections" href="#lakota.repo.Repo.import_collections">import_collections</a></code></li>
+<li><code><a title="lakota.repo.Repo.import_series" href="#lakota.repo.Repo.import_series">import_series</a></code></li>
 <li><code><a title="lakota.repo.Repo.ls" href="#lakota.repo.Repo.ls">ls</a></code></li>
 <li><code><a title="lakota.repo.Repo.merge" href="#lakota.repo.Repo.merge">merge</a></code></li>
 <li><code><a title="lakota.repo.Repo.pull" href="#lakota.repo.Repo.pull">pull</a></code></li>

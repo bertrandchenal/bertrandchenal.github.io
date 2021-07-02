@@ -160,6 +160,17 @@ def pod(repo, action, relpath=None):
             return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
         return {&#34;status&#34;: &#34;ok&#34;}
 
+    elif action == &#34;mv&#34;:
+        from_path = request.args[&#34;from_path&#34;]
+        to_path = request.args[&#34;to_path&#34;]
+        missing_ok = request.args.get(&#34;missing_ok&#34;, &#34;&#34;).lower() == &#34;true&#34;
+
+        try:
+            repo.pod.mv(from_path, to_path, missing_ok=missing_ok)
+        except FileNotFoundError:
+            return &#39;Path &#34;{from_path}&#34; not found&#39;, 404
+        return {&#34;status&#34;: &#34;ok&#34;}
+
     elif action == &#34;write&#34;:
         try:
             info = repo.pod.write(relpath, request.data)
@@ -296,6 +307,17 @@ def pod(repo, action, relpath=None):
             repo.pod.rm(relpath, recursive=recursive, missing_ok=missing_ok)
         except FileNotFoundError:
             return &#39;Path &#34;{relpath}&#34; not found&#39;, 404
+        return {&#34;status&#34;: &#34;ok&#34;}
+
+    elif action == &#34;mv&#34;:
+        from_path = request.args[&#34;from_path&#34;]
+        to_path = request.args[&#34;to_path&#34;]
+        missing_ok = request.args.get(&#34;missing_ok&#34;, &#34;&#34;).lower() == &#34;true&#34;
+
+        try:
+            repo.pod.mv(from_path, to_path, missing_ok=missing_ok)
+        except FileNotFoundError:
+            return &#39;Path &#34;{from_path}&#34; not found&#39;, 404
         return {&#34;status&#34;: &#34;ok&#34;}
 
     elif action == &#34;write&#34;:

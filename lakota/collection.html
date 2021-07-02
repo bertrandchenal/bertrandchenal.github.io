@@ -113,7 +113,7 @@ from .commit import Commit
 from .series import KVSeries, Series
 from .utils import Pool, hashed_path, logger, settings
 
-__all__ = [&#34;Collection&#34;, &#34;Batch&#34;]
+__all__ = [&#34;Collection&#34;]
 
 
 class Collection:
@@ -229,7 +229,10 @@ class Collection:
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
-        self.batch = True
+        self.batch = True  # TODO use a real batch instance but adapt
+        # multi() to accept the list of heads as
+        # parent (and batch will use first parent as
+        # last_ci in flush)
         for ci in other_ci:
             for pos in range(len(ci)):
                 row = ci.at(pos)
@@ -379,137 +382,6 @@ class Collection:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="lakota.collection.Batch"><code class="flex name class">
-<span>class <span class="ident">Batch</span></span>
-<span>(</span><span>collection, root=False)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Batch:
-    def __init__(self, collection, root=False):
-        self.collection = collection
-        self._ci_info = []
-        self.revs = []
-        self.root = root
-
-    def append(self, label, start, stop, all_dig, frame_len, closed, embedded):
-        self._ci_info.append((label, start, stop, all_dig, frame_len, closed, embedded))
-
-    def extend(self, *other_batches):
-        for b in other_batches:
-            self._ci_info.extend(b._ci_info)
-
-    def flush(self):
-        if len(self._ci_info) == 0:
-            return
-
-        changelog = self.collection.changelog
-        leaf_rev = None if self.root else changelog.leaf()
-        all_ci_info = iter(self._ci_info)
-
-        # Combine with last commit
-        if leaf_rev:
-            last_ci = leaf_rev.commit(self.collection)
-        else:
-            label, start, stop, all_dig, length, closed, embedded = next(all_ci_info)
-            last_ci = Commit.one(
-                self.collection.schema,
-                label,
-                start,
-                stop,
-                all_dig,
-                length,
-                closed=closed,
-                embedded=embedded,
-            )
-        for label, start, stop, all_dig, length, closed, embedded in all_ci_info:
-            last_ci = last_ci.update(
-                label, start, stop, all_dig, length, closed=closed, embedded=embedded
-            )
-
-        # Save it
-        payload = last_ci.encode()
-        parent = leaf_rev.child if leaf_rev else phi
-        self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
-</details>
-<h3>Methods</h3>
-<dl>
-<dt id="lakota.collection.Batch.append"><code class="name flex">
-<span>def <span class="ident">append</span></span>(<span>self, label, start, stop, all_dig, frame_len, closed, embedded)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def append(self, label, start, stop, all_dig, frame_len, closed, embedded):
-    self._ci_info.append((label, start, stop, all_dig, frame_len, closed, embedded))</code></pre>
-</details>
-</dd>
-<dt id="lakota.collection.Batch.extend"><code class="name flex">
-<span>def <span class="ident">extend</span></span>(<span>self, *other_batches)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def extend(self, *other_batches):
-    for b in other_batches:
-        self._ci_info.extend(b._ci_info)</code></pre>
-</details>
-</dd>
-<dt id="lakota.collection.Batch.flush"><code class="name flex">
-<span>def <span class="ident">flush</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def flush(self):
-    if len(self._ci_info) == 0:
-        return
-
-    changelog = self.collection.changelog
-    leaf_rev = None if self.root else changelog.leaf()
-    all_ci_info = iter(self._ci_info)
-
-    # Combine with last commit
-    if leaf_rev:
-        last_ci = leaf_rev.commit(self.collection)
-    else:
-        label, start, stop, all_dig, length, closed, embedded = next(all_ci_info)
-        last_ci = Commit.one(
-            self.collection.schema,
-            label,
-            start,
-            stop,
-            all_dig,
-            length,
-            closed=closed,
-            embedded=embedded,
-        )
-    for label, start, stop, all_dig, length, closed, embedded in all_ci_info:
-        last_ci = last_ci.update(
-            label, start, stop, all_dig, length, closed=closed, embedded=embedded
-        )
-
-    # Save it
-    payload = last_ci.encode()
-    parent = leaf_rev.child if leaf_rev else phi
-    self.revs = self.collection.changelog.commit(payload, parents=[parent])</code></pre>
-</details>
-</dd>
-</dl>
-</dd>
 <dt id="lakota.collection.Collection"><code class="flex name class">
 <span>class <span class="ident">Collection</span></span>
 <span>(</span><span>label, schema, path, repo)</span>
@@ -633,7 +505,10 @@ class Collection:
         first_ci, *other_ci = [h.commit(self) for h in heads]
         root_ci = root.commit(self) if root else []
         # Pile all rows for all other commit into the first one
-        self.batch = True
+        self.batch = True  # TODO use a real batch instance but adapt
+        # multi() to accept the list of heads as
+        # parent (and batch will use first parent as
+        # last_ci in flush)
         for ci in other_ci:
             for pos in range(len(ci)):
                 row = ci.at(pos)
@@ -875,7 +750,10 @@ class Collection:
     first_ci, *other_ci = [h.commit(self) for h in heads]
     root_ci = root.commit(self) if root else []
     # Pile all rows for all other commit into the first one
-    self.batch = True
+    self.batch = True  # TODO use a real batch instance but adapt
+    # multi() to accept the list of heads as
+    # parent (and batch will use first parent as
+    # last_ci in flush)
     for ci in other_ci:
         for pos in range(len(ci)):
             row = ci.at(pos)
@@ -1115,14 +993,6 @@ created.</p></div>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="lakota.collection.Batch" href="#lakota.collection.Batch">Batch</a></code></h4>
-<ul class="">
-<li><code><a title="lakota.collection.Batch.append" href="#lakota.collection.Batch.append">append</a></code></li>
-<li><code><a title="lakota.collection.Batch.extend" href="#lakota.collection.Batch.extend">extend</a></code></li>
-<li><code><a title="lakota.collection.Batch.flush" href="#lakota.collection.Batch.flush">flush</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a></code></h4>
 <ul class="two-column">

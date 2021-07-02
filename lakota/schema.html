@@ -36,6 +36,7 @@ from numpy import asarray, ascontiguousarray, dtype, frombuffer, issubdtype, nda
 DTYPES = [dtype(s) for s in (&#34;datetime64[s]&#34;, &#34;int64&#34;, &#34;float64&#34;, &#34;U&#34;, &#34;O&#34;)]
 
 ALIASES = {
+    &#34;date&#34;: &#34;M8[D]&#34;,
     &#34;timestamp&#34;: &#34;M8[s]&#34;,
     &#34;float&#34;: &#34;f8&#34;,
     &#34;int&#34;: &#34;i8&#34;,
@@ -63,12 +64,6 @@ class Codec:
     def __init__(self, dt, *codec_names):
         # Make sure dtype is valid
         dt = dtype(ALIASES.get(dt, dt))
-        for base_type in DTYPES:
-            if issubdtype(dt, base_type):
-                dt = base_type
-                break
-        else:
-            raise ValueError(f&#34;Column type &#39;{dt}&#39; not supported&#34;)
         self.dt = dt
         # Build list of codecs
         if codec_names:
@@ -154,7 +149,10 @@ class SchemaColumn:
         type. `style` can be default or `epoch`.
         &#34;&#34;&#34;
         mapping = DTYPE_MAP[style]
-        return arr.astype(mapping[self.codec.dt])
+        dt = mapping.get(self.codec.dt)
+        if dt is None:
+            return arr
+        return arr.astype(dt)
 
     def cast_scalar(self, value):
         return dtype(self.codec.dt).type(value)

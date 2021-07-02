@@ -64,6 +64,7 @@ class Settings:
     embed_max_size: int
     page_len: int
     squash_max_chunk: int
+    timeout: int
 
 
 settings = Settings(
@@ -72,7 +73,8 @@ settings = Settings(
     debug=False,
     embed_max_size=1024,
     page_len=500_000,
-    squash_max_chunk=4,
+    squash_max_chunk=4,  # Max number of small chunks in a series
+    timeout=600 * 1000,  # Max duration for a write batch (in ms)
 )
 
 
@@ -964,10 +966,10 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int)</span>
+<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int, timeout: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int)</p></div>
+<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int, timeout: int)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -978,7 +980,8 @@ def bisect(cls, nb_seconds):
     verify_ssl: bool
     embed_max_size: int
     page_len: int
-    squash_max_chunk: int</code></pre>
+    squash_max_chunk: int
+    timeout: int</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -999,6 +1002,10 @@ def bisect(cls, nb_seconds):
 <div class="desc"></div>
 </dd>
 <dt id="lakota.utils.Settings.threaded"><code class="name">var <span class="ident">threaded</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Settings.timeout"><code class="name">var <span class="ident">timeout</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1087,6 +1094,7 @@ def bisect(cls, nb_seconds):
 <li><code><a title="lakota.utils.Settings.page_len" href="#lakota.utils.Settings.page_len">page_len</a></code></li>
 <li><code><a title="lakota.utils.Settings.squash_max_chunk" href="#lakota.utils.Settings.squash_max_chunk">squash_max_chunk</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
+<li><code><a title="lakota.utils.Settings.timeout" href="#lakota.utils.Settings.timeout">timeout</a></code></li>
 <li><code><a title="lakota.utils.Settings.verify_ssl" href="#lakota.utils.Settings.verify_ssl">verify_ssl</a></code></li>
 </ul>
 </li>
