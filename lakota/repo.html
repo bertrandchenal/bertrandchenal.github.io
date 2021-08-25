@@ -75,8 +75,19 @@ clct = repo / 'my_collection'
 merged. Sooner or later some pieces of data will get dereferenced,
 those can be deleted to recover storage space. It is simply done with
 the <code>gc</code> method, which returns the number of deleted files.</p>
-<pre><code class="language-python">nb_file_deleted = repo.gc()
+<pre><code class="language-python">nb_hard_delete, nb_soft_delete = repo.gc()
 </code></pre>
+<p>Garbage collection is done in two-phase. On the first invocation,
+dangling files are renamed, this is the soft-deletion. It is done by
+adding the current time (returned by <code><a title="lakota.utils.hextime" href="utils.html#lakota.utils.hextime">hextime()</a></code>) as a
+suffix, so <code>d3/9e/df960b6150e84bd82d5afaf2791a9b210030</code> will become
+<code>d3/9e/df960b6150e84bd82d5afaf2791a9b210030.17b7d6ef91c</code>.</p>
+<p>Any following read on that file fail but it will automatically trigger
+a search for a similarly named file containing a suffix.</p>
+<p>On the next invocation, the garbage collection will reconsider those
+files with a suffix, and if the time represented by the suffix is
+older than a given deadline (defined by <code>timeout</code> in
+<code><a title="lakota.utils.Settings" href="utils.html#lakota.utils.Settings">Settings</a></code> ), it will be definitively deleted.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -155,8 +166,22 @@ those can be deleted to recover storage space. It is simply done with
 the `gc` method, which returns the number of deleted files.
 
 ```python
-nb_file_deleted = repo.gc()
+nb_hard_delete, nb_soft_delete = repo.gc()
 ```
+
+Garbage collection is done in two-phase. On the first invocation,
+dangling files are renamed, this is the soft-deletion. It is done by
+adding the current time (returned by `lakota.utils.hextime`) as a
+suffix, so `d3/9e/df960b6150e84bd82d5afaf2791a9b210030` will become
+`d3/9e/df960b6150e84bd82d5afaf2791a9b210030.17b7d6ef91c`.
+
+Any following read on that file fail but it will automatically trigger
+a search for a similarly named file containing a suffix.
+
+On the next invocation, the garbage collection will reconsider those
+files with a suffix, and if the time represented by the suffix is
+older than a given deadline (defined by `timeout` in
+`lakota.utils.Settings` ), it will be definitively deleted.
 &#34;&#34;&#34;
 
 import csv
@@ -242,13 +267,17 @@ class Repo:
         meta = []
         schema_dump = schema.dumps()
 
-        # TODO assert collection does not already exists! (and use raise_if_exists)
-
         series = self.registry.series(namespace)
+        current_labels = series.frame(
+            start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
+        )[&#34;label&#34;]
+
         for label in labels:
             label = label.strip()
             if len(label) == 0:
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
+            if label in current_labels and raise_if_exists:
+                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
 
             key = label.encode()
             # Use digest to create collection folder (based on mode and label)
@@ -403,6 +432,7 @@ class Repo:
         nb_soft_del = 0
         current_ts_ext = f&#34;.{hextime()}&#34;
         deadline = hextime(time() - settings.timeout)
+
         # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
         inactive = all_dig - active_digests
         for dig in inactive:
@@ -433,7 +463,7 @@ class Repo:
                 nb_hard_del += 1
 
         logger.info(
-            &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+            &#34;End of GC (hard deletions: %s, soft deletions: %s)&#34;,
             nb_hard_del,
             nb_soft_del,
         )
@@ -464,10 +494,11 @@ class Repo:
                 schema = Schema.loads(json.loads(json_schema))
                 clc = self.create_collection(schema, clc_name)
             logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
-            for file_name in pod.ls():
-                if file_name.startswith(&#34;_&#34;):
-                    continue
-                self.import_series(pod, clc, file_name)
+            with clc.multi():
+                for file_name in pod.ls():
+                    if file_name.startswith(&#34;_&#34;):
+                        continue
+                    self.import_series(pod, clc, file_name)
 
     def import_series(self, from_pod, collection, filename):
         stem, ext = filename.rsplit(&#34;.&#34;, 1)
@@ -624,13 +655,17 @@ location</p>
         meta = []
         schema_dump = schema.dumps()
 
-        # TODO assert collection does not already exists! (and use raise_if_exists)
-
         series = self.registry.series(namespace)
+        current_labels = series.frame(
+            start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
+        )[&#34;label&#34;]
+
         for label in labels:
             label = label.strip()
             if len(label) == 0:
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
+            if label in current_labels and raise_if_exists:
+                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
 
             key = label.encode()
             # Use digest to create collection folder (based on mode and label)
@@ -785,6 +820,7 @@ location</p>
         nb_soft_del = 0
         current_ts_ext = f&#34;.{hextime()}&#34;
         deadline = hextime(time() - settings.timeout)
+
         # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
         inactive = all_dig - active_digests
         for dig in inactive:
@@ -815,7 +851,7 @@ location</p>
                 nb_hard_del += 1
 
         logger.info(
-            &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+            &#34;End of GC (hard deletions: %s, soft deletions: %s)&#34;,
             nb_hard_del,
             nb_soft_del,
         )
@@ -846,10 +882,11 @@ location</p>
                 schema = Schema.loads(json.loads(json_schema))
                 clc = self.create_collection(schema, clc_name)
             logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
-            for file_name in pod.ls():
-                if file_name.startswith(&#34;_&#34;):
-                    continue
-                self.import_series(pod, clc, file_name)
+            with clc.multi():
+                for file_name in pod.ls():
+                    if file_name.startswith(&#34;_&#34;):
+                        continue
+                    self.import_series(pod, clc, file_name)
 
     def import_series(self, from_pod, collection, filename):
         stem, ext = filename.rsplit(&#34;.&#34;, 1)
@@ -996,13 +1033,17 @@ location</p>
     meta = []
     schema_dump = schema.dumps()
 
-    # TODO assert collection does not already exists! (and use raise_if_exists)
-
     series = self.registry.series(namespace)
+    current_labels = series.frame(
+        start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
+    )[&#34;label&#34;]
+
     for label in labels:
         label = label.strip()
         if len(label) == 0:
             raise ValueError(f&#34;Invalid label: {label}&#34;)
+        if label in current_labels and raise_if_exists:
+            raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
 
         key = label.encode()
         # Use digest to create collection folder (based on mode and label)
@@ -1149,6 +1190,7 @@ ones.</p></div>
     nb_soft_del = 0
     current_ts_ext = f&#34;.{hextime()}&#34;
     deadline = hextime(time() - settings.timeout)
+
     # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
     inactive = all_dig - active_digests
     for dig in inactive:
@@ -1179,7 +1221,7 @@ ones.</p></div>
             nb_hard_del += 1
 
     logger.info(
-        &#34;End of GC (soft deletions: %s, hard deletions: %s)&#34;,
+        &#34;End of GC (hard deletions: %s, soft deletions: %s)&#34;,
         nb_hard_del,
         nb_soft_del,
     )
@@ -1214,10 +1256,11 @@ collections to load (all collection are loaded if not set).</p></div>
             schema = Schema.loads(json.loads(json_schema))
             clc = self.create_collection(schema, clc_name)
         logger.info(&#39;Import collection &#34;%s&#34;&#39;, clc_name)
-        for file_name in pod.ls():
-            if file_name.startswith(&#34;_&#34;):
-                continue
-            self.import_series(pod, clc, file_name)</code></pre>
+        with clc.multi():
+            for file_name in pod.ls():
+                if file_name.startswith(&#34;_&#34;):
+                    continue
+                self.import_series(pod, clc, file_name)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.import_series"><code class="name flex">

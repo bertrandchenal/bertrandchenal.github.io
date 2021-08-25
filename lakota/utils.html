@@ -58,24 +58,15 @@ logger = logging.getLogger(&#34;lakota&#34;)
 # Global settings
 @dataclass
 class Settings:
-    threaded: bool
-    debug: bool
-    verify_ssl: bool
-    embed_max_size: int
-    page_len: int
-    squash_max_chunk: int
-    timeout: int
+    threaded: bool = True
+    debug: bool = False
+    verify_ssl: bool = True
+    embed_max_size: int = 1024
+    page_len: int = 500_000
+    squash_max_chunk: int = 4  # Max number of small chunks in a series
+    timeout: int = 600  # Max duration for a write batch (in seconds)
 
-
-settings = Settings(
-    threaded=True,
-    verify_ssl=True,
-    debug=False,
-    embed_max_size=1024,
-    page_len=500_000,
-    squash_max_chunk=4,  # Max number of small chunks in a series
-    timeout=600 * 1000,  # Max duration for a write batch (in ms)
-)
+settings = Settings()
 
 
 def chunky(collection, size=100):
@@ -97,8 +88,13 @@ def hexdigest(*data):
 def hextime(timestamp=None):
     &#34;&#34;&#34;
     hex representation of current UTC time (rounded to millisecond)
+
+    &gt;&gt;&gt; from lakota.utils import hextime
+    &gt;&gt;&gt; hextime()
+    &#39;17b7d8a8691&#39;
+    &gt;&gt;&gt;
     &#34;&#34;&#34;
-    timestamp = timestamp or time()
+    timestamp = time() if timestamp is None else timestamp
     return hex(int(timestamp * 1000))[2:]
 
 
@@ -473,7 +469,12 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
 <span>def <span class="ident">hextime</span></span>(<span>timestamp=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>hex representation of current UTC time (rounded to millisecond)</p></div>
+<div class="desc"><p>hex representation of current UTC time (rounded to millisecond)</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from lakota.utils import hextime
+&gt;&gt;&gt; hextime()
+'17b7d8a8691'
+&gt;&gt;&gt;
+</code></pre></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -481,8 +482,13 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
 <pre><code class="python">def hextime(timestamp=None):
     &#34;&#34;&#34;
     hex representation of current UTC time (rounded to millisecond)
+
+    &gt;&gt;&gt; from lakota.utils import hextime
+    &gt;&gt;&gt; hextime()
+    &#39;17b7d8a8691&#39;
+    &gt;&gt;&gt;
     &#34;&#34;&#34;
-    timestamp = timestamp or time()
+    timestamp = time() if timestamp is None else timestamp
     return hex(int(timestamp * 1000))[2:]</code></pre>
 </details>
 </dd>
@@ -966,22 +972,22 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int, timeout: int)</span>
+<span>(</span><span>threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool, debug: bool, verify_ssl: bool, embed_max_size: int, page_len: int, squash_max_chunk: int, timeout: int)</p></div>
+<div class="desc"><p>Settings(threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Settings:
-    threaded: bool
-    debug: bool
-    verify_ssl: bool
-    embed_max_size: int
-    page_len: int
-    squash_max_chunk: int
-    timeout: int</code></pre>
+    threaded: bool = True
+    debug: bool = False
+    verify_ssl: bool = True
+    embed_max_size: int = 1024
+    page_len: int = 500_000
+    squash_max_chunk: int = 4  # Max number of small chunks in a series
+    timeout: int = 600  # Max duration for a write batch (in seconds)</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
