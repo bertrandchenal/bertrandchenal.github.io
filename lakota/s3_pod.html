@@ -28,8 +28,9 @@
 </summary>
 <pre><code class="python">from pathlib import Path
 
-import s3fs
+import boto3
 import urllib3
+from botocore.exceptions import ClientError
 
 from .pod import POD
 from .utils import logger
@@ -49,85 +50,161 @@ class S3POD(POD):
         netloc=None,
         profile=None,
         verify=True,
-        fs=None,
+        client=None,
         key=None,
         secret=None,
         token=None,
     ):
-        # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
-        self.path = path
-        if fs:
-            self.fs = fs
+        &#34;&#34;&#34;
+        `path` must contains bucket name and sub-path in the bucket
+        (separated by a `/`). `verify` set to False will disable ssl
+        verifications. Please note that boto3 will also use
+        &#34;REQUESTS_CA_BUNDLE&#34; env variable.
+        &#34;&#34;&#34;
+        bucket, *parts = path.parts
+        self.path = Path(*parts)
+        self.bucket = Path(bucket)
+        if client:
+            self.client = client
         else:
+            # TODO support for https on custom endpoints
+            # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
             if not verify:
                 silence_insecure_warning()
-            client_kwargs = {&#34;verify&#34;: verify}
-            if netloc:
-                # TODO support for https
-                client_kwargs[&#34;endpoint_url&#34;] = f&#34;http://{netloc}&#34;
-            self.fs = s3fs.S3FileSystem(
-                anon=False,
-                key=key or None,
-                secret=secret or None,
-                token=token or None,
-                client_kwargs=client_kwargs,
-                profile=profile,
+            endpoint_url = f&#34;http://{netloc}&#34; if netloc else None
+            session = boto3.session.Session(
+                aws_access_key_id=key,
+                aws_secret_access_key=secret,
+                profile_name=profile,
             )
-
+            self.client = session.client(
+                &#34;s3&#34;, verify=verify, aws_session_token=token, endpoint_url=endpoint_url
+            )
         super().__init__()
 
     def cd(self, *others):
         path = self.path.joinpath(*others)
-        return S3POD(path, fs=self.fs)
+        return S3POD(self.bucket / path, client=self.client)
 
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST s3://%s %s&#34;, self.path, relpath)
-        path = self.path / relpath
-        try:
-            return [Path(p).name for p in self.fs.ls(path)]
-        except FileNotFoundError:
-            if missing_ok:
-                return []
-            raise
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
+        logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+        paginator = self.client.get_paginator(&#34;list_objects&#34;)
+        prefix = str(self.path / relpath)
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        cut = len(prefix)
+        options = {
+            &#34;Bucket&#34;: str(self.bucket),
+            &#34;Prefix&#34;: prefix,
+            &#34;Delimiter&#34;: &#34;/&#34;,
+        }
+        if limit is not None:
+            options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
+
+        page_iterator = paginator.paginate(**options)
+        names = []
+        for page in page_iterator:
+            # Extract pseudo-folder names
+            common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
+            names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+            # Extract keys (filenames)
+            contents = page.get(&#34;Contents&#34;, [])
+            names.extend(item[&#34;Key&#34;][cut:] for item in contents)
+        return names
 
     def read(self, relpath, mode=&#34;rb&#34;):
-        logger.debug(&#34;READ s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).read()
+        logger.debug(&#34;READ s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+        key = str(self.path / relpath)
+        try:
+            resp = self.client.get_object(Bucket=str(self.bucket), Key=key)
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+                raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+
+        return resp[&#34;Body&#34;].read()
 
     def write(self, relpath, data, mode=&#34;wb&#34;):
         if self.isfile(relpath):
-            logger.debug(&#34;SKIP-WRITE s3://%s %s&#34;, self.path, relpath)
+            logger.debug(&#34;SKIP-WRITE s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
             return
-        logger.debug(&#34;WRITE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).write(data)
+        logger.debug(&#34;WRITE s3:///%s%s %s&#34;, self.bucket, self.path, relpath)
+        key = str(self.path / relpath)
+        response = self.client.put_object(
+            Bucket=str(self.bucket),
+            Body=data,
+            Key=key,
+        )
+        assert response[&#34;ResponseMetadata&#34;][&#34;HTTPStatusCode&#34;] == 200
+        return len(data)
 
     def isdir(self, relpath):
-        return self.fs.isdir(self.path / relpath)
+        return len(self.ls(relpath, limit=1)) &gt; 0
 
     def isfile(self, relpath):
-        return self.fs.isfile(self.path / relpath)
+        key = str(self.path / relpath)
+        try:
+            _ = self.client.get_object(Bucket=str(self.bucket), Key=key)
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+                return False
+            # Other kind of error, reraise
+            raise
+        return True
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
-        logger.debug(&#34;REMOVE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
+        logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+        prefix = str(self.path / relpath)
+        if recursive:
+            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+            resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
+            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+        else:
+            keys = [prefix]
         try:
-            return self.fs.rm(path, recursive=recursive)
-        except FileNotFoundError:
-            if missing_ok:
-                return
-            raise
+            _ = self.client.delete_objects(
+                Bucket=str(self.bucket),
+                Delete={
+                    &#34;Objects&#34;: [{&#34;Key&#34;: k} for k in keys],
+                    &#34;Quiet&#34;: True,
+                },
+            )
+            # TODO check for error in response
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
+                raise
+            # As of version 2.2.6, Moto doesn&#39;t support correctly
+            # delete_objects() calls, we fall back to delete_object()
+            for key in keys:
+                self.client.delete_object(
+                    Bucket=str(self.bucket),
+                    Key=key,
+                )
+
+        # XXX implement missing_ok
 
     def mv(self, from_path, to_path, missing_ok=False):
         orig = str(self.path / from_path)
         dest = str(self.path / to_path)
-        logger.debug(&#34;MOVE s3://%s to s3://%s&#34;, orig, dest)
+        logger.debug(
+            &#34;MOVE s3://%s/%s to s3://%s/%s&#34;, self.bucket, orig, self.bucket, dest
+        )
         try:
-            self.fs.mv(orig, dest)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise</code></pre>
+            # Copy to dest
+            self.client.copy(
+                {&#34;Bucket&#34;: str(self.bucket), &#34;Key&#34;: orig},
+                str(self.bucket),
+                dest,
+            )
+            # Delete orig
+            self.client.delete_object(
+                Bucket=str(self.bucket),
+                Key=orig,
+            )
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;404&#34;:
+                if missing_ok:
+                    return
+                raise FileNotFoundError(f&#39;Path &#34;{orig}&#34; not found&#39;)
+            raise</code></pre>
 </details>
 </section>
 <section>
@@ -157,10 +234,13 @@ class S3POD(POD):
 <dl>
 <dt id="lakota.s3_pod.S3POD"><code class="flex name class">
 <span>class <span class="ident">S3POD</span></span>
-<span>(</span><span>path, netloc=None, profile=None, verify=True, fs=None, key=None, secret=None, token=None)</span>
+<span>(</span><span>path, netloc=None, profile=None, verify=True, client=None, key=None, secret=None, token=None)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p><code>path</code> must contains bucket name and sub-path in the bucket
+(separated by a <code>/</code>). <code>verify</code> set to False will disable ssl
+verifications. Please note that boto3 will also use
+"REQUESTS_CA_BUNDLE" env variable.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -175,85 +255,161 @@ class S3POD(POD):
         netloc=None,
         profile=None,
         verify=True,
-        fs=None,
+        client=None,
         key=None,
         secret=None,
         token=None,
     ):
-        # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
-        self.path = path
-        if fs:
-            self.fs = fs
+        &#34;&#34;&#34;
+        `path` must contains bucket name and sub-path in the bucket
+        (separated by a `/`). `verify` set to False will disable ssl
+        verifications. Please note that boto3 will also use
+        &#34;REQUESTS_CA_BUNDLE&#34; env variable.
+        &#34;&#34;&#34;
+        bucket, *parts = path.parts
+        self.path = Path(*parts)
+        self.bucket = Path(bucket)
+        if client:
+            self.client = client
         else:
+            # TODO support for https on custom endpoints
+            # TODO document use of param: endpoint_url=&#39;http://127.0.0.1:5300&#39;
             if not verify:
                 silence_insecure_warning()
-            client_kwargs = {&#34;verify&#34;: verify}
-            if netloc:
-                # TODO support for https
-                client_kwargs[&#34;endpoint_url&#34;] = f&#34;http://{netloc}&#34;
-            self.fs = s3fs.S3FileSystem(
-                anon=False,
-                key=key or None,
-                secret=secret or None,
-                token=token or None,
-                client_kwargs=client_kwargs,
-                profile=profile,
+            endpoint_url = f&#34;http://{netloc}&#34; if netloc else None
+            session = boto3.session.Session(
+                aws_access_key_id=key,
+                aws_secret_access_key=secret,
+                profile_name=profile,
             )
-
+            self.client = session.client(
+                &#34;s3&#34;, verify=verify, aws_session_token=token, endpoint_url=endpoint_url
+            )
         super().__init__()
 
     def cd(self, *others):
         path = self.path.joinpath(*others)
-        return S3POD(path, fs=self.fs)
+        return S3POD(self.bucket / path, client=self.client)
 
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-        logger.debug(&#34;LIST s3://%s %s&#34;, self.path, relpath)
-        path = self.path / relpath
-        try:
-            return [Path(p).name for p in self.fs.ls(path)]
-        except FileNotFoundError:
-            if missing_ok:
-                return []
-            raise
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
+        logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+        paginator = self.client.get_paginator(&#34;list_objects&#34;)
+        prefix = str(self.path / relpath)
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        cut = len(prefix)
+        options = {
+            &#34;Bucket&#34;: str(self.bucket),
+            &#34;Prefix&#34;: prefix,
+            &#34;Delimiter&#34;: &#34;/&#34;,
+        }
+        if limit is not None:
+            options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
+
+        page_iterator = paginator.paginate(**options)
+        names = []
+        for page in page_iterator:
+            # Extract pseudo-folder names
+            common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
+            names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+            # Extract keys (filenames)
+            contents = page.get(&#34;Contents&#34;, [])
+            names.extend(item[&#34;Key&#34;][cut:] for item in contents)
+        return names
 
     def read(self, relpath, mode=&#34;rb&#34;):
-        logger.debug(&#34;READ s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).read()
+        logger.debug(&#34;READ s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+        key = str(self.path / relpath)
+        try:
+            resp = self.client.get_object(Bucket=str(self.bucket), Key=key)
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+                raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+
+        return resp[&#34;Body&#34;].read()
 
     def write(self, relpath, data, mode=&#34;wb&#34;):
         if self.isfile(relpath):
-            logger.debug(&#34;SKIP-WRITE s3://%s %s&#34;, self.path, relpath)
+            logger.debug(&#34;SKIP-WRITE s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
             return
-        logger.debug(&#34;WRITE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
-        return self.fs.open(path, mode).write(data)
+        logger.debug(&#34;WRITE s3:///%s%s %s&#34;, self.bucket, self.path, relpath)
+        key = str(self.path / relpath)
+        response = self.client.put_object(
+            Bucket=str(self.bucket),
+            Body=data,
+            Key=key,
+        )
+        assert response[&#34;ResponseMetadata&#34;][&#34;HTTPStatusCode&#34;] == 200
+        return len(data)
 
     def isdir(self, relpath):
-        return self.fs.isdir(self.path / relpath)
+        return len(self.ls(relpath, limit=1)) &gt; 0
 
     def isfile(self, relpath):
-        return self.fs.isfile(self.path / relpath)
+        key = str(self.path / relpath)
+        try:
+            _ = self.client.get_object(Bucket=str(self.bucket), Key=key)
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+                return False
+            # Other kind of error, reraise
+            raise
+        return True
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
-        logger.debug(&#34;REMOVE s3://%s %s&#34;, self.path, relpath)
-        path = str(self.path / relpath)
+        logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+        prefix = str(self.path / relpath)
+        if recursive:
+            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+            resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
+            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+        else:
+            keys = [prefix]
         try:
-            return self.fs.rm(path, recursive=recursive)
-        except FileNotFoundError:
-            if missing_ok:
-                return
-            raise
+            _ = self.client.delete_objects(
+                Bucket=str(self.bucket),
+                Delete={
+                    &#34;Objects&#34;: [{&#34;Key&#34;: k} for k in keys],
+                    &#34;Quiet&#34;: True,
+                },
+            )
+            # TODO check for error in response
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
+                raise
+            # As of version 2.2.6, Moto doesn&#39;t support correctly
+            # delete_objects() calls, we fall back to delete_object()
+            for key in keys:
+                self.client.delete_object(
+                    Bucket=str(self.bucket),
+                    Key=key,
+                )
+
+        # XXX implement missing_ok
 
     def mv(self, from_path, to_path, missing_ok=False):
         orig = str(self.path / from_path)
         dest = str(self.path / to_path)
-        logger.debug(&#34;MOVE s3://%s to s3://%s&#34;, orig, dest)
+        logger.debug(
+            &#34;MOVE s3://%s/%s to s3://%s/%s&#34;, self.bucket, orig, self.bucket, dest
+        )
         try:
-            self.fs.mv(orig, dest)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise</code></pre>
+            # Copy to dest
+            self.client.copy(
+                {&#34;Bucket&#34;: str(self.bucket), &#34;Key&#34;: orig},
+                str(self.bucket),
+                dest,
+            )
+            # Delete orig
+            self.client.delete_object(
+                Bucket=str(self.bucket),
+                Key=orig,
+            )
+        except ClientError as err:
+            if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;404&#34;:
+                if missing_ok:
+                    return
+                raise FileNotFoundError(f&#39;Path &#34;{orig}&#34; not found&#39;)
+            raise</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -279,7 +435,7 @@ class S3POD(POD):
 </summary>
 <pre><code class="python">def cd(self, *others):
     path = self.path.joinpath(*others)
-    return S3POD(path, fs=self.fs)</code></pre>
+    return S3POD(self.bucket / path, client=self.client)</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.isdir"><code class="name flex">
@@ -292,7 +448,7 @@ class S3POD(POD):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def isdir(self, relpath):
-    return self.fs.isdir(self.path / relpath)</code></pre>
+    return len(self.ls(relpath, limit=1)) &gt; 0</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.isfile"><code class="name flex">
@@ -305,11 +461,19 @@ class S3POD(POD):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def isfile(self, relpath):
-    return self.fs.isfile(self.path / relpath)</code></pre>
+    key = str(self.path / relpath)
+    try:
+        _ = self.client.get_object(Bucket=str(self.bucket), Key=key)
+    except ClientError as err:
+        if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+            return False
+        # Other kind of error, reraise
+        raise
+    return True</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.ls"><code class="name flex">
-<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False)</span>
+<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False, limit=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -317,15 +481,30 @@ class S3POD(POD):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False):
-    logger.debug(&#34;LIST s3://%s %s&#34;, self.path, relpath)
-    path = self.path / relpath
-    try:
-        return [Path(p).name for p in self.fs.ls(path)]
-    except FileNotFoundError:
-        if missing_ok:
-            return []
-        raise</code></pre>
+<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
+    logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+    paginator = self.client.get_paginator(&#34;list_objects&#34;)
+    prefix = str(self.path / relpath)
+    prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+    cut = len(prefix)
+    options = {
+        &#34;Bucket&#34;: str(self.bucket),
+        &#34;Prefix&#34;: prefix,
+        &#34;Delimiter&#34;: &#34;/&#34;,
+    }
+    if limit is not None:
+        options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
+
+    page_iterator = paginator.paginate(**options)
+    names = []
+    for page in page_iterator:
+        # Extract pseudo-folder names
+        common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
+        names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+        # Extract keys (filenames)
+        contents = page.get(&#34;Contents&#34;, [])
+        names.extend(item[&#34;Key&#34;][cut:] for item in contents)
+    return names</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.mv"><code class="name flex">
@@ -340,12 +519,27 @@ class S3POD(POD):
 <pre><code class="python">def mv(self, from_path, to_path, missing_ok=False):
     orig = str(self.path / from_path)
     dest = str(self.path / to_path)
-    logger.debug(&#34;MOVE s3://%s to s3://%s&#34;, orig, dest)
+    logger.debug(
+        &#34;MOVE s3://%s/%s to s3://%s/%s&#34;, self.bucket, orig, self.bucket, dest
+    )
     try:
-        self.fs.mv(orig, dest)
-    except FileNotFoundError:
-        if not missing_ok:
-            raise</code></pre>
+        # Copy to dest
+        self.client.copy(
+            {&#34;Bucket&#34;: str(self.bucket), &#34;Key&#34;: orig},
+            str(self.bucket),
+            dest,
+        )
+        # Delete orig
+        self.client.delete_object(
+            Bucket=str(self.bucket),
+            Key=orig,
+        )
+    except ClientError as err:
+        if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;404&#34;:
+            if missing_ok:
+                return
+            raise FileNotFoundError(f&#39;Path &#34;{orig}&#34; not found&#39;)
+        raise</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.read"><code class="name flex">
@@ -358,9 +552,15 @@ class S3POD(POD):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def read(self, relpath, mode=&#34;rb&#34;):
-    logger.debug(&#34;READ s3://%s %s&#34;, self.path, relpath)
-    path = str(self.path / relpath)
-    return self.fs.open(path, mode).read()</code></pre>
+    logger.debug(&#34;READ s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+    key = str(self.path / relpath)
+    try:
+        resp = self.client.get_object(Bucket=str(self.bucket), Key=key)
+    except ClientError as err:
+        if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
+            raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+
+    return resp[&#34;Body&#34;].read()</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.rm"><code class="name flex">
@@ -373,14 +573,33 @@ class S3POD(POD):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
-    logger.debug(&#34;REMOVE s3://%s %s&#34;, self.path, relpath)
-    path = str(self.path / relpath)
+    logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+    prefix = str(self.path / relpath)
+    if recursive:
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
+        keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+    else:
+        keys = [prefix]
     try:
-        return self.fs.rm(path, recursive=recursive)
-    except FileNotFoundError:
-        if missing_ok:
-            return
-        raise</code></pre>
+        _ = self.client.delete_objects(
+            Bucket=str(self.bucket),
+            Delete={
+                &#34;Objects&#34;: [{&#34;Key&#34;: k} for k in keys],
+                &#34;Quiet&#34;: True,
+            },
+        )
+        # TODO check for error in response
+    except ClientError as err:
+        if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
+            raise
+        # As of version 2.2.6, Moto doesn&#39;t support correctly
+        # delete_objects() calls, we fall back to delete_object()
+        for key in keys:
+            self.client.delete_object(
+                Bucket=str(self.bucket),
+                Key=key,
+            )</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.write"><code class="name flex">
@@ -394,11 +613,17 @@ class S3POD(POD):
 </summary>
 <pre><code class="python">def write(self, relpath, data, mode=&#34;wb&#34;):
     if self.isfile(relpath):
-        logger.debug(&#34;SKIP-WRITE s3://%s %s&#34;, self.path, relpath)
+        logger.debug(&#34;SKIP-WRITE s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
         return
-    logger.debug(&#34;WRITE s3://%s %s&#34;, self.path, relpath)
-    path = str(self.path / relpath)
-    return self.fs.open(path, mode).write(data)</code></pre>
+    logger.debug(&#34;WRITE s3:///%s%s %s&#34;, self.bucket, self.path, relpath)
+    key = str(self.path / relpath)
+    response = self.client.put_object(
+        Bucket=str(self.bucket),
+        Body=data,
+        Key=key,
+    )
+    assert response[&#34;ResponseMetadata&#34;][&#34;HTTPStatusCode&#34;] == 200
+    return len(data)</code></pre>
 </details>
 </dd>
 </dl>

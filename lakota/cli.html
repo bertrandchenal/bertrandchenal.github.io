@@ -969,7 +969,9 @@ def run():
     # Add push command
     parser_push = subparsers.add_parser(&#34;push&#34;)
     parser_push.add_argument(&#34;remote&#34;)
-    parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.add_argument(
+        &#34;labels&#34;, nargs=&#34;*&#34;, help=&#34;Collection to push (all if not set)&#34;
+    )
     parser_push.add_argument(
         &#34;-s&#34;,
         &#34;--shallow&#34;,
@@ -981,7 +983,9 @@ def run():
     # Add pull command
     parser_pull = subparsers.add_parser(&#34;pull&#34;)
     parser_pull.add_argument(&#34;remote&#34;)
-    parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.add_argument(
+        &#34;labels&#34;, nargs=&#34;*&#34;, help=&#34;Collection to pull (all if not set)&#34;
+    )
     parser_pull.add_argument(
         &#34;-s&#34;,
         &#34;--shallow&#34;,
@@ -1737,7 +1741,9 @@ Date: {timestamp}&#34;&#34;&#34;
     # Add push command
     parser_push = subparsers.add_parser(&#34;push&#34;)
     parser_push.add_argument(&#34;remote&#34;)
-    parser_push.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_push.add_argument(
+        &#34;labels&#34;, nargs=&#34;*&#34;, help=&#34;Collection to push (all if not set)&#34;
+    )
     parser_push.add_argument(
         &#34;-s&#34;,
         &#34;--shallow&#34;,
@@ -1749,7 +1755,9 @@ Date: {timestamp}&#34;&#34;&#34;
     # Add pull command
     parser_pull = subparsers.add_parser(&#34;pull&#34;)
     parser_pull.add_argument(&#34;remote&#34;)
-    parser_pull.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_pull.add_argument(
+        &#34;labels&#34;, nargs=&#34;*&#34;, help=&#34;Collection to pull (all if not set)&#34;
+    )
     parser_pull.add_argument(
         &#34;-s&#34;,
         &#34;--shallow&#34;,

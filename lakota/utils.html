@@ -66,6 +66,7 @@ class Settings:
     squash_max_chunk: int = 4  # Max number of small chunks in a series
     timeout: int = 600  # Max duration for a write batch (in seconds)
 
+
 settings = Settings()
 
 
@@ -95,7 +96,10 @@ def hextime(timestamp=None):
     &gt;&gt;&gt;
     &#34;&#34;&#34;
     timestamp = time() if timestamp is None else timestamp
-    return hex(int(timestamp * 1000))[2:]
+    hex_ts = hex(
+        int(timestamp * 1000)
+    )  # get rid of sub-milisecond digits &amp; convert fo hex
+    return hex_ts[2:].rjust(11, &#34;0&#34;)  # remove the &#34;0x&#34; prefix and add zeroes on front
 
 
 def encoder(*items):
@@ -489,7 +493,10 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
     &gt;&gt;&gt;
     &#34;&#34;&#34;
     timestamp = time() if timestamp is None else timestamp
-    return hex(int(timestamp * 1000))[2:]</code></pre>
+    hex_ts = hex(
+        int(timestamp * 1000)
+    )  # get rid of sub-milisecond digits &amp; convert fo hex
+    return hex_ts[2:].rjust(11, &#34;0&#34;)  # remove the &#34;0x&#34; prefix and add zeroes on front</code></pre>
 </details>
 </dd>
 <dt id="lakota.utils.memoize"><code class="name flex">

@@ -66,9 +66,9 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 try:
-    import s3fs
+    import boto3
 except ImportError:
-    s3fs = None
+    boto3 = None
 
 try:
     import requests
@@ -92,16 +92,16 @@ class POD:
         return cls._by_token[token]
 
     @classmethod
-    def from_uri(cls, uri=None, **fs_kwargs):
+    def from_uri(cls, uri=None):
         # multi-uri -&gt; CachePOD
         if uri and isinstance(uri, (tuple, list)):
             if len(uri) &gt; 1:
                 return CachePOD(
-                    local=POD.from_uri(uri[0], **fs_kwargs),
-                    remote=POD.from_uri(uri[1:], **fs_kwargs),
+                    local=POD.from_uri(uri[0]),
+                    remote=POD.from_uri(uri[1:]),
                 )
             else:
-                return POD.from_uri(uri[0], **fs_kwargs)
+                return POD.from_uri(uri[0])
 
         # Define protocal and path
         parts = urlsplit(uri or &#34;&#34;)
@@ -127,9 +127,9 @@ class POD:
             assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
             return FilePOD(path)
         elif scheme == &#34;s3&#34;:
-            if s3fs is None:
+            if boto3 is None:
                 raise ValueError(
-                    f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+                    f&#39;Please install the &#34;boto3&#34; module in order to access {uri}&#39;
                 )
             profile = kwargs.get(&#34;profile&#34;, [None])[0]
             verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
@@ -501,6 +501,13 @@ class CachePOD(POD):
     def ls(self, relpath=&#34;.&#34;, missing_ok=False):
         return self.remote.ls(relpath, missing_ok=missing_ok)
 
+        # More (too) aggressive implementation:
+        # res = self.local.ls(relpath, missing_ok=missing_ok)
+        # if not res:
+        #     print(&#39;REMOTE!&#39;)
+        #     res = self.remote.ls(relpath, missing_ok=missing_ok)
+        # return res
+
     def read(self, relpath, mode=&#34;rb&#34;):
         try:
             return self.local.read(relpath, mode=mode)
@@ -584,7 +591,7 @@ class SSHPOD(POD):
 # Trigger imports if related dependencies are present
 if requests is not None:
     from .http_pod import HttpPOD
-if s3fs is not None:
+if boto3 is not None:
     from .s3_pod import S3POD</code></pre>
 </details>
 </section>
@@ -625,6 +632,13 @@ if s3fs is not None:
 
     def ls(self, relpath=&#34;.&#34;, missing_ok=False):
         return self.remote.ls(relpath, missing_ok=missing_ok)
+
+        # More (too) aggressive implementation:
+        # res = self.local.ls(relpath, missing_ok=missing_ok)
+        # if not res:
+        #     print(&#39;REMOTE!&#39;)
+        #     res = self.remote.ls(relpath, missing_ok=missing_ok)
+        # return res
 
     def read(self, relpath, mode=&#34;rb&#34;):
         try:
@@ -1438,16 +1452,16 @@ def split(cls, path):
         return cls._by_token[token]
 
     @classmethod
-    def from_uri(cls, uri=None, **fs_kwargs):
+    def from_uri(cls, uri=None):
         # multi-uri -&gt; CachePOD
         if uri and isinstance(uri, (tuple, list)):
             if len(uri) &gt; 1:
                 return CachePOD(
-                    local=POD.from_uri(uri[0], **fs_kwargs),
-                    remote=POD.from_uri(uri[1:], **fs_kwargs),
+                    local=POD.from_uri(uri[0]),
+                    remote=POD.from_uri(uri[1:]),
                 )
             else:
-                return POD.from_uri(uri[0], **fs_kwargs)
+                return POD.from_uri(uri[0])
 
         # Define protocal and path
         parts = urlsplit(uri or &#34;&#34;)
@@ -1473,9 +1487,9 @@ def split(cls, path):
             assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
             return FilePOD(path)
         elif scheme == &#34;s3&#34;:
-            if s3fs is None:
+            if boto3 is None:
                 raise ValueError(
-                    f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+                    f&#39;Please install the &#34;boto3&#34; module in order to access {uri}&#39;
                 )
             profile = kwargs.get(&#34;profile&#34;, [None])[0]
             verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
@@ -1564,7 +1578,7 @@ def from_token(cls, token):
 </details>
 </dd>
 <dt id="lakota.pod.POD.from_uri"><code class="name flex">
-<span>def <span class="ident">from_uri</span></span>(<span>uri=None, **fs_kwargs)</span>
+<span>def <span class="ident">from_uri</span></span>(<span>uri=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1573,16 +1587,16 @@ def from_token(cls, token):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@classmethod
-def from_uri(cls, uri=None, **fs_kwargs):
+def from_uri(cls, uri=None):
     # multi-uri -&gt; CachePOD
     if uri and isinstance(uri, (tuple, list)):
         if len(uri) &gt; 1:
             return CachePOD(
-                local=POD.from_uri(uri[0], **fs_kwargs),
-                remote=POD.from_uri(uri[1:], **fs_kwargs),
+                local=POD.from_uri(uri[0]),
+                remote=POD.from_uri(uri[1:]),
             )
         else:
-            return POD.from_uri(uri[0], **fs_kwargs)
+            return POD.from_uri(uri[0])
 
     # Define protocal and path
     parts = urlsplit(uri or &#34;&#34;)
@@ -1608,9 +1622,9 @@ def from_uri(cls, uri=None, **fs_kwargs):
         assert not parts.netloc, &#34;Malformed repo uri, should start with &#39;file:///&#39;&#34;
         return FilePOD(path)
     elif scheme == &#34;s3&#34;:
-        if s3fs is None:
+        if boto3 is None:
             raise ValueError(
-                f&#39;Please install the &#34;s3fs&#34; module in order to access {uri}&#39;
+                f&#39;Please install the &#34;boto3&#34; module in order to access {uri}&#39;
             )
         profile = kwargs.get(&#34;profile&#34;, [None])[0]
         verify = kwargs.get(&#34;verify&#34;, [&#34;&#34;])[0].lower() != &#34;false&#34;
