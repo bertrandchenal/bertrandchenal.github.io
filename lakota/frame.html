@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.frame API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -42,7 +42,7 @@ from numpy import (
 
 from .schema import Schema
 from .sexpr import AST, Alias
-from .utils import Closed, Pool, floor, pretty_nb
+from .utils import Closed, Pool, as_tz, floor, pivot, pretty_nb
 
 try:
     from pandas import DataFrame
@@ -57,11 +57,24 @@ class Frame:
     DataFrame-like object
     &#34;&#34;&#34;
 
+    _base_env = {
+        &#34;floor&#34;: floor,
+        &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
+        &#34;as-tz&#34;: as_tz,
+    }
+
     def __init__(self, schema, columns=None):
         self.schema = schema
         if DataFrame is not None and isinstance(columns, DataFrame):
             columns = {c: columns[c].values for c in columns}
-        self.columns = schema.cast(columns)
+        self.columns = schema.cast(
+            columns
+        )  # XXX create empty list if one column is missing ?
+        self.env = {}
+
+    @classmethod
+    def from_records(self, schema, records):
+        return Frame(schema, pivot(records, list(schema)))
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
@@ -175,20 +188,16 @@ class Frame:
         return res
 
     def eval_env(self):
-        return {
-            &#34;self&#34;: self,
-            &#34;floor&#34;: floor,
-            &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
-        }
+        return {**self._base_env, **self.env, &#34;self&#34;: self}
 
     @property
     def empty(self):
         return len(self) == 0
 
-    def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
-        &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
-        default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
-
+    def slice_index(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;
+        Return slice postions between two index value. `closed` can be &#34;l&#34;
+        (left, the default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
         &#34;&#34;&#34;
         closed = closed if isinstance(closed, Closed) else Closed[closed]
         idx_start = idx_stop = None
@@ -223,6 +232,13 @@ class Frame:
         for name in self.columns:
             cols[name] = self.columns[name][slc]
         return Frame(self.schema, cols)
+
+    def islice(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;
+        Return slice between two index values `start` and `stop`. It
+        simply combines `self.slice` and `self.slice_index`
+        &#34;&#34;&#34;
+        return self.slice(*self.slice_index(start, stop, closed))
 
     def __eq__(self, other):
         other = self.schema.cast(other)
@@ -273,7 +289,7 @@ class Frame:
         # Make sure we have a numpy array
         arr = self.schema[name].cast(arr)
         if len(arr) != len(self):
-            raise ValueError(&#34;Lenght mismatch&#34;)
+            raise ValueError(&#34;Length mismatch&#34;)
         self.columns[name] = arr
 
     def reduce(self, *col_list, **col_dict):
@@ -352,7 +368,7 @@ class Frame:
         if isinstance(by, slice):
             start = by.start and self.schema.deserialize(by.start)
             stop = by.stop and self.schema.deserialize(by.stop)
-            return self.slice(*self.index_slice(start, stop))
+            return self.islice(start, stop)
         # By mask -&gt; return a frame
         if isinstance(by, ndarray):
             return self.mask(by)
@@ -365,7 +381,7 @@ class Frame:
         if by in self.columns:
             return self.columns[by]
         else:
-            raise KeyError(f&#39;KeyError &#34;{by}&#34;&#39;)
+            raise KeyError(f&#39;KeyError: &#34;{by}&#34;&#39;)
 
     def drop(self, *columns):
         keep_columns = (c for c in self.columns if c not in columns)
@@ -377,6 +393,9 @@ class Frame:
     def select(self, keep):
         cols = {k: v for k, v in self.columns.items() if k in keep}
         return Frame(self.schema, cols)
+
+    def rename(self, mapping):
+        ...  # Use reduce instead ??
 
     def __repr__(self):
         res = []
@@ -409,11 +428,24 @@ class Frame:
     DataFrame-like object
     &#34;&#34;&#34;
 
+    _base_env = {
+        &#34;floor&#34;: floor,
+        &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
+        &#34;as-tz&#34;: as_tz,
+    }
+
     def __init__(self, schema, columns=None):
         self.schema = schema
         if DataFrame is not None and isinstance(columns, DataFrame):
             columns = {c: columns[c].values for c in columns}
-        self.columns = schema.cast(columns)
+        self.columns = schema.cast(
+            columns
+        )  # XXX create empty list if one column is missing ?
+        self.env = {}
+
+    @classmethod
+    def from_records(self, schema, records):
+        return Frame(schema, pivot(records, list(schema)))
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
@@ -527,20 +559,16 @@ class Frame:
         return res
 
     def eval_env(self):
-        return {
-            &#34;self&#34;: self,
-            &#34;floor&#34;: floor,
-            &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
-        }
+        return {**self._base_env, **self.env, &#34;self&#34;: self}
 
     @property
     def empty(self):
         return len(self) == 0
 
-    def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
-        &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
-        default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
-
+    def slice_index(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;
+        Return slice postions between two index value. `closed` can be &#34;l&#34;
+        (left, the default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
         &#34;&#34;&#34;
         closed = closed if isinstance(closed, Closed) else Closed[closed]
         idx_start = idx_stop = None
@@ -575,6 +603,13 @@ class Frame:
         for name in self.columns:
             cols[name] = self.columns[name][slc]
         return Frame(self.schema, cols)
+
+    def islice(self, start=None, stop=None, closed=&#34;l&#34;):
+        &#34;&#34;&#34;
+        Return slice between two index values `start` and `stop`. It
+        simply combines `self.slice` and `self.slice_index`
+        &#34;&#34;&#34;
+        return self.slice(*self.slice_index(start, stop, closed))
 
     def __eq__(self, other):
         other = self.schema.cast(other)
@@ -625,7 +660,7 @@ class Frame:
         # Make sure we have a numpy array
         arr = self.schema[name].cast(arr)
         if len(arr) != len(self):
-            raise ValueError(&#34;Lenght mismatch&#34;)
+            raise ValueError(&#34;Length mismatch&#34;)
         self.columns[name] = arr
 
     def reduce(self, *col_list, **col_dict):
@@ -704,7 +739,7 @@ class Frame:
         if isinstance(by, slice):
             start = by.start and self.schema.deserialize(by.start)
             stop = by.stop and self.schema.deserialize(by.stop)
-            return self.slice(*self.index_slice(start, stop))
+            return self.islice(start, stop)
         # By mask -&gt; return a frame
         if isinstance(by, ndarray):
             return self.mask(by)
@@ -717,7 +752,7 @@ class Frame:
         if by in self.columns:
             return self.columns[by]
         else:
-            raise KeyError(f&#39;KeyError &#34;{by}&#34;&#39;)
+            raise KeyError(f&#39;KeyError: &#34;{by}&#34;&#39;)
 
     def drop(self, *columns):
         keep_columns = (c for c in self.columns if c not in columns)
@@ -729,6 +764,9 @@ class Frame:
     def select(self, keep):
         cols = {k: v for k, v in self.columns.items() if k in keep}
         return Frame(self.schema, cols)
+
+    def rename(self, mapping):
+        ...  # Use reduce instead ??
 
     def __repr__(self):
         res = []
@@ -772,6 +810,20 @@ def concat(cls, *frames):
         cols[name] = concatenate(cols[name])
     # Create frame and sort it
     return Frame(schema, cols).sorted()</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.from_records"><code class="name flex">
+<span>def <span class="ident">from_records</span></span>(<span>schema, records)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def from_records(self, schema, records):
+    return Frame(schema, pivot(records, list(schema)))</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.from_segments"><code class="name flex">
@@ -922,11 +974,7 @@ def empty(self):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def eval_env(self):
-    return {
-        &#34;self&#34;: self,
-        &#34;floor&#34;: floor,
-        &#34;pretty_nb&#34;: lambda xs: asarray(list(map(pretty_nb, xs))),
-    }</code></pre>
+    return {**self._base_env, **self.env, &#34;self&#34;: self}</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.get"><code class="name flex">
@@ -966,30 +1014,6 @@ def empty(self):
     return lo</code></pre>
 </details>
 </dd>
-<dt id="lakota.frame.Frame.index_slice"><code class="name flex">
-<span>def <span class="ident">index_slice</span></span>(<span>self, start=None, stop=None, closed='l')</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Slice between two index value. <code>closed</code> can be "l" (left, the
-default), "r" (right) "n" (none) or "b" (both).</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def index_slice(self, start=None, stop=None, closed=&#34;l&#34;):
-    &#34;&#34;&#34;Slice between two index value. `closed` can be &#34;l&#34; (left, the
-    default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
-
-    &#34;&#34;&#34;
-    closed = closed if isinstance(closed, Closed) else Closed[closed]
-    idx_start = idx_stop = None
-    if start:
-        idx_start = self.index(start, right=not closed.left)
-    if stop:
-        idx_stop = self.index(stop, right=closed.right)
-    return idx_start, idx_stop</code></pre>
-</details>
-</dd>
 <dt id="lakota.frame.Frame.is_sorted"><code class="name flex">
 <span>def <span class="ident">is_sorted</span></span>(<span>self)</span>
 </code></dt>
@@ -1010,6 +1034,24 @@ default), "r" (right) "n" (none) or "b" (both).</p></div>
     sort_mask = self.argsort()
     a_range = arange(len(sort_mask))
     return all(sort_mask == a_range)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.islice"><code class="name flex">
+<span>def <span class="ident">islice</span></span>(<span>self, start=None, stop=None, closed='l')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return slice between two index values <code>start</code> and <code>stop</code>. It
+simply combines <code>self.slice</code> and <code>self.slice_index</code></p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def islice(self, start=None, stop=None, closed=&#34;l&#34;):
+    &#34;&#34;&#34;
+    Return slice between two index values `start` and `stop`. It
+    simply combines `self.slice` and `self.slice_index`
+    &#34;&#34;&#34;
+    return self.slice(*self.slice_index(start, stop, closed))</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.keys"><code class="name flex">
@@ -1154,6 +1196,19 @@ evaluated.</p></div>
     return Frame(schema, res)</code></pre>
 </details>
 </dd>
+<dt id="lakota.frame.Frame.rename"><code class="name flex">
+<span>def <span class="ident">rename</span></span>(<span>self, mapping)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rename(self, mapping):
+    ...  # Use reduce instead ??</code></pre>
+</details>
+</dd>
 <dt id="lakota.frame.Frame.select"><code class="name flex">
 <span>def <span class="ident">select</span></span>(<span>self, keep)</span>
 </code></dt>
@@ -1188,6 +1243,30 @@ evaluated.</p></div>
     for name in self.columns:
         cols[name] = self.columns[name][slc]
     return Frame(self.schema, cols)</code></pre>
+</details>
+</dd>
+<dt id="lakota.frame.Frame.slice_index"><code class="name flex">
+<span>def <span class="ident">slice_index</span></span>(<span>self, start=None, stop=None, closed='l')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return slice postions between two index value. <code>closed</code> can be "l"
+(left, the default), "r" (right) "n" (none) or "b" (both).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def slice_index(self, start=None, stop=None, closed=&#34;l&#34;):
+    &#34;&#34;&#34;
+    Return slice postions between two index value. `closed` can be &#34;l&#34;
+    (left, the default), &#34;r&#34; (right) &#34;n&#34; (none) or &#34;b&#34; (both).
+    &#34;&#34;&#34;
+    closed = closed if isinstance(closed, Closed) else Closed[closed]
+    idx_start = idx_stop = None
+    if start:
+        idx_start = self.index(start, right=not closed.left)
+    if stop:
+        idx_stop = self.index(stop, right=closed.right)
+    return idx_start, idx_stop</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.sorted"><code class="name flex">
@@ -1279,18 +1358,21 @@ convert the type of returned arrays (see <code>map_dtype</code> method on
 <li><code><a title="lakota.frame.Frame.empty" href="#lakota.frame.Frame.empty">empty</a></code></li>
 <li><code><a title="lakota.frame.Frame.eval" href="#lakota.frame.Frame.eval">eval</a></code></li>
 <li><code><a title="lakota.frame.Frame.eval_env" href="#lakota.frame.Frame.eval_env">eval_env</a></code></li>
+<li><code><a title="lakota.frame.Frame.from_records" href="#lakota.frame.Frame.from_records">from_records</a></code></li>
 <li><code><a title="lakota.frame.Frame.from_segments" href="#lakota.frame.Frame.from_segments">from_segments</a></code></li>
 <li><code><a title="lakota.frame.Frame.get" href="#lakota.frame.Frame.get">get</a></code></li>
 <li><code><a title="lakota.frame.Frame.index" href="#lakota.frame.Frame.index">index</a></code></li>
-<li><code><a title="lakota.frame.Frame.index_slice" href="#lakota.frame.Frame.index_slice">index_slice</a></code></li>
 <li><code><a title="lakota.frame.Frame.is_sorted" href="#lakota.frame.Frame.is_sorted">is_sorted</a></code></li>
+<li><code><a title="lakota.frame.Frame.islice" href="#lakota.frame.Frame.islice">islice</a></code></li>
 <li><code><a title="lakota.frame.Frame.keys" href="#lakota.frame.Frame.keys">keys</a></code></li>
 <li><code><a title="lakota.frame.Frame.mask" href="#lakota.frame.Frame.mask">mask</a></code></li>
 <li><code><a title="lakota.frame.Frame.read_segments" href="#lakota.frame.Frame.read_segments">read_segments</a></code></li>
 <li><code><a title="lakota.frame.Frame.records" href="#lakota.frame.Frame.records">records</a></code></li>
 <li><code><a title="lakota.frame.Frame.reduce" href="#lakota.frame.Frame.reduce">reduce</a></code></li>
+<li><code><a title="lakota.frame.Frame.rename" href="#lakota.frame.Frame.rename">rename</a></code></li>
 <li><code><a title="lakota.frame.Frame.select" href="#lakota.frame.Frame.select">select</a></code></li>
 <li><code><a title="lakota.frame.Frame.slice" href="#lakota.frame.Frame.slice">slice</a></code></li>
+<li><code><a title="lakota.frame.Frame.slice_index" href="#lakota.frame.Frame.slice_index">slice_index</a></code></li>
 <li><code><a title="lakota.frame.Frame.sorted" href="#lakota.frame.Frame.sorted">sorted</a></code></li>
 <li><code><a title="lakota.frame.Frame.start" href="#lakota.frame.Frame.start">start</a></code></li>
 <li><code><a title="lakota.frame.Frame.stop" href="#lakota.frame.Frame.stop">stop</a></code></li>
@@ -1303,7 +1385,7 @@ convert the type of returned arrays (see <code>map_dtype</code> method on
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>

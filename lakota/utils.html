@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.utils API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -41,7 +41,8 @@ from pathlib import PurePosixPath
 from threading import Lock
 from time import perf_counter, time
 
-from numpy import arange
+import pytz
+from numpy import arange, array, minimum, searchsorted
 
 default_hash = sha1
 hexhash_len = 40
@@ -68,6 +69,18 @@ class Settings:
 
 
 settings = Settings()
+
+
+def pivot(records, keys):
+    &#34;&#34;&#34;
+    Convert a list of dict to a dict of lists
+    &#34;&#34;&#34;
+    if not records:
+        return {}
+    # Extract column names from first record
+    keys = list(records[0])
+    columns = [[i[k] for i in records] for k in keys]
+    return dict(zip(keys, columns))
 
 
 def chunky(collection, size=100):
@@ -260,6 +273,29 @@ def day_of_week_num(arr):
     return (arr.astype(&#34;M8[D]&#34;).view(&#34;int64&#34;) - 4) % 7
 
 
+_tz_cache = {}
+
+
+def as_tz(arr, timezone):
+    &#34;&#34;&#34;
+    Convert UTC-naive array of timestamps to `timezone` (still naive)
+    &#34;&#34;&#34;
+    if timezone in _tz_cache:
+        transitions, offsets = _tz_cache[timezone]
+    else:
+        tz = pytz.timezone(timezone)
+        transitions = array(tz._utc_transition_times, dtype=&#34;M8[s]&#34;)
+        offsets = array([i[0].total_seconds() for i in tz._transition_info], dtype=&#34;i8&#34;)
+        _tz_cache[timezone] = transitions, offsets
+
+    # Compute mapping between transition time and offsets
+    mapping = searchsorted(transitions, arr, side=&#34;right&#34;) + 1
+    # Fallback to last offset when last transition os reached
+    mapping = minimum(mapping, len(offsets) - 1)
+    # Apply mapping
+    return arr.astype(&#34;M8[s]&#34;) + offsets[mapping]
+
+
 def yaml_load(stream):
     import yaml
 
@@ -332,6 +368,35 @@ class Closed(Flag):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="lakota.utils.as_tz"><code class="name flex">
+<span>def <span class="ident">as_tz</span></span>(<span>arr, timezone)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert UTC-naive array of timestamps to <code>timezone</code> (still naive)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_tz(arr, timezone):
+    &#34;&#34;&#34;
+    Convert UTC-naive array of timestamps to `timezone` (still naive)
+    &#34;&#34;&#34;
+    if timezone in _tz_cache:
+        transitions, offsets = _tz_cache[timezone]
+    else:
+        tz = pytz.timezone(timezone)
+        transitions = array(tz._utc_transition_times, dtype=&#34;M8[s]&#34;)
+        offsets = array([i[0].total_seconds() for i in tz._transition_info], dtype=&#34;i8&#34;)
+        _tz_cache[timezone] = transitions, offsets
+
+    # Compute mapping between transition time and offsets
+    mapping = searchsorted(transitions, arr, side=&#34;right&#34;) + 1
+    # Fallback to last offset when last transition os reached
+    mapping = minimum(mapping, len(offsets) - 1)
+    # Apply mapping
+    return arr.astype(&#34;M8[s]&#34;) + offsets[mapping]</code></pre>
+</details>
+</dd>
 <dt id="lakota.utils.chunky"><code class="name flex">
 <span>def <span class="ident">chunky</span></span>(<span>collection, size=100)</span>
 </code></dt>
@@ -542,6 +607,27 @@ unit can be 'Y', 'M', 'D', 'h', 'm' or 's'.</p></div>
         if next_step &gt;= stop:
             break
         step = next_step</code></pre>
+</details>
+</dd>
+<dt id="lakota.utils.pivot"><code class="name flex">
+<span>def <span class="ident">pivot</span></span>(<span>records, keys)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert a list of dict to a dict of lists</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pivot(records, keys):
+    &#34;&#34;&#34;
+    Convert a list of dict to a dict of lists
+    &#34;&#34;&#34;
+    if not records:
+        return {}
+    # Extract column names from first record
+    keys = list(records[0])
+    columns = [[i[k] for i in records] for k in keys]
+    return dict(zip(keys, columns))</code></pre>
 </details>
 </dd>
 <dt id="lakota.utils.pretty_nb"><code class="name flex">
@@ -987,7 +1073,8 @@ def bisect(cls, nb_seconds):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Settings:
+<pre><code class="python">@dataclass
+class Settings:
     threaded: bool = True
     debug: bool = False
     verify_ssl: bool = True
@@ -1044,6 +1131,7 @@ def bisect(cls, nb_seconds):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="two-column">
+<li><code><a title="lakota.utils.as_tz" href="#lakota.utils.as_tz">as_tz</a></code></li>
 <li><code><a title="lakota.utils.chunky" href="#lakota.utils.chunky">chunky</a></code></li>
 <li><code><a title="lakota.utils.day_of_week_num" href="#lakota.utils.day_of_week_num">day_of_week_num</a></code></li>
 <li><code><a title="lakota.utils.drange" href="#lakota.utils.drange">drange</a></code></li>
@@ -1055,6 +1143,7 @@ def bisect(cls, nb_seconds):
 <li><code><a title="lakota.utils.hextime" href="#lakota.utils.hextime">hextime</a></code></li>
 <li><code><a title="lakota.utils.memoize" href="#lakota.utils.memoize">memoize</a></code></li>
 <li><code><a title="lakota.utils.paginate" href="#lakota.utils.paginate">paginate</a></code></li>
+<li><code><a title="lakota.utils.pivot" href="#lakota.utils.pivot">pivot</a></code></li>
 <li><code><a title="lakota.utils.pretty_nb" href="#lakota.utils.pretty_nb">pretty_nb</a></code></li>
 <li><code><a title="lakota.utils.profile_object" href="#lakota.utils.profile_object">profile_object</a></code></li>
 <li><code><a title="lakota.utils.skip" href="#lakota.utils.skip">skip</a></code></li>
@@ -1117,7 +1206,7 @@ def bisect(cls, nb_seconds):
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>

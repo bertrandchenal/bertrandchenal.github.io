@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.cli API documentation</title>
 <meta name="description" content="Example usage …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -510,6 +510,8 @@ def get_series(repo, label, auto_create=False):
     match = [s for s in collection.ls() if s.startswith(s_label)]
     if len(match) == 1:
         return collection / match[0]
+    elif s_label in match:
+        return collection / s_label
     exit(f&#34;Series &#39;{label}&#39; not found&#34;)
 
 
@@ -639,14 +641,16 @@ def rev(args):
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
         timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
+        ci = rev.commit(collection)
         print(
             f&#34;&#34;&#34;
 Revision: {rev.path}{&#34;*&#34; if rev.is_leaf else &#34;&#34;}
-Date: {timestamp}&#34;&#34;&#34;
+Date: {timestamp}
+Total length: {sum(ci.length)}
+&#34;&#34;&#34;
         )
         if not args.extended:
             continue
-        ci = rev.commit(collection)
         if series is not None:
             ci = ci.mask(ci.label == series.label)
         starts = list(map(fmt, zip(*ci.start.values())))
@@ -719,9 +723,9 @@ def write(args):
     repo = get_repo(args)
     series = get_series(repo, args.label, auto_create=True)
     reader = csv.reader(sys.stdin)
-    columns = zip(*reader)
-    schema = series.schema
-    df = dict(zip(schema.columns, columns))
+    headers = next(reader)
+    columns = list(zip(*reader))
+    df = dict(zip(headers, columns))
     series.write(df)
 
 
@@ -786,7 +790,7 @@ def pull(args):
 
 def delete(args):
     &#34;&#34;&#34;
-    Delete a series
+    Delete a series or a collection
     ```
     $ lakota delete my_collection/my_series
     ```
@@ -1003,6 +1007,7 @@ def run():
     # Add write command
     parser_write = subparsers.add_parser(&#34;write&#34;)
     parser_write.add_argument(&#34;label&#34;)
+    # TODO add --update flag to do Series.update instead of Series.write
     parser_write.set_defaults(func=write)
 
     # Add merge command
@@ -1154,7 +1159,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 <span>def <span class="ident">delete</span></span>(<span>args)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Delete a series</p>
+<div class="desc"><p>Delete a series or a collection</p>
 <pre><code>$ lakota delete my_collection/my_series
 </code></pre>
 <p>Delete a collection</p>
@@ -1166,7 +1171,7 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
 </summary>
 <pre><code class="python">def delete(args):
     &#34;&#34;&#34;
-    Delete a series
+    Delete a series or a collection
     ```
     $ lakota delete my_collection/my_series
     ```
@@ -1291,6 +1296,8 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
     match = [s for s in collection.ls() if s.startswith(s_label)]
     if len(match) == 1:
         return collection / match[0]
+    elif s_label in match:
+        return collection / s_label
     exit(f&#34;Series &#39;{label}&#39; not found&#34;)</code></pre>
 </details>
 </dd>
@@ -1603,14 +1610,16 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
         timestamp = str(datetime.fromtimestamp(int(rev.epoch, 16) / 1000))
+        ci = rev.commit(collection)
         print(
             f&#34;&#34;&#34;
 Revision: {rev.path}{&#34;*&#34; if rev.is_leaf else &#34;&#34;}
-Date: {timestamp}&#34;&#34;&#34;
+Date: {timestamp}
+Total length: {sum(ci.length)}
+&#34;&#34;&#34;
         )
         if not args.extended:
             continue
-        ci = rev.commit(collection)
         if series is not None:
             ci = ci.mask(ci.label == series.label)
         starts = list(map(fmt, zip(*ci.start.values())))
@@ -1775,6 +1784,7 @@ Date: {timestamp}&#34;&#34;&#34;
     # Add write command
     parser_write = subparsers.add_parser(&#34;write&#34;)
     parser_write.add_argument(&#34;label&#34;)
+    # TODO add --update flag to do Series.update instead of Series.write
     parser_write.set_defaults(func=write)
 
     # Add merge command
@@ -1928,9 +1938,9 @@ repo changelog.</p></div>
     repo = get_repo(args)
     series = get_series(repo, args.label, auto_create=True)
     reader = csv.reader(sys.stdin)
-    columns = zip(*reader)
-    schema = series.schema
-    df = dict(zip(schema.columns, columns))
+    headers = next(reader)
+    columns = list(zip(*reader))
+    df = dict(zip(headers, columns))
     series.write(df)</code></pre>
 </details>
 </dd>
@@ -1984,7 +1994,7 @@ repo changelog.</p></div>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.schema API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -31,7 +31,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from numcodecs import registry
-from numpy import asarray, ascontiguousarray, dtype, frombuffer, issubdtype, ndarray
+from numpy import asarray, ascontiguousarray, dtype, frombuffer, issubdtype, ndarray, repeat
+
+from .utils import hexdigest
+
 
 DTYPES = [dtype(s) for s in (&#34;datetime64[s]&#34;, &#34;int64&#34;, &#34;float64&#34;, &#34;U&#34;, &#34;O&#34;)]
 
@@ -77,24 +80,35 @@ class Codec:
                 default_codec_names = [&#34;msgpack2&#34;, &#34;zstd&#34;]
             self.codec_names = default_codec_names
 
-    def encode(self, arr):
+    def encode(self, arr, with_digest=False):
         if len(arr) == 0:
-            return b&#34;&#34;
-        # encoding may require contiguous memory
-        arr = ascontiguousarray(arr)
-        # convert to proper type
-        arr = arr.astype(self.dt)
-        # Apply codecs
-        for codec_name in self.codec_names:
-            codec = registry.codec_registry[codec_name]
-            kw = {}
-            if codec_name == &#34;blosc&#34;:
-                kw = {
-                    &#34;cname&#34;: &#34;zstd&#34;,
-                    &#34;shuffle&#34;: codec.BITSHUFFLE,
-                }
-            arr = codec(**kw).encode(arr)
-        return arr
+            res = b&#34;&#34;
+        else:
+            # encoding may require contiguous memory
+            res = ascontiguousarray(arr)
+            # convert to proper type
+            res = res.astype(self.dt)
+            # Apply codecs
+            for codec_name in self.codec_names:
+                codec = registry.codec_registry[codec_name]
+                kw = {}
+                if codec_name == &#34;blosc&#34;:
+                    kw = {
+                        &#34;cname&#34;: &#34;zstd&#34;,
+                        &#34;shuffle&#34;: codec.BITSHUFFLE,
+                    }
+                res = codec(**kw).encode(res)
+        if not with_digest:
+            return res
+
+        # Extra step: compute digest
+        if issubdtype(self.dt, &#34;M&#34;):
+            digest = hexdigest(ascontiguousarray(arr.view(&#34;i8&#34;)))
+        elif self.dt in (dtype(&#34;O&#34;), dtype(&#34;U&#34;)):
+            digest = hexdigest(res)
+        else:
+            digest = hexdigest(ascontiguousarray(arr))
+        return res, digest
 
     def decode(self, arr):
         if len(arr) == 0:
@@ -176,6 +190,10 @@ class SchemaColumn:
             and self.codec == other.codec
         )
 
+    def zeroes(self, length):
+        zero = &#34;&#34; if self.codec.dt == &#34;str&#34; else 0
+        return repeat(zero, length)
+
 
 class Schema:
     def __init__(self, **columns):
@@ -200,7 +218,8 @@ class Schema:
     @classmethod
     def from_frame(cls, frame, idx_columns=None):
         &#34;&#34;&#34;
-        Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
+        Instantiate a schema based on the column names and type if the
+        given frame (a dict or a dataframe)
         &#34;&#34;&#34;
         idx_columns = idx_columns or list(frame)
         col_defs = {}
@@ -331,7 +350,8 @@ class SeriesDefinition:
     @classmethod
     def from_frame(cls, frame, idx_columns=None):
         &#34;&#34;&#34;
-        Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
+        Instantiate a schema based on the column names and type if the
+        given frame (a dict or a dataframe)
         &#34;&#34;&#34;
         idx_columns = idx_columns or list(frame)
         col_defs = {}
@@ -419,7 +439,8 @@ class SeriesDefinition:
 <span>def <span class="ident">from_frame</span></span>(<span>frame, idx_columns=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)</p></div>
+<div class="desc"><p>Instantiate a schema based on the column names and type if the
+given frame (a dict or a dataframe)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -427,7 +448,8 @@ class SeriesDefinition:
 <pre><code class="python">@classmethod
 def from_frame(cls, frame, idx_columns=None):
     &#34;&#34;&#34;
-    Instantiate a schema based on the column names and type if the given frame (a dict or a dataframe)
+    Instantiate a schema based on the column names and type if the
+    given frame (a dict or a dataframe)
     &#34;&#34;&#34;
     idx_columns = idx_columns or list(frame)
     col_defs = {}
@@ -606,7 +628,7 @@ given position</p></div>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>

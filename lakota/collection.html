@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.collection API documentation</title>
 <meta name="description" content="Read and Writes Series …" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
@@ -106,9 +106,10 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from itertools import chain
 from threading import Lock
+from typing import Dict, Any
 
 from .batch import Batch
-from .changelog import Changelog
+from .changelog import Changelog, phi
 from .commit import Commit
 from .series import KVSeries, Series
 from .utils import Pool, hashed_path, logger, settings
@@ -159,6 +160,9 @@ class Collection:
         return self.changelog.commit(payload, parents=[parent])
 
     def rename(self, from_label, to_label):
+        &#39;&#39;&#39;
+        Rename Series
+        &#39;&#39;&#39;
         leaf_rev = self.changelog.leaf()
         if not leaf_rev:
             return
@@ -168,6 +172,53 @@ class Collection:
         parent = leaf_rev.child
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
+
+    def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+        if other_collection.changelog.leaf():
+            raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
+
+        other_schema = other_collection.schema
+        leaf_rev = self.changelog.leaf()
+        leaf_ci = leaf_rev.commit(self)
+        all_dig = leaf_ci.digest
+        for old_label, new_label in (rename_columns or {}).items():
+            all_dig[new_label] = all_dig.pop(old_label)
+        embedded = {}
+        for col in other_schema:
+            if col in all_dig:
+                continue
+            if col in other_schema.idx:
+                raise ValueError(&#34;Can not add idx column&#34;)
+            # Fill each commit row with digest &amp; embed data of zeroes
+            if defaults and col in defaults:
+                default_value = defaults[col]
+                values = [[default_value]*l for l in leaf_ci.length]
+            else:
+                values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
+            codec = other_schema[col].codec
+            col_embedded = {}
+            for v in values:
+                encoded, digest = codec.encode(v, with_digest=True)
+                col_embedded[digest] = encoded
+            # Add new coll to digest dict
+
+            all_dig[col] = list(col_embedded.keys())
+            # Add data to embedded
+            embedded.update(col_embedded)
+
+        embedded.update(leaf_ci.embedded)
+
+        new_ci = Commit(
+            other_schema,
+            leaf_ci.label,
+            leaf_ci.start,
+            leaf_ci.stop,
+            all_dig,
+            leaf_ci.length,
+            closed=leaf_ci.closed,
+            embedded=embedded,
+        )
+        return other_collection.changelog.commit(new_ci.encode(), parents=[phi])
 
     def refresh(self):
         self.changelog.refresh()
@@ -437,6 +488,9 @@ class Collection:
         return self.changelog.commit(payload, parents=[parent])
 
     def rename(self, from_label, to_label):
+        &#39;&#39;&#39;
+        Rename Series
+        &#39;&#39;&#39;
         leaf_rev = self.changelog.leaf()
         if not leaf_rev:
             return
@@ -446,6 +500,53 @@ class Collection:
         parent = leaf_rev.child
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
+
+    def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+        if other_collection.changelog.leaf():
+            raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
+
+        other_schema = other_collection.schema
+        leaf_rev = self.changelog.leaf()
+        leaf_ci = leaf_rev.commit(self)
+        all_dig = leaf_ci.digest
+        for old_label, new_label in (rename_columns or {}).items():
+            all_dig[new_label] = all_dig.pop(old_label)
+        embedded = {}
+        for col in other_schema:
+            if col in all_dig:
+                continue
+            if col in other_schema.idx:
+                raise ValueError(&#34;Can not add idx column&#34;)
+            # Fill each commit row with digest &amp; embed data of zeroes
+            if defaults and col in defaults:
+                default_value = defaults[col]
+                values = [[default_value]*l for l in leaf_ci.length]
+            else:
+                values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
+            codec = other_schema[col].codec
+            col_embedded = {}
+            for v in values:
+                encoded, digest = codec.encode(v, with_digest=True)
+                col_embedded[digest] = encoded
+            # Add new coll to digest dict
+
+            all_dig[col] = list(col_embedded.keys())
+            # Add data to embedded
+            embedded.update(col_embedded)
+
+        embedded.update(leaf_ci.embedded)
+
+        new_ci = Commit(
+            other_schema,
+            leaf_ci.label,
+            leaf_ci.start,
+            leaf_ci.stop,
+            all_dig,
+            leaf_ci.length,
+            closed=leaf_ci.closed,
+            embedded=embedded,
+        )
+        return other_collection.changelog.commit(new_ci.encode(), parents=[phi])
 
     def refresh(self):
         self.changelog.refresh()
@@ -654,6 +755,63 @@ class Collection:
 </details>
 <h3>Methods</h3>
 <dl>
+<dt id="lakota.collection.Collection.clone"><code class="name flex">
+<span>def <span class="ident">clone</span></span>(<span>self, other_collection: <a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a>, rename_columns: Dict[str, str] = None, defaults: Dict[str, Any] = None) ‑> <a title="lakota.commit.Commit" href="commit.html#lakota.commit.Commit">Commit</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+    if other_collection.changelog.leaf():
+        raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
+
+    other_schema = other_collection.schema
+    leaf_rev = self.changelog.leaf()
+    leaf_ci = leaf_rev.commit(self)
+    all_dig = leaf_ci.digest
+    for old_label, new_label in (rename_columns or {}).items():
+        all_dig[new_label] = all_dig.pop(old_label)
+    embedded = {}
+    for col in other_schema:
+        if col in all_dig:
+            continue
+        if col in other_schema.idx:
+            raise ValueError(&#34;Can not add idx column&#34;)
+        # Fill each commit row with digest &amp; embed data of zeroes
+        if defaults and col in defaults:
+            default_value = defaults[col]
+            values = [[default_value]*l for l in leaf_ci.length]
+        else:
+            values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
+        codec = other_schema[col].codec
+        col_embedded = {}
+        for v in values:
+            encoded, digest = codec.encode(v, with_digest=True)
+            col_embedded[digest] = encoded
+        # Add new coll to digest dict
+
+        all_dig[col] = list(col_embedded.keys())
+        # Add data to embedded
+        embedded.update(col_embedded)
+
+    embedded.update(leaf_ci.embedded)
+
+    new_ci = Commit(
+        other_schema,
+        leaf_ci.label,
+        leaf_ci.start,
+        leaf_ci.stop,
+        all_dig,
+        leaf_ci.length,
+        closed=leaf_ci.closed,
+        embedded=embedded,
+    )
+    return other_collection.changelog.commit(new_ci.encode(), parents=[phi])</code></pre>
+</details>
+</dd>
 <dt id="lakota.collection.Collection.delete"><code class="name flex">
 <span>def <span class="ident">delete</span></span>(<span>self, *labels)</span>
 </code></dt>
@@ -869,12 +1027,15 @@ def multi(self, root=None):
 <span>def <span class="ident">rename</span></span>(<span>self, from_label, to_label)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Rename Series</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def rename(self, from_label, to_label):
+    &#39;&#39;&#39;
+    Rename Series
+    &#39;&#39;&#39;
     leaf_rev = self.changelog.leaf()
     if not leaf_rev:
         return
@@ -1003,6 +1164,7 @@ created.</p></div>
 <li>
 <h4><code><a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a></code></h4>
 <ul class="two-column">
+<li><code><a title="lakota.collection.Collection.clone" href="#lakota.collection.Collection.clone">clone</a></code></li>
 <li><code><a title="lakota.collection.Collection.delete" href="#lakota.collection.Collection.delete">delete</a></code></li>
 <li><code><a title="lakota.collection.Collection.digests" href="#lakota.collection.Collection.digests">digests</a></code></li>
 <li><code><a title="lakota.collection.Collection.ls" href="#lakota.collection.Collection.ls">ls</a></code></li>
@@ -1022,7 +1184,7 @@ created.</p></div>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>

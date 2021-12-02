@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.2" />
+<meta name="generator" content="pdoc 0.10.0" />
 <title>lakota.commit API documentation</title>
 <meta name="description" content="The `Commit` class is responsible to structure the content of a
 commit file. A commit is like a sorted dataframe with the following
@@ -421,7 +421,7 @@ class Commit:
         start_row = None
         if start_pos &gt; 0:
             prev_row = self.at(start_pos - 1)
-            if prev_row[&#34;stop&#34;] == start:
+            if (prev_row[&#34;label&#34;], prev_row[&#34;stop&#34;]) == (label, start):
                 start_pos -= 1
                 start_row = prev_row
         if start_row is None:
@@ -462,7 +462,7 @@ class Commit:
         stop_row = None
         if stop_pos &lt; len(self):
             next_row = self.at(stop_pos)
-            if next_row[&#34;start&#34;] == stop:
+            if (next_row[&#34;label&#34;], next_row[&#34;start&#34;]) == (label, stop):
                 stop_row = next_row
                 stop_pos += 1
         if stop_row is None:
@@ -568,7 +568,6 @@ class Commit:
         if stop is None:
             closed = closed.set_right(True)
         res = []
-
         for row in self.match(
             label
         ):  # XXX allow to pass condition instead of simple start-stop ?
@@ -692,7 +691,9 @@ class Segment:
                     if f.startswith(filename):
                         data = sub_pod.read(f)
                         break
-        arr = self.commit.schema[name].codec.decode(data)
+
+        codec = self.commit.schema[name].codec
+        arr = codec.decode(data)
         return arr[self.start_pos : self.stop_pos]
 
     @property
@@ -710,7 +711,7 @@ class Segment:
                 cols[name] = self._read(name)
 
             frm = Frame(self.commit.schema, cols)
-            self.start_pos, self.stop_pos = frm.index_slice(
+            self.start_pos, self.stop_pos = frm.slice_index(
                 self.start, self.stop, closed=self.closed
             )
             self._frm = frm.slice(self.start_pos, self.stop_pos)
@@ -883,7 +884,7 @@ class Segment:
         start_row = None
         if start_pos &gt; 0:
             prev_row = self.at(start_pos - 1)
-            if prev_row[&#34;stop&#34;] == start:
+            if (prev_row[&#34;label&#34;], prev_row[&#34;stop&#34;]) == (label, start):
                 start_pos -= 1
                 start_row = prev_row
         if start_row is None:
@@ -924,7 +925,7 @@ class Segment:
         stop_row = None
         if stop_pos &lt; len(self):
             next_row = self.at(stop_pos)
-            if next_row[&#34;start&#34;] == stop:
+            if (next_row[&#34;label&#34;], next_row[&#34;start&#34;]) == (label, stop):
                 stop_row = next_row
                 stop_pos += 1
         if stop_row is None:
@@ -1030,7 +1031,6 @@ class Segment:
         if stop is None:
             closed = closed.set_right(True)
         res = []
-
         for row in self.match(
             label
         ):  # XXX allow to pass condition instead of simple start-stop ?
@@ -1420,7 +1420,6 @@ def one(
     if stop is None:
         closed = closed.set_right(True)
     res = []
-
     for row in self.match(
         label
     ):  # XXX allow to pass condition instead of simple start-stop ?
@@ -1556,7 +1555,7 @@ def one(
     start_row = None
     if start_pos &gt; 0:
         prev_row = self.at(start_pos - 1)
-        if prev_row[&#34;stop&#34;] == start:
+        if (prev_row[&#34;label&#34;], prev_row[&#34;stop&#34;]) == (label, start):
             start_pos -= 1
             start_row = prev_row
     if start_row is None:
@@ -1597,7 +1596,7 @@ def one(
     stop_row = None
     if stop_pos &lt; len(self):
         next_row = self.at(stop_pos)
-        if next_row[&#34;start&#34;] == stop:
+        if (next_row[&#34;label&#34;], next_row[&#34;start&#34;]) == (label, stop):
             stop_row = next_row
             stop_pos += 1
     if stop_row is None:
@@ -1678,7 +1677,9 @@ def one(
                     if f.startswith(filename):
                         data = sub_pod.read(f)
                         break
-        arr = self.commit.schema[name].codec.decode(data)
+
+        codec = self.commit.schema[name].codec
+        arr = codec.decode(data)
         return arr[self.start_pos : self.stop_pos]
 
     @property
@@ -1696,7 +1697,7 @@ def one(
                 cols[name] = self._read(name)
 
             frm = Frame(self.commit.schema, cols)
-            self.start_pos, self.stop_pos = frm.index_slice(
+            self.start_pos, self.stop_pos = frm.slice_index(
                 self.start, self.stop, closed=self.closed
             )
             self._frm = frm.slice(self.start_pos, self.stop_pos)
@@ -1726,7 +1727,7 @@ def frame(self):
             cols[name] = self._read(name)
 
         frm = Frame(self.commit.schema, cols)
-        self.start_pos, self.stop_pos = frm.index_slice(
+        self.start_pos, self.stop_pos = frm.slice_index(
             self.start, self.stop, closed=self.closed
         )
         self._frm = frm.slice(self.start_pos, self.stop_pos)
@@ -1807,7 +1808,7 @@ def frame(self):
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
 </footer>
 </body>
 </html>
