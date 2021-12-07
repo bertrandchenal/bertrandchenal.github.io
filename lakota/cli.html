@@ -108,7 +108,6 @@ timestamp,value
 2020-06-23T00:00:00,24.2
 2020-06-24T00:00:00,27.9
 </code></pre>
-<p>But <code>--mask</code> and group-by/aggregate are not compatible (yet).</p>
 <p>Built-in help:</p>
 <pre><code class="language-shell">$ lakota  --help
 usage: lakota [-h] [--repo REPO] [--timing] [--pretty] [--verbose]
@@ -151,14 +150,7 @@ optional arguments:
 <pre><code>$ lakota help ls
 
     List collections in a repo
-    ```
-    $ lakota ls
-    ```
-
-    List series in a collection
-    ```
-    $ lakota ls my_collection
-    ```
+    ...
 </code></pre>
 <h1 id="push-pull">Push &amp; pull</h1>
 <p>Create two repo and write in both:</p>
@@ -329,8 +321,6 @@ timestamp,value
 2020-06-24T00:00:00,27.9
 ```
 
-But `--mask` and group-by/aggregate are not compatible (yet).
-
 Built-in help:
 
 ```shell
@@ -377,16 +367,8 @@ Most sub commands come with extra doc:
 $ lakota help ls
 
     List collections in a repo
-    ```
-    $ lakota ls
-    ```
-
-    List series in a collection
-    ```
-    $ lakota ls my_collection
-    ```
+    ...
 ```
-
 
 
 
@@ -550,15 +532,18 @@ def read(args):
     else:
         columns = args.columns
 
-    query = series[columns][args.greater_than : args.less_than] @ {
+    kw = {
+        &#34;start&#34;: args.greater_than,
+        &#34;stop&#34;: args.less_than,
         &#34;limit&#34;: args.limit,
         &#34;offset&#34;: args.offset,
         &#34;before&#34;: args.before,
+        &#34;select&#34;: columns,
     }
     if args.paginate:
-        frames = query.paginate(args.paginate)
+        frames = series.paginate(args.paginate, **kw)
     else:
-        frames = [query.frame()]
+        frames = [series.frame(**kw)]
 
     if args.mask:
         frames = (frm.mask(args.mask) for frm in frames)
@@ -1539,15 +1524,18 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     else:
         columns = args.columns
 
-    query = series[columns][args.greater_than : args.less_than] @ {
+    kw = {
+        &#34;start&#34;: args.greater_than,
+        &#34;stop&#34;: args.less_than,
         &#34;limit&#34;: args.limit,
         &#34;offset&#34;: args.offset,
         &#34;before&#34;: args.before,
+        &#34;select&#34;: columns,
     }
     if args.paginate:
-        frames = query.paginate(args.paginate)
+        frames = series.paginate(args.paginate, **kw)
     else:
-        frames = [query.frame()]
+        frames = [series.frame(**kw)]
 
     if args.mask:
         frames = (frm.mask(args.mask) for frm in frames)

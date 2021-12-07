@@ -406,7 +406,7 @@ class MemPOD(POD):
             logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath))
             return
 
-        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
+        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), &#34;/&#34;.join(relpath))
         self.store.set(current_path, File(data))
         return len(data)
 
@@ -1137,7 +1137,7 @@ def size(self):
             logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath))
             return
 
-        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
+        logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), &#34;/&#34;.join(relpath))
         self.store.set(current_path, File(data))
         return len(data)
 
@@ -1417,7 +1417,7 @@ def split(cls, path):
         logger.debug(&#34;SKIP-WRITE memory://%s %s&#34;, self.path, &#34;/&#34;.join(relpath))
         return
 
-    logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), relpath)
+    logger.debug(&#34;WRITE memory://%s %s&#34;, &#34;/&#34;.join(self.parts), &#34;/&#34;.join(relpath))
     self.store.set(current_path, File(data))
     return len(data)</code></pre>
 </details>
