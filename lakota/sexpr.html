@@ -131,6 +131,9 @@ class KWargs:
     def __init__(self, *items):
         self.value = list_to_dict(*items)
 
+    def __repr__(self):
+        return f&#39;&lt;KWargs {self.value}&gt;&#39;
+
 
 class Env:
     def __init__(self, values):
@@ -143,15 +146,17 @@ class Env:
         res = self.values
         for part in key.split(&#34;.&#34;):
             try:
-                res = getattr(res, part)
-            except AttributeError:
-                pass
-            try:
                 res = res[part]
             except KeyError:
+                pass
+            else:
+                continue
+            try:
+                res = getattr(res, part)
+            except AttributeError:
                 if default is not UNSET:
                     return default
-                raise
+                raise KeyError(part)
         return res
 
 

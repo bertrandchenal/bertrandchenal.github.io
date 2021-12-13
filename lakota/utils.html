@@ -66,7 +66,7 @@ class Settings:
     page_len: int = 500_000
     squash_max_chunk: int = 4  # Max number of small chunks in a series
     timeout: int = 600  # Max duration for a write batch (in seconds)
-
+    max_threads: int = 10 # Size of the threadpool
 
 settings = Settings()
 
@@ -202,7 +202,7 @@ class Pool:
     &#34;&#34;&#34;
 
     _lock = Lock()
-    _pool = ThreadPoolExecutor(16)
+    _pool = None
 
     def __init__(self):
         self.threaded = False
@@ -218,6 +218,8 @@ class Pool:
         return self
 
     def submit(self, fn, *a, **kw):
+        if self._pool is None:
+            self._pool = ThreadPoolExecutor(settings.max_threads)
         if self.threaded:
             self.futures.append(self._pool.submit(fn, *a, **kw))
         else:
@@ -1014,7 +1016,7 @@ def bisect(cls, nb_seconds):
     &#34;&#34;&#34;
 
     _lock = Lock()
-    _pool = ThreadPoolExecutor(16)
+    _pool = None
 
     def __init__(self):
         self.threaded = False
@@ -1030,6 +1032,8 @@ def bisect(cls, nb_seconds):
         return self
 
     def submit(self, fn, *a, **kw):
+        if self._pool is None:
+            self._pool = ThreadPoolExecutor(settings.max_threads)
         if self.threaded:
             self.futures.append(self._pool.submit(fn, *a, **kw))
         else:
@@ -1055,6 +1059,8 @@ def bisect(cls, nb_seconds):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def submit(self, fn, *a, **kw):
+    if self._pool is None:
+        self._pool = ThreadPoolExecutor(settings.max_threads)
     if self.threaded:
         self.futures.append(self._pool.submit(fn, *a, **kw))
     else:
@@ -1065,10 +1071,10 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600)</span>
+<span>(</span><span>threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600)</p></div>
+<div class="desc"><p>Settings(threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -1081,7 +1087,8 @@ class Settings:
     embed_max_size: int = 1024
     page_len: int = 500_000
     squash_max_chunk: int = 4  # Max number of small chunks in a series
-    timeout: int = 600  # Max duration for a write batch (in seconds)</code></pre>
+    timeout: int = 600  # Max duration for a write batch (in seconds)
+    max_threads: int = 10 # Size of the threadpool</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -1090,6 +1097,10 @@ class Settings:
 <div class="desc"></div>
 </dd>
 <dt id="lakota.utils.Settings.embed_max_size"><code class="name">var <span class="ident">embed_max_size</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Settings.max_threads"><code class="name">var <span class="ident">max_threads</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1193,6 +1204,7 @@ class Settings:
 <ul class="two-column">
 <li><code><a title="lakota.utils.Settings.debug" href="#lakota.utils.Settings.debug">debug</a></code></li>
 <li><code><a title="lakota.utils.Settings.embed_max_size" href="#lakota.utils.Settings.embed_max_size">embed_max_size</a></code></li>
+<li><code><a title="lakota.utils.Settings.max_threads" href="#lakota.utils.Settings.max_threads">max_threads</a></code></li>
 <li><code><a title="lakota.utils.Settings.page_len" href="#lakota.utils.Settings.page_len">page_len</a></code></li>
 <li><code><a title="lakota.utils.Settings.squash_max_chunk" href="#lakota.utils.Settings.squash_max_chunk">squash_max_chunk</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>

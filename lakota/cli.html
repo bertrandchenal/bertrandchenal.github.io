@@ -523,6 +523,7 @@ def read(args):
     &#34;&#34;&#34;
     repo = get_repo(args)
     series = get_series(repo, args.label)
+
     reduce = False
     if not args.columns:
         columns = list(series.schema.columns)
@@ -539,9 +540,12 @@ def read(args):
         &#34;offset&#34;: args.offset,
         &#34;before&#34;: args.before,
         &#34;select&#34;: columns,
+        &#34;closed&#34;: args.closed,
     }
     if args.paginate:
         frames = series.paginate(args.paginate, **kw)
+    elif args.tail:
+        frames = [series.tail(args.tail, **kw)]
     else:
         frames = [series.frame(**kw)]
 
@@ -880,19 +884,29 @@ def run():
     parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--tail&#34;, &#34;-t&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
         &#34;--greater-than&#34;,
         &#34;--gt&#34;,
-        nargs=&#34;+&#34;,
+        action=&#34;append&#34;,
         help=&#34;Keep rows where index is bigger the given value&#34;,
     )
     parser_read.add_argument(
         &#34;--less-than&#34;,
         &#34;--lt&#34;,
-        nargs=&#34;+&#34;,
+        action=&#34;append&#34;,
         help=&#34;Keep rows where index is less than given value&#34;,
+    )
+    parser_read.add_argument(
+        &#34;--closed&#34;,
+        &#34;-c&#34;,
+        type=str,
+        default=&#34;left&#34;,
+        help=&#39;Include or exclude the bounds of interval defined by --gt&#39;
+        &#39; and --lt (defaults to &#34;LEFT&#34; or &#34;l&#34;, other possible values: &#39;
+        &#39;RIGHT, r, BOTH, b and NONE, n)&#39;,
     )
     parser_read.set_defaults(func=read)
 
@@ -1515,6 +1529,7 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
     &#34;&#34;&#34;
     repo = get_repo(args)
     series = get_series(repo, args.label)
+
     reduce = False
     if not args.columns:
         columns = list(series.schema.columns)
@@ -1531,9 +1546,12 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
         &#34;offset&#34;: args.offset,
         &#34;before&#34;: args.before,
         &#34;select&#34;: columns,
+        &#34;closed&#34;: args.closed,
     }
     if args.paginate:
         frames = series.paginate(args.paginate, **kw)
+    elif args.tail:
+        frames = [series.tail(args.tail, **kw)]
     else:
         frames = [series.frame(**kw)]
 
@@ -1660,19 +1678,29 @@ Total length: {sum(ci.length)}
     parser_read.add_argument(&#34;--limit&#34;, &#34;-l&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--offset&#34;, &#34;-o&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--paginate&#34;, &#34;-p&#34;, type=int, default=None)
+    parser_read.add_argument(&#34;--tail&#34;, &#34;-t&#34;, type=int, default=None)
     parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
         &#34;--greater-than&#34;,
         &#34;--gt&#34;,
-        nargs=&#34;+&#34;,
+        action=&#34;append&#34;,
         help=&#34;Keep rows where index is bigger the given value&#34;,
     )
     parser_read.add_argument(
         &#34;--less-than&#34;,
         &#34;--lt&#34;,
-        nargs=&#34;+&#34;,
+        action=&#34;append&#34;,
         help=&#34;Keep rows where index is less than given value&#34;,
+    )
+    parser_read.add_argument(
+        &#34;--closed&#34;,
+        &#34;-c&#34;,
+        type=str,
+        default=&#34;left&#34;,
+        help=&#39;Include or exclude the bounds of interval defined by --gt&#39;
+        &#39; and --lt (defaults to &#34;LEFT&#34; or &#34;l&#34;, other possible values: &#39;
+        &#39;RIGHT, r, BOTH, b and NONE, n)&#39;,
     )
     parser_read.set_defaults(func=read)
 

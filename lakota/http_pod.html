@@ -95,6 +95,11 @@ class HttpPOD(POD):
             &#34;path&#34;: path,
         }
         resp = self.session.post(self.base_uri + &#34;rm&#34;, params=params)
+        if resp.status_code == 404:
+            if missing_ok:
+                return
+            else:
+                raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         resp.raise_for_status()
 
     def mv(self, from_path, to_path, missing_ok=False):
@@ -207,6 +212,11 @@ class HttpPOD(POD):
             &#34;path&#34;: path,
         }
         resp = self.session.post(self.base_uri + &#34;rm&#34;, params=params)
+        if resp.status_code == 404:
+            if missing_ok:
+                return
+            else:
+                raise FileNotFoundError(f&#34;{relpath} not found&#34;)
         resp.raise_for_status()
 
     def mv(self, from_path, to_path, missing_ok=False):
@@ -355,6 +365,11 @@ class HttpPOD(POD):
         &#34;path&#34;: path,
     }
     resp = self.session.post(self.base_uri + &#34;rm&#34;, params=params)
+    if resp.status_code == 404:
+        if missing_ok:
+            return
+        else:
+            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
     resp.raise_for_status()</code></pre>
 </details>
 </dd>

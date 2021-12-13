@@ -153,13 +153,25 @@ class S3POD(POD):
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+
         prefix = str(self.path / relpath)
-        if recursive:
-            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-            resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
-            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
-        else:
+        if missing_ok and not recursive:
+            # We don&#39;t need to list remote keys if we don&#39;t plan to
+            # check their existance
             keys = [prefix]
+        else:
+            if recursive:
+                prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+            resp = self.client.list_objects_v2(
+                Bucket=str(self.bucket), Prefix=prefix)
+            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+
+        if not recursive and len(keys) &gt; 1:
+            # We raise an OSError to mimic file based access
+            raise OSError(f&#34;{relpath} is not empty&#34;)
+        if not keys and not missing_ok:
+            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
         try:
             _ = self.client.delete_objects(
                 Bucket=str(self.bucket),
@@ -179,8 +191,6 @@ class S3POD(POD):
                     Bucket=str(self.bucket),
                     Key=key,
                 )
-
-        # XXX implement missing_ok
 
     def mv(self, from_path, to_path, missing_ok=False):
         orig = str(self.path / from_path)
@@ -359,13 +369,25 @@ verifications. Please note that boto3 will also use
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+
         prefix = str(self.path / relpath)
-        if recursive:
-            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-            resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
-            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
-        else:
+        if missing_ok and not recursive:
+            # We don&#39;t need to list remote keys if we don&#39;t plan to
+            # check their existance
             keys = [prefix]
+        else:
+            if recursive:
+                prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+            resp = self.client.list_objects_v2(
+                Bucket=str(self.bucket), Prefix=prefix)
+            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+
+        if not recursive and len(keys) &gt; 1:
+            # We raise an OSError to mimic file based access
+            raise OSError(f&#34;{relpath} is not empty&#34;)
+        if not keys and not missing_ok:
+            raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
         try:
             _ = self.client.delete_objects(
                 Bucket=str(self.bucket),
@@ -385,8 +407,6 @@ verifications. Please note that boto3 will also use
                     Bucket=str(self.bucket),
                     Key=key,
                 )
-
-        # XXX implement missing_ok
 
     def mv(self, from_path, to_path, missing_ok=False):
         orig = str(self.path / from_path)
@@ -576,13 +596,25 @@ verifications. Please note that boto3 will also use
 </summary>
 <pre><code class="python">def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
     logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
+
     prefix = str(self.path / relpath)
-    if recursive:
-        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-        resp = self.client.list_objects_v2(Bucket=str(self.bucket), Prefix=prefix)
-        keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
-    else:
+    if missing_ok and not recursive:
+        # We don&#39;t need to list remote keys if we don&#39;t plan to
+        # check their existance
         keys = [prefix]
+    else:
+        if recursive:
+            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        resp = self.client.list_objects_v2(
+            Bucket=str(self.bucket), Prefix=prefix)
+        keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+
+    if not recursive and len(keys) &gt; 1:
+        # We raise an OSError to mimic file based access
+        raise OSError(f&#34;{relpath} is not empty&#34;)
+    if not keys and not missing_ok:
+        raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+
     try:
         _ = self.client.delete_objects(
             Bucket=str(self.bucket),
@@ -601,9 +633,7 @@ verifications. Please note that boto3 will also use
             self.client.delete_object(
                 Bucket=str(self.bucket),
                 Key=key,
-            )
-
-    # XXX implement missing_ok</code></pre>
+            )</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.write"><code class="name flex">
