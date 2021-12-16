@@ -193,6 +193,9 @@ import json
 from io import BytesIO, StringIO
 from itertools import chain
 from time import time
+from uuid import uuid4
+
+from numpy import where
 
 from .changelog import zero_hash
 from .collection import Collection
@@ -275,23 +278,31 @@ class Repo:
             start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
         )[&#34;label&#34;]
 
+        new_labels = []
         for label in labels:
             label = label.strip()
             if len(label) == 0:
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
-            if label in current_labels and raise_if_exists:
-                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
-
-            key = label.encode()
-            # Use digest to create collection folder (based on mode and label)
-            digest = hexdigest(key)
-            if namespace != &#34;collection&#34;:
-                digest = hexdigest(digest.encode(), namespace.encode())
+            if label in current_labels:
+                if raise_if_exists:
+                    raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+                else:
+                    continue
+            # Generate random digest
+            digest = hexdigest(uuid4().bytes)
             folder, filename = hashed_path(digest)
+            new_labels.append(label)
             meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
-        series.write({&#34;label&#34;: labels, &#34;meta&#34;: meta})
-        res = [self.reify(l, m) for l, m in zip(labels, meta)]
+        if new_labels:
+            series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
+
+        # Return collections
+        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
+        frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
+            mask
+        )
+        res = [self.collection(l, from_frm=frm) for l in labels]
         if len(labels) == 1:
             return res[0]
         return res
@@ -389,24 +400,27 @@ class Repo:
         &#34;&#34;&#34;
         series = self.registry.series(namespace)
         frm = series.frame()
+        idx = where(frm[&#34;label&#34;] == from_label)[0]
+        if len(idx) == 0:
+            raise ValueError(f&#39;Collection &#34;{from_label}&#34; does not exists&#39;)
         if to_label in frm[&#34;label&#34;]:
             raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
-        # replace in label column
+        # Extract bounds
         start, stop = frm.start(), frm.stop()
-        labels = frm[&#34;label&#34;]
-        mask = labels == from_label
-        labels[mask] = to_label
-        frm[&#34;label&#34;] = labels
-
+        # unpack idx
+        idx = idx[0]
+        # rebuild label list
+        labels = list(frm[&#34;label&#34;])
+        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
         # Re-order frame
         frm = frm.sorted()
+
         series.write(
             frm,
-            start=min(
-                frm.start(), start
-            ),  # Make sure we over-write the previous content
-            stop=max(frm.stop(), stop),  # same
+            # Make sure we over-write the previous content:
+            start=min(frm.start(), start),
+            stop=max(frm.stop(), stop),
         )
 
     def gc(self):
@@ -415,7 +429,8 @@ class Repo:
         ones.
         &#34;&#34;&#34;
         logger.info(&#34;Start GC&#34;)
-        # Collect digests across folders
+        # Collect digests across folders (_walk_folder ignore files
+        # containing changelogs, it will only return segments of data)
         base_folders = self.pod.ls()
         with Pool() as pool:
             for folder in base_folders:
@@ -473,6 +488,11 @@ class Repo:
         return nb_hard_del, nb_soft_del
 
     def _walk_folder(self, folder):
+        &#39;&#39;&#39;
+        Return list of digests contained in the top folder (ignoring
+        content deeper than 2 subfolders and so ignores changelog
+        files)
+        &#39;&#39;&#39;
         digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -662,23 +682,31 @@ location</p>
             start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
         )[&#34;label&#34;]
 
+        new_labels = []
         for label in labels:
             label = label.strip()
             if len(label) == 0:
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
-            if label in current_labels and raise_if_exists:
-                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
-
-            key = label.encode()
-            # Use digest to create collection folder (based on mode and label)
-            digest = hexdigest(key)
-            if namespace != &#34;collection&#34;:
-                digest = hexdigest(digest.encode(), namespace.encode())
+            if label in current_labels:
+                if raise_if_exists:
+                    raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+                else:
+                    continue
+            # Generate random digest
+            digest = hexdigest(uuid4().bytes)
             folder, filename = hashed_path(digest)
+            new_labels.append(label)
             meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
-        series.write({&#34;label&#34;: labels, &#34;meta&#34;: meta})
-        res = [self.reify(l, m) for l, m in zip(labels, meta)]
+        if new_labels:
+            series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
+
+        # Return collections
+        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
+        frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
+            mask
+        )
+        res = [self.collection(l, from_frm=frm) for l in labels]
         if len(labels) == 1:
             return res[0]
         return res
@@ -776,24 +804,27 @@ location</p>
         &#34;&#34;&#34;
         series = self.registry.series(namespace)
         frm = series.frame()
+        idx = where(frm[&#34;label&#34;] == from_label)[0]
+        if len(idx) == 0:
+            raise ValueError(f&#39;Collection &#34;{from_label}&#34; does not exists&#39;)
         if to_label in frm[&#34;label&#34;]:
             raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
-        # replace in label column
+        # Extract bounds
         start, stop = frm.start(), frm.stop()
-        labels = frm[&#34;label&#34;]
-        mask = labels == from_label
-        labels[mask] = to_label
-        frm[&#34;label&#34;] = labels
-
+        # unpack idx
+        idx = idx[0]
+        # rebuild label list
+        labels = list(frm[&#34;label&#34;])
+        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
         # Re-order frame
         frm = frm.sorted()
+
         series.write(
             frm,
-            start=min(
-                frm.start(), start
-            ),  # Make sure we over-write the previous content
-            stop=max(frm.stop(), stop),  # same
+            # Make sure we over-write the previous content:
+            start=min(frm.start(), start),
+            stop=max(frm.stop(), stop),
         )
 
     def gc(self):
@@ -802,7 +833,8 @@ location</p>
         ones.
         &#34;&#34;&#34;
         logger.info(&#34;Start GC&#34;)
-        # Collect digests across folders
+        # Collect digests across folders (_walk_folder ignore files
+        # containing changelogs, it will only return segments of data)
         base_folders = self.pod.ls()
         with Pool() as pool:
             for folder in base_folders:
@@ -860,6 +892,11 @@ location</p>
         return nb_hard_del, nb_soft_del
 
     def _walk_folder(self, folder):
+        &#39;&#39;&#39;
+        Return list of digests contained in the top folder (ignoring
+        content deeper than 2 subfolders and so ignores changelog
+        files)
+        &#39;&#39;&#39;
         digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -1040,23 +1077,31 @@ location</p>
         start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;, select=&#34;label&#34;
     )[&#34;label&#34;]
 
+    new_labels = []
     for label in labels:
         label = label.strip()
         if len(label) == 0:
             raise ValueError(f&#34;Invalid label: {label}&#34;)
-        if label in current_labels and raise_if_exists:
-            raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
-
-        key = label.encode()
-        # Use digest to create collection folder (based on mode and label)
-        digest = hexdigest(key)
-        if namespace != &#34;collection&#34;:
-            digest = hexdigest(digest.encode(), namespace.encode())
+        if label in current_labels:
+            if raise_if_exists:
+                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+            else:
+                continue
+        # Generate random digest
+        digest = hexdigest(uuid4().bytes)
         folder, filename = hashed_path(digest)
+        new_labels.append(label)
         meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
 
-    series.write({&#34;label&#34;: labels, &#34;meta&#34;: meta})
-    res = [self.reify(l, m) for l, m in zip(labels, meta)]
+    if new_labels:
+        series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
+
+    # Return collections
+    mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
+    frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
+        mask
+    )
+    res = [self.collection(l, from_frm=frm) for l in labels]
     if len(labels) == 1:
         return res[0]
     return res</code></pre>
@@ -1172,7 +1217,8 @@ ones.</p></div>
     ones.
     &#34;&#34;&#34;
     logger.info(&#34;Start GC&#34;)
-    # Collect digests across folders
+    # Collect digests across folders (_walk_folder ignore files
+    # containing changelogs, it will only return segments of data)
     base_folders = self.pod.ls()
     with Pool() as pool:
         for folder in base_folders:
@@ -1448,24 +1494,27 @@ or deleted concurrently.</p></div>
     &#34;&#34;&#34;
     series = self.registry.series(namespace)
     frm = series.frame()
+    idx = where(frm[&#34;label&#34;] == from_label)[0]
+    if len(idx) == 0:
+        raise ValueError(f&#39;Collection &#34;{from_label}&#34; does not exists&#39;)
     if to_label in frm[&#34;label&#34;]:
         raise ValueError(f&#39;Collection &#34;{to_label}&#34; already exists&#39;)
 
-    # replace in label column
+    # Extract bounds
     start, stop = frm.start(), frm.stop()
-    labels = frm[&#34;label&#34;]
-    mask = labels == from_label
-    labels[mask] = to_label
-    frm[&#34;label&#34;] = labels
-
+    # unpack idx
+    idx = idx[0]
+    # rebuild label list
+    labels = list(frm[&#34;label&#34;])
+    frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
     # Re-order frame
     frm = frm.sorted()
+
     series.write(
         frm,
-        start=min(
-            frm.start(), start
-        ),  # Make sure we over-write the previous content
-        stop=max(frm.stop(), stop),  # same
+        # Make sure we over-write the previous content:
+        start=min(frm.start(), start),
+        stop=max(frm.stop(), stop),
     )</code></pre>
 </details>
 </dd>
