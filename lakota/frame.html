@@ -78,25 +78,14 @@ class Frame:
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
-        if not segments:
-            return Frame(schema)
-        select = select or schema.columns
-        with Pool() as pool:
-            for name in schema.columns:
-                if name not in select:
-                    continue
-                pool.submit(
-                    Frame.read_segments, segments, name, limit=limit, offset=offset
-                )
+        if not select:
+            select = schema.columns
+        else:
+            select = [select] if isinstance(select, str) else select
 
-        res = dict(pool.results)
-        return Frame(schema, res)
-
-    @classmethod
-    def read_segments(cls, segments, name, limit=None, offset=None):
-        arrays = []
         start = offset or 0
         stop = None if limit is None else start + limit
+        frames = []
 
         for sgm in segments:
             if stop == 0:
@@ -106,17 +95,37 @@ class Frame:
                 if stop is not None:
                     stop = max(stop - len(sgm), 0)
                 continue
-            arr = sgm.read(name, start_pos=start, stop_pos=stop)
+            with Pool() as pool:
+                # For each column we schedule a lambda that return a tuple
+                # `(name, numpy_array)`
+                read_col = lambda name: (
+                    name,
+                    sgm.read(name, start_pos=start, stop_pos=stop)
+                )
+                for name in select:
+                    pool.submit(read_col, name)
+            values = dict(pool.results)
+            frames.append(Frame(schema, values))
+
             start = max(start - len(sgm), 0)
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
-            arrays.append(arr)
-        return name, concatenate(arrays) if arrays else []
+
+        # Return collected frames
+        if frames:
+            return Frame.concat(*frames)
+
+        # Return empty frame
+        frm = Frame(schema)
+        if select:
+            frm = frm.select(select)
+        return frm
 
     def df(self, *columns):
         if DataFrame is None:
             raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-        return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})
+        return DataFrame({c: self[c] for c in self.schema.columns
+                          if c in self.columns})
 
     def argsort(self, *sort_columns):
         sort_columns = sort_columns or list(self.schema.idx)
@@ -146,21 +155,23 @@ class Frame:
 
         # General cases
         schema = frames[0].schema
+        names = list(frames[0])
         cols = defaultdict(list)
         # Build dict of list
         for frm in frames:
             if not frm.schema == schema:
-                raise ValueError(&#34;Unable to concat frames with different schema&#34;)
-            for name in schema:
+                msg = &#34;Unable to concat frames with different schema&#34;
+                raise ValueError(msg)
+            for name in names:
                 arr = frm[name]
                 if len(arr) == 0:
                     continue
                 cols[name].append(arr)
         # Concatenate all lists
-        for name in schema:
+        for name in names:
             cols[name] = concatenate(cols[name])
-        # Create frame and sort it
-        return Frame(schema, cols).sorted()
+        # Create frame
+        return Frame(schema, cols)
 
     def sorted(self, *sort_columns):
         return self.mask(self.argsort(*sort_columns))
@@ -391,6 +402,8 @@ class Frame:
         return iter(self.columns)
 
     def select(self, keep):
+        if not keep:
+            return self
         cols = {k: v for k, v in self.columns.items() if k in keep}
         return Frame(self.schema, cols)
 
@@ -449,25 +462,14 @@ class Frame:
 
     @classmethod
     def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
-        if not segments:
-            return Frame(schema)
-        select = select or schema.columns
-        with Pool() as pool:
-            for name in schema.columns:
-                if name not in select:
-                    continue
-                pool.submit(
-                    Frame.read_segments, segments, name, limit=limit, offset=offset
-                )
+        if not select:
+            select = schema.columns
+        else:
+            select = [select] if isinstance(select, str) else select
 
-        res = dict(pool.results)
-        return Frame(schema, res)
-
-    @classmethod
-    def read_segments(cls, segments, name, limit=None, offset=None):
-        arrays = []
         start = offset or 0
         stop = None if limit is None else start + limit
+        frames = []
 
         for sgm in segments:
             if stop == 0:
@@ -477,17 +479,37 @@ class Frame:
                 if stop is not None:
                     stop = max(stop - len(sgm), 0)
                 continue
-            arr = sgm.read(name, start_pos=start, stop_pos=stop)
+            with Pool() as pool:
+                # For each column we schedule a lambda that return a tuple
+                # `(name, numpy_array)`
+                read_col = lambda name: (
+                    name,
+                    sgm.read(name, start_pos=start, stop_pos=stop)
+                )
+                for name in select:
+                    pool.submit(read_col, name)
+            values = dict(pool.results)
+            frames.append(Frame(schema, values))
+
             start = max(start - len(sgm), 0)
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
-            arrays.append(arr)
-        return name, concatenate(arrays) if arrays else []
+
+        # Return collected frames
+        if frames:
+            return Frame.concat(*frames)
+
+        # Return empty frame
+        frm = Frame(schema)
+        if select:
+            frm = frm.select(select)
+        return frm
 
     def df(self, *columns):
         if DataFrame is None:
             raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-        return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})
+        return DataFrame({c: self[c] for c in self.schema.columns
+                          if c in self.columns})
 
     def argsort(self, *sort_columns):
         sort_columns = sort_columns or list(self.schema.idx)
@@ -517,21 +539,23 @@ class Frame:
 
         # General cases
         schema = frames[0].schema
+        names = list(frames[0])
         cols = defaultdict(list)
         # Build dict of list
         for frm in frames:
             if not frm.schema == schema:
-                raise ValueError(&#34;Unable to concat frames with different schema&#34;)
-            for name in schema:
+                msg = &#34;Unable to concat frames with different schema&#34;
+                raise ValueError(msg)
+            for name in names:
                 arr = frm[name]
                 if len(arr) == 0:
                     continue
                 cols[name].append(arr)
         # Concatenate all lists
-        for name in schema:
+        for name in names:
             cols[name] = concatenate(cols[name])
-        # Create frame and sort it
-        return Frame(schema, cols).sorted()
+        # Create frame
+        return Frame(schema, cols)
 
     def sorted(self, *sort_columns):
         return self.mask(self.argsort(*sort_columns))
@@ -762,6 +786,8 @@ class Frame:
         return iter(self.columns)
 
     def select(self, keep):
+        if not keep:
+            return self
         cols = {k: v for k, v in self.columns.items() if k in keep}
         return Frame(self.schema, cols)
 
@@ -795,21 +821,23 @@ def concat(cls, *frames):
 
     # General cases
     schema = frames[0].schema
+    names = list(frames[0])
     cols = defaultdict(list)
     # Build dict of list
     for frm in frames:
         if not frm.schema == schema:
-            raise ValueError(&#34;Unable to concat frames with different schema&#34;)
-        for name in schema:
+            msg = &#34;Unable to concat frames with different schema&#34;
+            raise ValueError(msg)
+        for name in names:
             arr = frm[name]
             if len(arr) == 0:
                 continue
             cols[name].append(arr)
     # Concatenate all lists
-    for name in schema:
+    for name in names:
         cols[name] = concatenate(cols[name])
-    # Create frame and sort it
-    return Frame(schema, cols).sorted()</code></pre>
+    # Create frame
+    return Frame(schema, cols)</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.from_records"><code class="name flex">
@@ -837,35 +865,14 @@ def from_records(self, schema, records):
 </summary>
 <pre><code class="python">@classmethod
 def from_segments(cls, schema, segments, limit=None, offset=None, select=None):
-    if not segments:
-        return Frame(schema)
-    select = select or schema.columns
-    with Pool() as pool:
-        for name in schema.columns:
-            if name not in select:
-                continue
-            pool.submit(
-                Frame.read_segments, segments, name, limit=limit, offset=offset
-            )
+    if not select:
+        select = schema.columns
+    else:
+        select = [select] if isinstance(select, str) else select
 
-    res = dict(pool.results)
-    return Frame(schema, res)</code></pre>
-</details>
-</dd>
-<dt id="lakota.frame.Frame.read_segments"><code class="name flex">
-<span>def <span class="ident">read_segments</span></span>(<span>segments, name, limit=None, offset=None)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@classmethod
-def read_segments(cls, segments, name, limit=None, offset=None):
-    arrays = []
     start = offset or 0
     stop = None if limit is None else start + limit
+    frames = []
 
     for sgm in segments:
         if stop == 0:
@@ -875,12 +882,31 @@ def read_segments(cls, segments, name, limit=None, offset=None):
             if stop is not None:
                 stop = max(stop - len(sgm), 0)
             continue
-        arr = sgm.read(name, start_pos=start, stop_pos=stop)
+        with Pool() as pool:
+            # For each column we schedule a lambda that return a tuple
+            # `(name, numpy_array)`
+            read_col = lambda name: (
+                name,
+                sgm.read(name, start_pos=start, stop_pos=stop)
+            )
+            for name in select:
+                pool.submit(read_col, name)
+        values = dict(pool.results)
+        frames.append(Frame(schema, values))
+
         start = max(start - len(sgm), 0)
         if stop is not None:
             stop = max(stop - len(sgm), 0)
-        arrays.append(arr)
-    return name, concatenate(arrays) if arrays else []</code></pre>
+
+    # Return collected frames
+    if frames:
+        return Frame.concat(*frames)
+
+    # Return empty frame
+    frm = Frame(schema)
+    if select:
+        frm = frm.select(select)
+    return frm</code></pre>
 </details>
 </dd>
 </dl>
@@ -929,7 +955,8 @@ def empty(self):
 <pre><code class="python">def df(self, *columns):
     if DataFrame is None:
         raise ModuleNotFoundError(&#34;No module named &#39;pandas&#39;&#34;)
-    return DataFrame({c: self[c] for c in self.schema.columns if c in self.columns})</code></pre>
+    return DataFrame({c: self[c] for c in self.schema.columns
+                      if c in self.columns})</code></pre>
 </details>
 </dd>
 <dt id="lakota.frame.Frame.drop"><code class="name flex">
@@ -1219,6 +1246,8 @@ evaluated.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def select(self, keep):
+    if not keep:
+        return self
     cols = {k: v for k, v in self.columns.items() if k in keep}
     return Frame(self.schema, cols)</code></pre>
 </details>
@@ -1366,7 +1395,6 @@ convert the type of returned arrays (see <code>map_dtype</code> method on
 <li><code><a title="lakota.frame.Frame.islice" href="#lakota.frame.Frame.islice">islice</a></code></li>
 <li><code><a title="lakota.frame.Frame.keys" href="#lakota.frame.Frame.keys">keys</a></code></li>
 <li><code><a title="lakota.frame.Frame.mask" href="#lakota.frame.Frame.mask">mask</a></code></li>
-<li><code><a title="lakota.frame.Frame.read_segments" href="#lakota.frame.Frame.read_segments">read_segments</a></code></li>
 <li><code><a title="lakota.frame.Frame.records" href="#lakota.frame.Frame.records">records</a></code></li>
 <li><code><a title="lakota.frame.Frame.reduce" href="#lakota.frame.Frame.reduce">reduce</a></code></li>
 <li><code><a title="lakota.frame.Frame.rename" href="#lakota.frame.Frame.rename">rename</a></code></li>

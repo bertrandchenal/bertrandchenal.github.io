@@ -625,7 +625,7 @@ def rev(args):
         if collection is None:
             exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
     else:
-        collection = repo.collection_series
+        collection = repo.registry
         series = None
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
@@ -732,23 +732,40 @@ def merge(args):
     collection.merge()
 
 
-def squash(args):
+def defrag(args):
     &#34;&#34;&#34;
-    Squash changelog of given series. If not series is given, squash
+    Defrag changelog of given series. If no series is given, defrag
     repo changelog.
     &#34;&#34;&#34;
     repo = get_repo(args)
     labels = repo.ls() if args.all else args.labels
-    trim = args.trim_before if args.trim and args.trim_before else args.trim
 
     if labels:
         for label in labels:
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash(trim=trim)
+            collection.defrag()
     if args.all or not args.labels:
-        repo.registry.squash(trim=trim)
+        repo.registry.defrag()
+
+
+def trim(args):
+    &#34;&#34;&#34;
+    Trim changelog of given series. If no series is given, trim
+    repo changelog.
+    &#34;&#34;&#34;
+    repo = get_repo(args)
+    labels = repo.ls() if args.all else args.labels
+
+    if labels:
+        for label in labels:
+            collection = get_collection(repo, label)
+            if not collection:
+                exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
+            collection.trim(args.before)
+    if args.all or not args.labels:
+        repo.registry.trim(args.before)
 
 
 def push(args):
@@ -904,9 +921,9 @@ def run():
         &#34;-c&#34;,
         type=str,
         default=&#34;LEFT&#34;,
-        help=&#39;Include or exclude the bounds of interval defined by --gt&#39;
+        help=&#34;Include or exclude the bounds of interval defined by --gt&#34;
         &#39; and --lt (defaults to &#34;LEFT&#34; or &#34;l&#34;, other possible values: &#39;
-        &#39;RIGHT, r, BOTH, b and NONE, n)&#39;,
+        &#34;RIGHT, r, BOTH, b and NONE, n)&#34;,
     )
     parser_read.set_defaults(func=read)
 
@@ -952,22 +969,25 @@ def run():
     parser_ls.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
     parser_ls.set_defaults(func=ls)
 
-    # Add squash command
-    parser_squash = subparsers.add_parser(&#34;squash&#34;)
-    parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
-    parser_squash.add_argument(
-        &#34;-t&#34;, &#34;--trim&#34;, default=True, type=bool_like, help=&#34;Delete history&#34;
+    # Add defrag command
+    parser_defrag = subparsers.add_parser(&#34;defrag&#34;)
+    parser_defrag.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_defrag.add_argument(
+        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Defrag all collections&#34;
     )
-    parser_squash.add_argument(
+    parser_defrag.set_defaults(func=defrag)
+
+    # Add trim command
+    parser_trim = subparsers.add_parser(&#34;trim&#34;)
+    parser_trim.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_trim.add_argument(
         &#34;-b&#34;,
-        &#34;--trim-before&#34;,
+        &#34;--before&#34;,
         type=datetime_like,
         help=&#34;Delete revisions older than given date&#34;,
     )
-    parser_squash.add_argument(
-        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
-    )
-    parser_squash.set_defaults(func=squash)
+    parser_trim.add_argument(&#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Trim everything&#34;)
+    parser_trim.set_defaults(func=trim)
 
     # Add push command
     parser_push = subparsers.add_parser(&#34;push&#34;)
@@ -1152,6 +1172,34 @@ $ lakota create another_collection &quot;timestamp timestamp*&quot; &quot;catego
         return strpt(v)
     except:
         raise argparse.ArgumentTypeError(&#34;Datetime-like value expected.&#34;)</code></pre>
+</details>
+</dd>
+<dt id="lakota.cli.defrag"><code class="name flex">
+<span>def <span class="ident">defrag</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Defrag changelog of given series. If no series is given, defrag
+repo changelog.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def defrag(args):
+    &#34;&#34;&#34;
+    Defrag changelog of given series. If no series is given, defrag
+    repo changelog.
+    &#34;&#34;&#34;
+    repo = get_repo(args)
+    labels = repo.ls() if args.all else args.labels
+
+    if labels:
+        for label in labels:
+            collection = get_collection(repo, label)
+            if not collection:
+                exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
+            collection.defrag()
+    if args.all or not args.labels:
+        repo.registry.defrag()</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.delete"><code class="name flex">
@@ -1611,7 +1659,7 @@ $ lakota read my_collection/my_series --greater-than 2020-01-01
         if collection is None:
             exit(f&#34;Collection &#39;{args.label}&#39; not found&#34;)
     else:
-        collection = repo.collection_series
+        collection = repo.registry
         series = None
     fmt = lambda a: &#34; / &#34;.join(map(str, a))
     for rev in collection.changelog.log():
@@ -1698,9 +1746,9 @@ Total length: {sum(ci.length)}
         &#34;-c&#34;,
         type=str,
         default=&#34;LEFT&#34;,
-        help=&#39;Include or exclude the bounds of interval defined by --gt&#39;
+        help=&#34;Include or exclude the bounds of interval defined by --gt&#34;
         &#39; and --lt (defaults to &#34;LEFT&#34; or &#34;l&#34;, other possible values: &#39;
-        &#39;RIGHT, r, BOTH, b and NONE, n)&#39;,
+        &#34;RIGHT, r, BOTH, b and NONE, n)&#34;,
     )
     parser_read.set_defaults(func=read)
 
@@ -1746,22 +1794,25 @@ Total length: {sum(ci.length)}
     parser_ls.add_argument(&#34;label&#34;, nargs=&#34;?&#34;)
     parser_ls.set_defaults(func=ls)
 
-    # Add squash command
-    parser_squash = subparsers.add_parser(&#34;squash&#34;)
-    parser_squash.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
-    parser_squash.add_argument(
-        &#34;-t&#34;, &#34;--trim&#34;, default=True, type=bool_like, help=&#34;Delete history&#34;
+    # Add defrag command
+    parser_defrag = subparsers.add_parser(&#34;defrag&#34;)
+    parser_defrag.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_defrag.add_argument(
+        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Defrag all collections&#34;
     )
-    parser_squash.add_argument(
+    parser_defrag.set_defaults(func=defrag)
+
+    # Add trim command
+    parser_trim = subparsers.add_parser(&#34;trim&#34;)
+    parser_trim.add_argument(&#34;labels&#34;, nargs=&#34;*&#34;)
+    parser_trim.add_argument(
         &#34;-b&#34;,
-        &#34;--trim-before&#34;,
+        &#34;--before&#34;,
         type=datetime_like,
         help=&#34;Delete revisions older than given date&#34;,
     )
-    parser_squash.add_argument(
-        &#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Squash everything&#34;
-    )
-    parser_squash.set_defaults(func=squash)
+    parser_trim.add_argument(&#34;-a&#34;, &#34;--all&#34;, action=&#34;store_true&#34;, help=&#34;Trim everything&#34;)
+    parser_trim.set_defaults(func=trim)
 
     # Add push command
     parser_push = subparsers.add_parser(&#34;push&#34;)
@@ -1904,33 +1955,32 @@ Total length: {sum(ci.length)}
     server.run(repo_map, args.web_uri, debug=args.verbose)</code></pre>
 </details>
 </dd>
-<dt id="lakota.cli.squash"><code class="name flex">
-<span>def <span class="ident">squash</span></span>(<span>args)</span>
+<dt id="lakota.cli.trim"><code class="name flex">
+<span>def <span class="ident">trim</span></span>(<span>args)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Squash changelog of given series. If not series is given, squash
+<div class="desc"><p>Trim changelog of given series. If no series is given, trim
 repo changelog.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def squash(args):
+<pre><code class="python">def trim(args):
     &#34;&#34;&#34;
-    Squash changelog of given series. If not series is given, squash
+    Trim changelog of given series. If no series is given, trim
     repo changelog.
     &#34;&#34;&#34;
     repo = get_repo(args)
     labels = repo.ls() if args.all else args.labels
-    trim = args.trim_before if args.trim and args.trim_before else args.trim
 
     if labels:
         for label in labels:
             collection = get_collection(repo, label)
             if not collection:
                 exit(f&#39;Collection &#34;{label}&#34; not found&#39;)
-            collection.squash(trim=trim)
+            collection.trim(args.before)
     if args.all or not args.labels:
-        repo.registry.squash(trim=trim)</code></pre>
+        repo.registry.trim(args.before)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.write"><code class="name flex">
@@ -1984,6 +2034,7 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.bool_like" href="#lakota.cli.bool_like">bool_like</a></code></li>
 <li><code><a title="lakota.cli.create" href="#lakota.cli.create">create</a></code></li>
 <li><code><a title="lakota.cli.datetime_like" href="#lakota.cli.datetime_like">datetime_like</a></code></li>
+<li><code><a title="lakota.cli.defrag" href="#lakota.cli.defrag">defrag</a></code></li>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
 <li><code><a title="lakota.cli.deploy" href="#lakota.cli.deploy">deploy</a></code></li>
 <li><code><a title="lakota.cli.export" href="#lakota.cli.export">export</a></code></li>
@@ -2002,7 +2053,7 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.rev" href="#lakota.cli.rev">rev</a></code></li>
 <li><code><a title="lakota.cli.run" href="#lakota.cli.run">run</a></code></li>
 <li><code><a title="lakota.cli.serve" href="#lakota.cli.serve">serve</a></code></li>
-<li><code><a title="lakota.cli.squash" href="#lakota.cli.squash">squash</a></code></li>
+<li><code><a title="lakota.cli.trim" href="#lakota.cli.trim">trim</a></code></li>
 <li><code><a title="lakota.cli.write" href="#lakota.cli.write">write</a></code></li>
 </ul>
 </li>

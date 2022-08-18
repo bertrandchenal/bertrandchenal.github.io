@@ -567,10 +567,9 @@ class Commit:
             closed = closed.set_left(True)
         if stop is None:
             closed = closed.set_right(True)
-        res = []
-        for row in self.match(
-            label
-        ):  # XXX allow to pass condition instead of simple start-stop ?
+
+        # XXX allow to pass condition instead of simple start-stop ?
+        for row in self.match(label):
             arr_start = row[&#34;start&#34;]
             arr_stop = row[&#34;stop&#34;]
             arr_closed = Closed[row[&#34;closed&#34;]]
@@ -601,7 +600,7 @@ class Commit:
                     arr_stop = stop
                 elif stop == arr_stop and arr_closed.right:
                     arr_closed = arr_closed.set_right(closed.right)
-            sgm = Segment(
+            yield Segment(
                 self,
                 pod,
                 row[&#34;digest&#34;],
@@ -609,8 +608,6 @@ class Commit:
                 stop=arr_stop,
                 closed=arr_closed,
             )
-            res.append(sgm)
-        return res
 
     def delete_labels(self, rm_labels):
         keep = ~isin(self.label, rm_labels)
@@ -1032,10 +1029,9 @@ class Segment:
             closed = closed.set_left(True)
         if stop is None:
             closed = closed.set_right(True)
-        res = []
-        for row in self.match(
-            label
-        ):  # XXX allow to pass condition instead of simple start-stop ?
+
+        # XXX allow to pass condition instead of simple start-stop ?
+        for row in self.match(label):
             arr_start = row[&#34;start&#34;]
             arr_stop = row[&#34;stop&#34;]
             arr_closed = Closed[row[&#34;closed&#34;]]
@@ -1066,7 +1062,7 @@ class Segment:
                     arr_stop = stop
                 elif stop == arr_stop and arr_closed.right:
                     arr_closed = arr_closed.set_right(closed.right)
-            sgm = Segment(
+            yield Segment(
                 self,
                 pod,
                 row[&#34;digest&#34;],
@@ -1074,8 +1070,6 @@ class Segment:
                 stop=arr_stop,
                 closed=arr_closed,
             )
-            res.append(sgm)
-        return res
 
     def delete_labels(self, rm_labels):
         keep = ~isin(self.label, rm_labels)
@@ -1421,10 +1415,9 @@ def one(
         closed = closed.set_left(True)
     if stop is None:
         closed = closed.set_right(True)
-    res = []
-    for row in self.match(
-        label
-    ):  # XXX allow to pass condition instead of simple start-stop ?
+
+    # XXX allow to pass condition instead of simple start-stop ?
+    for row in self.match(label):
         arr_start = row[&#34;start&#34;]
         arr_stop = row[&#34;stop&#34;]
         arr_closed = Closed[row[&#34;closed&#34;]]
@@ -1455,16 +1448,14 @@ def one(
                 arr_stop = stop
             elif stop == arr_stop and arr_closed.right:
                 arr_closed = arr_closed.set_right(closed.right)
-        sgm = Segment(
+        yield Segment(
             self,
             pod,
             row[&#34;digest&#34;],
             start=arr_start,
             stop=arr_stop,
             closed=arr_closed,
-        )
-        res.append(sgm)
-    return res</code></pre>
+        )</code></pre>
 </details>
 </dd>
 <dt id="lakota.commit.Commit.slice"><code class="name flex">

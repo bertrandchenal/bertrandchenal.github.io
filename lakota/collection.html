@@ -48,8 +48,11 @@ remote_clct = remote_repo / 'my_collection'
 clct.pull(remote_clct)
 clct.merge()
 </code></pre>
-<p>Squash remove past revisions</p>
-<pre><code class="language-python">clct.squash()
+<p>Trim remove past revisions</p>
+<pre><code class="language-python">clct.trim()
+</code></pre>
+<p>Defrag Recombine small data files into bigger ones</p>
+<pre><code class="language-python">clct.defrag()
 </code></pre>
 <details class="source">
 <summary>
@@ -95,9 +98,14 @@ clct.pull(remote_clct)
 clct.merge()
 ```
 
-Squash remove past revisions
+Trim remove past revisions
 ```python
-clct.squash()
+clct.trim()
+```
+
+Defrag Recombine small data files into bigger ones
+```python
+clct.defrag()
 ```
 &#34;&#34;&#34;
 
@@ -107,6 +115,9 @@ from datetime import datetime, timedelta
 from itertools import chain
 from threading import Lock
 from typing import Dict, Any
+from warnings import warn
+
+from numpy import asarray
 
 from .batch import Batch
 from .changelog import Changelog, phi
@@ -160,9 +171,9 @@ class Collection:
         return self.changelog.commit(payload, parents=[parent])
 
     def rename(self, from_label, to_label):
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         Rename Series
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         leaf_rev = self.changelog.leaf()
         if not leaf_rev:
             return
@@ -173,46 +184,79 @@ class Collection:
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
 
-    def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+    def clone(
+        self,
+        other_collection: &#34;Collection&#34;,
+        rename: Dict[str, str] = None,
+        defaults: Dict[str, Any] = None,
+    ) -&gt; Commit:
         if other_collection.changelog.leaf():
             raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
 
         other_schema = other_collection.schema
-        leaf_rev = self.changelog.leaf()
-        leaf_ci = leaf_rev.commit(self)
-        all_dig = leaf_ci.digest
-        for old_label, new_label in (rename_columns or {}).items():
-            all_dig[new_label] = all_dig.pop(old_label)
-        embedded = {}
-        for col in other_schema:
-            if col in all_dig:
-                continue
-            if col in other_schema.idx:
-                raise ValueError(&#34;Can not add idx column&#34;)
-            # Fill each commit row with digest &amp; embed data of zeroes
-            if defaults and col in defaults:
-                default_value = defaults[col]
-                values = [[default_value]*l for l in leaf_ci.length]
-            else:
-                values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
-            codec = other_schema[col].codec
-            col_embedded = {}
-            for v in values:
-                encoded, digest = codec.encode(v, with_digest=True)
-                col_embedded[digest] = encoded
-            # Add new coll to digest dict
+        # new2old will map the &#34;old&#34; label corresponding to it&#39;s new
+        # label (in other_schema)
+        new2old = {}
+        if rename:
+            for old, new in rename.items():
+                assert new in other_schema
+                new2old[new] = old
 
-            all_dig[col] = list(col_embedded.keys())
+        leaf_rev = self.changelog.leaf()
+        defaults = defaults or {}
+        leaf_ci = leaf_rev.commit(self)
+        all_dig = {}
+        start = {} #n: [] for n in leaf_ci.start
+        stop = {} #n: [] for n in leaf_ci.stop
+        embedded = {}
+
+        for col in other_schema:
+            old_col = new2old.get(col, col)
+
+            # TODO: raise an exception if a column is removed from the
+            # index!
+
+            # Determine default value
+            default_value = defaults.get(col, other_schema[col].zero())
+
+            # Add zero/default to start &amp; stop
+            if col in other_schema.idx:
+                if old_col in leaf_ci.start:
+                    start[col] = leaf_ci.start[old_col]
+                    stop[col] = leaf_ci.stop[old_col]
+                else:
+                    start_stop = [default_value] * len(leaf_ci.length)
+                    start[col] = start_stop
+                    stop[col] = start_stop
+
+            if old_col in leaf_ci.digest:
+                # XXX raise exception if dtype is different
+                all_dig[col] = leaf_ci.digest[old_col]
+                continue
+
+            # build digest &amp; embed arrays (based on zeroes arrays)
+            values = [[default_value] * l for l in leaf_ci.length]
+            sch_col = other_schema[col]
+            col_embedded = {}
+
+            # Compute digest and fill all_dig
+            all_dig[col] = []
+            for v in values:
+                arr = sch_col.cast(asarray(v))
+                encoded, digest = sch_col.codec.encode(arr, with_digest=True)
+                col_embedded[digest] = encoded
+                # Add new coll to digest dict
+                all_dig[col].append(digest)
+
             # Add data to embedded
             embedded.update(col_embedded)
-
         embedded.update(leaf_ci.embedded)
 
         new_ci = Commit(
             other_schema,
             leaf_ci.label,
-            leaf_ci.start,
-            leaf_ci.stop,
+            start,
+            stop,
             all_dig,
             leaf_ci.length,
             closed=leaf_ci.closed,
@@ -323,7 +367,7 @@ class Collection:
             queue.extend(parents)
             yield rev
 
-    def squash(self, trim=None, max_chunk=settings.squash_max_chunk):
+    def squash(self, trim=None, max_chunk=settings.defrag_max_chunk):
         &#34;&#34;&#34;
         Remove past revisions, collapse each series into one or few large
         frames. Returns newly created revisions.
@@ -342,52 +386,64 @@ class Collection:
         If `max_chunk` is less or equal to zero, no new revision is
         created.
         &#34;&#34;&#34;
-        logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
+        warn(
+            &#34;Collection.squash will be deprecated, please use&#34;
+            &#34;Collection.trim &amp; Collection.defrag&#34;
+        )
 
-        # Read existing revisions
-        if trim is None:
-            trim = datetime.now() - timedelta(seconds=settings.timeout) * 2
-        if trim:
-            revs = self.changelog.log(before=trim)
-        else:
-            revs = []
+        revs = self.defrag(max_chunk=max_chunk)
+        if trim is not False:
+            self.trim(trim)
+        return revs
 
-        if max_chunk &lt;= 0:
-            # Simply remove older commit
-            self.changelog.pod.rm_many([r.path for r in revs[:-1]])
-            self.changelog.refresh()
-            return []
+    def trim(self, before=None):
+        &#34;&#34;&#34;
+        If `before` is None (the default), all revisions older than twice
+        the timeout (see `settings.timeout` in `utils.py`) are
+        removed.  If set to a datetime, all the revisions older than
+        the given value will be deleted, keeping at least the last
+        commit.
+        &#34;&#34;&#34;
+        logger.info(&#39;Trim collection &#34;%s&#34;&#39;, self.label)
+        if before is None:
+            before = datetime.now() - timedelta(seconds=settings.timeout) * 2
 
+        # Read existing revisions, make sure we don&#39;t erase the last one
+        revs = self.changelog.log(before=before)
+        if not revs:
+            return 0
+        if revs[-1].is_leaf:
+            full_revs = self.changelog.log()
+            if len(full_revs) == len(revs):
+                revs = revs[:-1]
+
+        self.changelog.pod.rm_many([r.path for r in revs])
+        self.changelog.refresh()
+        return len(revs)
+
+    def defrag(self, max_chunk=settings.defrag_max_chunk):
         # Rewrite each series
         leaf = self.changelog.leaf()
         commit = leaf and leaf.commit(self)
         with self.multi() as batch:
             with Pool() as pool:
                 for series in self:
-                    pool.submit(self._squash_series, series, commit, max_chunk)
+                    pool.submit(self._defrag_series, series, commit, max_chunk)
 
-        # Remove old revisions
-        to_remove = [r.path for r in revs]
-        if not batch.revs:
-            # No new revision created, keep the last one
-            to_remove = to_remove[:-1]
-        self.changelog.pod.rm_many(to_remove)
-
-        self.changelog.refresh()
         return batch.revs
 
-    def _squash_series(self, series, commit, max_chunk):
-        logger.info(&#39;Squash series &#34;%s/%s&#34;&#39;, self.label, series.label)
-        # Re-write series. We use _find_squash_start to fast-forward
+    def _defrag_series(self, series, commit, max_chunk):
+        logger.info(&#39;Defrag series &#34;%s/%s&#34;&#39;, self.label, series.label)
+        # Re-write series. We use _find_defrag_start to fast-forward
         # in the series (we bet on the fact that most series are
         # append-only)
-        start, closed = self._find_squash_start(commit, series, max_chunk)
+        start, closed = self._find_defrag_start(commit, series, max_chunk)
         prev_stop = None
         for frm in series.paginate(start=start, closed=closed):
             series.write(frm, start=prev_stop, closed=&#34;r&#34; if prev_stop else &#34;b&#34;)
             prev_stop = frm.stop()
 
-    def _find_squash_start(self, commit, series, max_chunk):
+    def _find_defrag_start(self, commit, series, max_chunk):
         &#34;&#34;&#34;
         Find the first &#34;small&#34; segment , and return its start values.
         &#34;&#34;&#34;
@@ -488,9 +544,9 @@ class Collection:
         return self.changelog.commit(payload, parents=[parent])
 
     def rename(self, from_label, to_label):
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         Rename Series
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         leaf_rev = self.changelog.leaf()
         if not leaf_rev:
             return
@@ -501,46 +557,79 @@ class Collection:
         payload = ci.encode()
         return self.changelog.commit(payload, parents=[parent])
 
-    def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+    def clone(
+        self,
+        other_collection: &#34;Collection&#34;,
+        rename: Dict[str, str] = None,
+        defaults: Dict[str, Any] = None,
+    ) -&gt; Commit:
         if other_collection.changelog.leaf():
             raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
 
         other_schema = other_collection.schema
-        leaf_rev = self.changelog.leaf()
-        leaf_ci = leaf_rev.commit(self)
-        all_dig = leaf_ci.digest
-        for old_label, new_label in (rename_columns or {}).items():
-            all_dig[new_label] = all_dig.pop(old_label)
-        embedded = {}
-        for col in other_schema:
-            if col in all_dig:
-                continue
-            if col in other_schema.idx:
-                raise ValueError(&#34;Can not add idx column&#34;)
-            # Fill each commit row with digest &amp; embed data of zeroes
-            if defaults and col in defaults:
-                default_value = defaults[col]
-                values = [[default_value]*l for l in leaf_ci.length]
-            else:
-                values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
-            codec = other_schema[col].codec
-            col_embedded = {}
-            for v in values:
-                encoded, digest = codec.encode(v, with_digest=True)
-                col_embedded[digest] = encoded
-            # Add new coll to digest dict
+        # new2old will map the &#34;old&#34; label corresponding to it&#39;s new
+        # label (in other_schema)
+        new2old = {}
+        if rename:
+            for old, new in rename.items():
+                assert new in other_schema
+                new2old[new] = old
 
-            all_dig[col] = list(col_embedded.keys())
+        leaf_rev = self.changelog.leaf()
+        defaults = defaults or {}
+        leaf_ci = leaf_rev.commit(self)
+        all_dig = {}
+        start = {} #n: [] for n in leaf_ci.start
+        stop = {} #n: [] for n in leaf_ci.stop
+        embedded = {}
+
+        for col in other_schema:
+            old_col = new2old.get(col, col)
+
+            # TODO: raise an exception if a column is removed from the
+            # index!
+
+            # Determine default value
+            default_value = defaults.get(col, other_schema[col].zero())
+
+            # Add zero/default to start &amp; stop
+            if col in other_schema.idx:
+                if old_col in leaf_ci.start:
+                    start[col] = leaf_ci.start[old_col]
+                    stop[col] = leaf_ci.stop[old_col]
+                else:
+                    start_stop = [default_value] * len(leaf_ci.length)
+                    start[col] = start_stop
+                    stop[col] = start_stop
+
+            if old_col in leaf_ci.digest:
+                # XXX raise exception if dtype is different
+                all_dig[col] = leaf_ci.digest[old_col]
+                continue
+
+            # build digest &amp; embed arrays (based on zeroes arrays)
+            values = [[default_value] * l for l in leaf_ci.length]
+            sch_col = other_schema[col]
+            col_embedded = {}
+
+            # Compute digest and fill all_dig
+            all_dig[col] = []
+            for v in values:
+                arr = sch_col.cast(asarray(v))
+                encoded, digest = sch_col.codec.encode(arr, with_digest=True)
+                col_embedded[digest] = encoded
+                # Add new coll to digest dict
+                all_dig[col].append(digest)
+
             # Add data to embedded
             embedded.update(col_embedded)
-
         embedded.update(leaf_ci.embedded)
 
         new_ci = Commit(
             other_schema,
             leaf_ci.label,
-            leaf_ci.start,
-            leaf_ci.stop,
+            start,
+            stop,
             all_dig,
             leaf_ci.length,
             closed=leaf_ci.closed,
@@ -651,7 +740,7 @@ class Collection:
             queue.extend(parents)
             yield rev
 
-    def squash(self, trim=None, max_chunk=settings.squash_max_chunk):
+    def squash(self, trim=None, max_chunk=settings.defrag_max_chunk):
         &#34;&#34;&#34;
         Remove past revisions, collapse each series into one or few large
         frames. Returns newly created revisions.
@@ -670,52 +759,64 @@ class Collection:
         If `max_chunk` is less or equal to zero, no new revision is
         created.
         &#34;&#34;&#34;
-        logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
+        warn(
+            &#34;Collection.squash will be deprecated, please use&#34;
+            &#34;Collection.trim &amp; Collection.defrag&#34;
+        )
 
-        # Read existing revisions
-        if trim is None:
-            trim = datetime.now() - timedelta(seconds=settings.timeout) * 2
-        if trim:
-            revs = self.changelog.log(before=trim)
-        else:
-            revs = []
+        revs = self.defrag(max_chunk=max_chunk)
+        if trim is not False:
+            self.trim(trim)
+        return revs
 
-        if max_chunk &lt;= 0:
-            # Simply remove older commit
-            self.changelog.pod.rm_many([r.path for r in revs[:-1]])
-            self.changelog.refresh()
-            return []
+    def trim(self, before=None):
+        &#34;&#34;&#34;
+        If `before` is None (the default), all revisions older than twice
+        the timeout (see `settings.timeout` in `utils.py`) are
+        removed.  If set to a datetime, all the revisions older than
+        the given value will be deleted, keeping at least the last
+        commit.
+        &#34;&#34;&#34;
+        logger.info(&#39;Trim collection &#34;%s&#34;&#39;, self.label)
+        if before is None:
+            before = datetime.now() - timedelta(seconds=settings.timeout) * 2
 
+        # Read existing revisions, make sure we don&#39;t erase the last one
+        revs = self.changelog.log(before=before)
+        if not revs:
+            return 0
+        if revs[-1].is_leaf:
+            full_revs = self.changelog.log()
+            if len(full_revs) == len(revs):
+                revs = revs[:-1]
+
+        self.changelog.pod.rm_many([r.path for r in revs])
+        self.changelog.refresh()
+        return len(revs)
+
+    def defrag(self, max_chunk=settings.defrag_max_chunk):
         # Rewrite each series
         leaf = self.changelog.leaf()
         commit = leaf and leaf.commit(self)
         with self.multi() as batch:
             with Pool() as pool:
                 for series in self:
-                    pool.submit(self._squash_series, series, commit, max_chunk)
+                    pool.submit(self._defrag_series, series, commit, max_chunk)
 
-        # Remove old revisions
-        to_remove = [r.path for r in revs]
-        if not batch.revs:
-            # No new revision created, keep the last one
-            to_remove = to_remove[:-1]
-        self.changelog.pod.rm_many(to_remove)
-
-        self.changelog.refresh()
         return batch.revs
 
-    def _squash_series(self, series, commit, max_chunk):
-        logger.info(&#39;Squash series &#34;%s/%s&#34;&#39;, self.label, series.label)
-        # Re-write series. We use _find_squash_start to fast-forward
+    def _defrag_series(self, series, commit, max_chunk):
+        logger.info(&#39;Defrag series &#34;%s/%s&#34;&#39;, self.label, series.label)
+        # Re-write series. We use _find_defrag_start to fast-forward
         # in the series (we bet on the fact that most series are
         # append-only)
-        start, closed = self._find_squash_start(commit, series, max_chunk)
+        start, closed = self._find_defrag_start(commit, series, max_chunk)
         prev_stop = None
         for frm in series.paginate(start=start, closed=closed):
             series.write(frm, start=prev_stop, closed=&#34;r&#34; if prev_stop else &#34;b&#34;)
             prev_stop = frm.stop()
 
-    def _find_squash_start(self, commit, series, max_chunk):
+    def _find_defrag_start(self, commit, series, max_chunk):
         &#34;&#34;&#34;
         Find the first &#34;small&#34; segment , and return its start values.
         &#34;&#34;&#34;
@@ -756,7 +857,7 @@ class Collection:
 <h3>Methods</h3>
 <dl>
 <dt id="lakota.collection.Collection.clone"><code class="name flex">
-<span>def <span class="ident">clone</span></span>(<span>self, other_collection: <a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a>, rename_columns: Dict[str, str] = None, defaults: Dict[str, Any] = None) ‑> <a title="lakota.commit.Commit" href="commit.html#lakota.commit.Commit">Commit</a></span>
+<span>def <span class="ident">clone</span></span>(<span>self, other_collection: <a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a>, rename: Dict[str, str] = None, defaults: Dict[str, Any] = None) ‑> <a title="lakota.commit.Commit" href="commit.html#lakota.commit.Commit">Commit</a></span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -764,52 +865,106 @@ class Collection:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clone(self, other_collection: &#34;Collection&#34;, rename_columns: Dict[str, str]=None, defaults: Dict[str, Any]=None) -&gt; Commit:
+<pre><code class="python">def clone(
+    self,
+    other_collection: &#34;Collection&#34;,
+    rename: Dict[str, str] = None,
+    defaults: Dict[str, Any] = None,
+) -&gt; Commit:
     if other_collection.changelog.leaf():
         raise ValueError(&#34;Clone can only be saved into an empty collection&#34;)
 
     other_schema = other_collection.schema
-    leaf_rev = self.changelog.leaf()
-    leaf_ci = leaf_rev.commit(self)
-    all_dig = leaf_ci.digest
-    for old_label, new_label in (rename_columns or {}).items():
-        all_dig[new_label] = all_dig.pop(old_label)
-    embedded = {}
-    for col in other_schema:
-        if col in all_dig:
-            continue
-        if col in other_schema.idx:
-            raise ValueError(&#34;Can not add idx column&#34;)
-        # Fill each commit row with digest &amp; embed data of zeroes
-        if defaults and col in defaults:
-            default_value = defaults[col]
-            values = [[default_value]*l for l in leaf_ci.length]
-        else:
-            values = [other_schema[col].zeroes(l) for l in leaf_ci.length]
-        codec = other_schema[col].codec
-        col_embedded = {}
-        for v in values:
-            encoded, digest = codec.encode(v, with_digest=True)
-            col_embedded[digest] = encoded
-        # Add new coll to digest dict
+    # new2old will map the &#34;old&#34; label corresponding to it&#39;s new
+    # label (in other_schema)
+    new2old = {}
+    if rename:
+        for old, new in rename.items():
+            assert new in other_schema
+            new2old[new] = old
 
-        all_dig[col] = list(col_embedded.keys())
+    leaf_rev = self.changelog.leaf()
+    defaults = defaults or {}
+    leaf_ci = leaf_rev.commit(self)
+    all_dig = {}
+    start = {} #n: [] for n in leaf_ci.start
+    stop = {} #n: [] for n in leaf_ci.stop
+    embedded = {}
+
+    for col in other_schema:
+        old_col = new2old.get(col, col)
+
+        # TODO: raise an exception if a column is removed from the
+        # index!
+
+        # Determine default value
+        default_value = defaults.get(col, other_schema[col].zero())
+
+        # Add zero/default to start &amp; stop
+        if col in other_schema.idx:
+            if old_col in leaf_ci.start:
+                start[col] = leaf_ci.start[old_col]
+                stop[col] = leaf_ci.stop[old_col]
+            else:
+                start_stop = [default_value] * len(leaf_ci.length)
+                start[col] = start_stop
+                stop[col] = start_stop
+
+        if old_col in leaf_ci.digest:
+            # XXX raise exception if dtype is different
+            all_dig[col] = leaf_ci.digest[old_col]
+            continue
+
+        # build digest &amp; embed arrays (based on zeroes arrays)
+        values = [[default_value] * l for l in leaf_ci.length]
+        sch_col = other_schema[col]
+        col_embedded = {}
+
+        # Compute digest and fill all_dig
+        all_dig[col] = []
+        for v in values:
+            arr = sch_col.cast(asarray(v))
+            encoded, digest = sch_col.codec.encode(arr, with_digest=True)
+            col_embedded[digest] = encoded
+            # Add new coll to digest dict
+            all_dig[col].append(digest)
+
         # Add data to embedded
         embedded.update(col_embedded)
-
     embedded.update(leaf_ci.embedded)
 
     new_ci = Commit(
         other_schema,
         leaf_ci.label,
-        leaf_ci.start,
-        leaf_ci.stop,
+        start,
+        stop,
         all_dig,
         leaf_ci.length,
         closed=leaf_ci.closed,
         embedded=embedded,
     )
     return other_collection.changelog.commit(new_ci.encode(), parents=[phi])</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.defrag"><code class="name flex">
+<span>def <span class="ident">defrag</span></span>(<span>self, max_chunk=4)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def defrag(self, max_chunk=settings.defrag_max_chunk):
+    # Rewrite each series
+    leaf = self.changelog.leaf()
+    commit = leaf and leaf.commit(self)
+    with self.multi() as batch:
+        with Pool() as pool:
+            for series in self:
+                pool.submit(self._defrag_series, series, commit, max_chunk)
+
+    return batch.revs</code></pre>
 </details>
 </dd>
 <dt id="lakota.collection.Collection.delete"><code class="name flex">
@@ -1033,9 +1188,9 @@ def multi(self, root=None):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def rename(self, from_label, to_label):
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     Rename Series
-    &#39;&#39;&#39;
+    &#34;&#34;&#34;
     leaf_rev = self.changelog.leaf()
     if not leaf_rev:
         return
@@ -1086,7 +1241,7 @@ created.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def squash(self, trim=None, max_chunk=settings.squash_max_chunk):
+<pre><code class="python">def squash(self, trim=None, max_chunk=settings.defrag_max_chunk):
     &#34;&#34;&#34;
     Remove past revisions, collapse each series into one or few large
     frames. Returns newly created revisions.
@@ -1105,39 +1260,55 @@ created.</p></div>
     If `max_chunk` is less or equal to zero, no new revision is
     created.
     &#34;&#34;&#34;
-    logger.info(&#39;Squash collection &#34;%s&#34;&#39;, self.label)
+    warn(
+        &#34;Collection.squash will be deprecated, please use&#34;
+        &#34;Collection.trim &amp; Collection.defrag&#34;
+    )
 
-    # Read existing revisions
-    if trim is None:
-        trim = datetime.now() - timedelta(seconds=settings.timeout) * 2
-    if trim:
-        revs = self.changelog.log(before=trim)
-    else:
-        revs = []
+    revs = self.defrag(max_chunk=max_chunk)
+    if trim is not False:
+        self.trim(trim)
+    return revs</code></pre>
+</details>
+</dd>
+<dt id="lakota.collection.Collection.trim"><code class="name flex">
+<span>def <span class="ident">trim</span></span>(<span>self, before=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>If <code>before</code> is None (the default), all revisions older than twice
+the timeout (see <code>settings.timeout</code> in <code>utils.py</code>) are
+removed.
+If set to a datetime, all the revisions older than
+the given value will be deleted, keeping at least the last
+commit.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def trim(self, before=None):
+    &#34;&#34;&#34;
+    If `before` is None (the default), all revisions older than twice
+    the timeout (see `settings.timeout` in `utils.py`) are
+    removed.  If set to a datetime, all the revisions older than
+    the given value will be deleted, keeping at least the last
+    commit.
+    &#34;&#34;&#34;
+    logger.info(&#39;Trim collection &#34;%s&#34;&#39;, self.label)
+    if before is None:
+        before = datetime.now() - timedelta(seconds=settings.timeout) * 2
 
-    if max_chunk &lt;= 0:
-        # Simply remove older commit
-        self.changelog.pod.rm_many([r.path for r in revs[:-1]])
-        self.changelog.refresh()
-        return []
+    # Read existing revisions, make sure we don&#39;t erase the last one
+    revs = self.changelog.log(before=before)
+    if not revs:
+        return 0
+    if revs[-1].is_leaf:
+        full_revs = self.changelog.log()
+        if len(full_revs) == len(revs):
+            revs = revs[:-1]
 
-    # Rewrite each series
-    leaf = self.changelog.leaf()
-    commit = leaf and leaf.commit(self)
-    with self.multi() as batch:
-        with Pool() as pool:
-            for series in self:
-                pool.submit(self._squash_series, series, commit, max_chunk)
-
-    # Remove old revisions
-    to_remove = [r.path for r in revs]
-    if not batch.revs:
-        # No new revision created, keep the last one
-        to_remove = to_remove[:-1]
-    self.changelog.pod.rm_many(to_remove)
-
+    self.changelog.pod.rm_many([r.path for r in revs])
     self.changelog.refresh()
-    return batch.revs</code></pre>
+    return len(revs)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1165,6 +1336,7 @@ created.</p></div>
 <h4><code><a title="lakota.collection.Collection" href="#lakota.collection.Collection">Collection</a></code></h4>
 <ul class="two-column">
 <li><code><a title="lakota.collection.Collection.clone" href="#lakota.collection.Collection.clone">clone</a></code></li>
+<li><code><a title="lakota.collection.Collection.defrag" href="#lakota.collection.Collection.defrag">defrag</a></code></li>
 <li><code><a title="lakota.collection.Collection.delete" href="#lakota.collection.Collection.delete">delete</a></code></li>
 <li><code><a title="lakota.collection.Collection.digests" href="#lakota.collection.Collection.digests">digests</a></code></li>
 <li><code><a title="lakota.collection.Collection.ls" href="#lakota.collection.Collection.ls">ls</a></code></li>
@@ -1176,6 +1348,7 @@ created.</p></div>
 <li><code><a title="lakota.collection.Collection.rename" href="#lakota.collection.Collection.rename">rename</a></code></li>
 <li><code><a title="lakota.collection.Collection.series" href="#lakota.collection.Collection.series">series</a></code></li>
 <li><code><a title="lakota.collection.Collection.squash" href="#lakota.collection.Collection.squash">squash</a></code></li>
+<li><code><a title="lakota.collection.Collection.trim" href="#lakota.collection.Collection.trim">trim</a></code></li>
 </ul>
 </li>
 </ul>

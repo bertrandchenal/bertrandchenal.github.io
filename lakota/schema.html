@@ -31,7 +31,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from numcodecs import registry
-from numpy import asarray, ascontiguousarray, dtype, frombuffer, issubdtype, ndarray, repeat
+from numpy import (asarray, ascontiguousarray, dtype, frombuffer, issubdtype,
+                   ndarray)
 
 from .utils import hexdigest
 
@@ -190,9 +191,8 @@ class SchemaColumn:
             and self.codec == other.codec
         )
 
-    def zeroes(self, length):
-        zero = &#34;&#34; if self.codec.dt == &#34;str&#34; else 0
-        return repeat(zero, length)
+    def zero(self):
+        return &#34;&#34; if self.codec.dt == &#34;str&#34; else 0
 
 
 class Schema:
@@ -208,6 +208,10 @@ class Schema:
         self.non_idx = {n: c for n, c in self.columns.items() if not c.idx}
         if len(self.idx) == 0:
             raise ValueError(&#34;Invalid schema, no index defined&#34;)
+
+    def clone(self, *keep):
+        cols = keep or list(self)
+        return Schema(**{c: self[c] for c in cols})
 
     @classmethod
     def kv(cls, **columns):
@@ -340,6 +344,10 @@ class SeriesDefinition:
         self.non_idx = {n: c for n, c in self.columns.items() if not c.idx}
         if len(self.idx) == 0:
             raise ValueError(&#34;Invalid schema, no index defined&#34;)
+
+    def clone(self, *keep):
+        cols = keep or list(self)
+        return Schema(**{c: self[c] for c in cols})
 
     @classmethod
     def kv(cls, **columns):
@@ -520,6 +528,20 @@ def loads(self, data):
     return res</code></pre>
 </details>
 </dd>
+<dt id="lakota.schema.Schema.clone"><code class="name flex">
+<span>def <span class="ident">clone</span></span>(<span>self, *keep)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def clone(self, *keep):
+    cols = keep or list(self)
+    return Schema(**{c: self[c] for c in cols})</code></pre>
+</details>
+</dd>
 <dt id="lakota.schema.Schema.deserialize"><code class="name flex">
 <span>def <span class="ident">deserialize</span></span>(<span>self, values=())</span>
 </code></dt>
@@ -613,6 +635,7 @@ given position</p></div>
 <h4><code><a title="lakota.schema.Schema" href="#lakota.schema.Schema">Schema</a></code></h4>
 <ul class="two-column">
 <li><code><a title="lakota.schema.Schema.cast" href="#lakota.schema.Schema.cast">cast</a></code></li>
+<li><code><a title="lakota.schema.Schema.clone" href="#lakota.schema.Schema.clone">clone</a></code></li>
 <li><code><a title="lakota.schema.Schema.deserialize" href="#lakota.schema.Schema.deserialize">deserialize</a></code></li>
 <li><code><a title="lakota.schema.Schema.dumps" href="#lakota.schema.Schema.dumps">dumps</a></code></li>
 <li><code><a title="lakota.schema.Schema.from_frame" href="#lakota.schema.Schema.from_frame">from_frame</a></code></li>

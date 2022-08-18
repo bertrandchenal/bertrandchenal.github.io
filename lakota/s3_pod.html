@@ -26,7 +26,8 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from pathlib import PurePosixPath
+<pre><code class="python">from itertools import chain
+from pathlib import PurePosixPath
 
 import boto3
 import urllib3
@@ -87,30 +88,40 @@ class S3POD(POD):
         path = self.path.joinpath(*others)
         return S3POD(self.bucket / path, client=self.client)
 
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
-        logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+    def ls_iter(self, prefix, limit=None, delimiter=&#34;/&#34;):
+        &#39;&#39;&#39;
+        Iterable that yield lists of object keys
+        &#39;&#39;&#39;
+        logger.debug(&#34;LIST s3:///%s/%s&#34;, self.bucket, prefix)
         paginator = self.client.get_paginator(&#34;list_objects&#34;)
-        prefix = str(self.path / relpath)
-        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-        cut = len(prefix)
         options = {
             &#34;Bucket&#34;: str(self.bucket),
             &#34;Prefix&#34;: prefix,
-            &#34;Delimiter&#34;: &#34;/&#34;,
         }
+        if delimiter:
+            options[&#34;Delimiter&#34;] = delimiter
         if limit is not None:
             options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
 
         page_iterator = paginator.paginate(**options)
-        names = []
         for page in page_iterator:
             # Extract pseudo-folder names
             common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
-            names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+            yield [item[&#34;Prefix&#34;].rstrip(&#34;/&#34;) for item in common_prefixes]
             # Extract keys (filenames)
             contents = page.get(&#34;Contents&#34;, [])
-            names.extend(item[&#34;Key&#34;][cut:] for item in contents)
-        return names
+            yield [item[&#34;Key&#34;] for item in contents]
+
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None, delimiter=&#34;/&#34;):
+        &#39;&#39;&#39;
+        The parameter `missing_ok` is not supported, it is present for
+        compatibility reason with the other pods.
+        &#39;&#39;&#39;
+        prefix = str(self.path / relpath)
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + delimiter
+        cut = len(prefix)
+        it = self.ls_iter(prefix, limit=limit, delimiter=delimiter)
+        return [item[cut:] for item in chain.from_iterable(it)]
 
     def read(self, relpath, mode=&#34;rb&#34;):
         logger.debug(&#34;READ s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
@@ -153,25 +164,38 @@ class S3POD(POD):
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
-
         prefix = str(self.path / relpath)
-        if missing_ok and not recursive:
-            # We don&#39;t need to list remote keys if we don&#39;t plan to
-            # check their existance
-            keys = [prefix]
-        else:
-            if recursive:
-                prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-            resp = self.client.list_objects_v2(
-                Bucket=str(self.bucket), Prefix=prefix)
-            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+        if not recursive:
+            if missing_ok:
+                keys = [prefix]
+            else:
+                # We must make sure the key exists
+                it = self.ls_iter(prefix, limit=2, delimiter=&#34;&#34;)
+                keys = list(chain.from_iterable(it))
+                if not keys:
+                    raise FileNotFoundError(f&#34;{relpath} not found&#34;)
 
-        if not recursive and len(keys) &gt; 1:
-            # We raise an OSError to mimic file based access
-            raise OSError(f&#34;{relpath} is not empty&#34;)
-        if not keys and not missing_ok:
+            if len(keys) &gt; 1:
+                # We raise an OSError to mimic file based access
+                raise OSError(f&#34;{relpath} is not empty&#34;)
+            self._delete_keys([prefix])
+            return
+
+        # Recursive case, we use ls_iter to loop on a potentially
+        # large number of files
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        files_found = False
+        for chunk in self.ls_iter(prefix, delimiter=&#34;&#34;):
+            if not chunk:
+                # can be empty
+                continue
+            files_found = True
+            self._delete_keys(chunk)
+
+        if not files_found and not missing_ok:
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
 
+    def _delete_keys(self, keys):
         try:
             _ = self.client.delete_objects(
                 Bucket=str(self.bucket),
@@ -180,6 +204,7 @@ class S3POD(POD):
                     &#34;Quiet&#34;: True,
                 },
             )
+
             # TODO check for error in response
         except ClientError as err:
             if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
@@ -303,30 +328,40 @@ verifications. Please note that boto3 will also use
         path = self.path.joinpath(*others)
         return S3POD(self.bucket / path, client=self.client)
 
-    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
-        logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
+    def ls_iter(self, prefix, limit=None, delimiter=&#34;/&#34;):
+        &#39;&#39;&#39;
+        Iterable that yield lists of object keys
+        &#39;&#39;&#39;
+        logger.debug(&#34;LIST s3:///%s/%s&#34;, self.bucket, prefix)
         paginator = self.client.get_paginator(&#34;list_objects&#34;)
-        prefix = str(self.path / relpath)
-        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-        cut = len(prefix)
         options = {
             &#34;Bucket&#34;: str(self.bucket),
             &#34;Prefix&#34;: prefix,
-            &#34;Delimiter&#34;: &#34;/&#34;,
         }
+        if delimiter:
+            options[&#34;Delimiter&#34;] = delimiter
         if limit is not None:
             options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
 
         page_iterator = paginator.paginate(**options)
-        names = []
         for page in page_iterator:
             # Extract pseudo-folder names
             common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
-            names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+            yield [item[&#34;Prefix&#34;].rstrip(&#34;/&#34;) for item in common_prefixes]
             # Extract keys (filenames)
             contents = page.get(&#34;Contents&#34;, [])
-            names.extend(item[&#34;Key&#34;][cut:] for item in contents)
-        return names
+            yield [item[&#34;Key&#34;] for item in contents]
+
+    def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None, delimiter=&#34;/&#34;):
+        &#39;&#39;&#39;
+        The parameter `missing_ok` is not supported, it is present for
+        compatibility reason with the other pods.
+        &#39;&#39;&#39;
+        prefix = str(self.path / relpath)
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + delimiter
+        cut = len(prefix)
+        it = self.ls_iter(prefix, limit=limit, delimiter=delimiter)
+        return [item[cut:] for item in chain.from_iterable(it)]
 
     def read(self, relpath, mode=&#34;rb&#34;):
         logger.debug(&#34;READ s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
@@ -369,25 +404,38 @@ verifications. Please note that boto3 will also use
 
     def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
         logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
-
         prefix = str(self.path / relpath)
-        if missing_ok and not recursive:
-            # We don&#39;t need to list remote keys if we don&#39;t plan to
-            # check their existance
-            keys = [prefix]
-        else:
-            if recursive:
-                prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-            resp = self.client.list_objects_v2(
-                Bucket=str(self.bucket), Prefix=prefix)
-            keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+        if not recursive:
+            if missing_ok:
+                keys = [prefix]
+            else:
+                # We must make sure the key exists
+                it = self.ls_iter(prefix, limit=2, delimiter=&#34;&#34;)
+                keys = list(chain.from_iterable(it))
+                if not keys:
+                    raise FileNotFoundError(f&#34;{relpath} not found&#34;)
 
-        if not recursive and len(keys) &gt; 1:
-            # We raise an OSError to mimic file based access
-            raise OSError(f&#34;{relpath} is not empty&#34;)
-        if not keys and not missing_ok:
+            if len(keys) &gt; 1:
+                # We raise an OSError to mimic file based access
+                raise OSError(f&#34;{relpath} is not empty&#34;)
+            self._delete_keys([prefix])
+            return
+
+        # Recursive case, we use ls_iter to loop on a potentially
+        # large number of files
+        prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+        files_found = False
+        for chunk in self.ls_iter(prefix, delimiter=&#34;&#34;):
+            if not chunk:
+                # can be empty
+                continue
+            files_found = True
+            self._delete_keys(chunk)
+
+        if not files_found and not missing_ok:
             raise FileNotFoundError(f&#34;{relpath} not found&#34;)
 
+    def _delete_keys(self, keys):
         try:
             _ = self.client.delete_objects(
                 Bucket=str(self.bucket),
@@ -396,6 +444,7 @@ verifications. Please note that boto3 will also use
                     &#34;Quiet&#34;: True,
                 },
             )
+
             # TODO check for error in response
         except ClientError as err:
             if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
@@ -495,38 +544,59 @@ verifications. Please note that boto3 will also use
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.ls"><code class="name flex">
-<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False, limit=None)</span>
+<span>def <span class="ident">ls</span></span>(<span>self, relpath='.', missing_ok=False, limit=None, delimiter='/')</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>The parameter <code>missing_ok</code> is not supported, it is present for
+compatibility reason with the other pods.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None):
-    logger.debug(&#34;LIST s3:///%s/%s %s&#34;, self.bucket, self.path, relpath)
-    paginator = self.client.get_paginator(&#34;list_objects&#34;)
+<pre><code class="python">def ls(self, relpath=&#34;.&#34;, missing_ok=False, limit=None, delimiter=&#34;/&#34;):
+    &#39;&#39;&#39;
+    The parameter `missing_ok` is not supported, it is present for
+    compatibility reason with the other pods.
+    &#39;&#39;&#39;
     prefix = str(self.path / relpath)
-    prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+    prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + delimiter
     cut = len(prefix)
+    it = self.ls_iter(prefix, limit=limit, delimiter=delimiter)
+    return [item[cut:] for item in chain.from_iterable(it)]</code></pre>
+</details>
+</dd>
+<dt id="lakota.s3_pod.S3POD.ls_iter"><code class="name flex">
+<span>def <span class="ident">ls_iter</span></span>(<span>self, prefix, limit=None, delimiter='/')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Iterable that yield lists of object keys</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ls_iter(self, prefix, limit=None, delimiter=&#34;/&#34;):
+    &#39;&#39;&#39;
+    Iterable that yield lists of object keys
+    &#39;&#39;&#39;
+    logger.debug(&#34;LIST s3:///%s/%s&#34;, self.bucket, prefix)
+    paginator = self.client.get_paginator(&#34;list_objects&#34;)
     options = {
         &#34;Bucket&#34;: str(self.bucket),
         &#34;Prefix&#34;: prefix,
-        &#34;Delimiter&#34;: &#34;/&#34;,
     }
+    if delimiter:
+        options[&#34;Delimiter&#34;] = delimiter
     if limit is not None:
         options[&#34;PaginationConfig&#34;] = {&#34;MaxItems&#34;: limit}
 
     page_iterator = paginator.paginate(**options)
-    names = []
     for page in page_iterator:
         # Extract pseudo-folder names
         common_prefixes = page.get(&#34;CommonPrefixes&#34;, [])
-        names.extend(item[&#34;Prefix&#34;][cut:].rstrip(&#34;/&#34;) for item in common_prefixes)
+        yield [item[&#34;Prefix&#34;].rstrip(&#34;/&#34;) for item in common_prefixes]
         # Extract keys (filenames)
         contents = page.get(&#34;Contents&#34;, [])
-        names.extend(item[&#34;Key&#34;][cut:] for item in contents)
-    return names</code></pre>
+        yield [item[&#34;Key&#34;] for item in contents]</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.mv"><code class="name flex">
@@ -596,44 +666,36 @@ verifications. Please note that boto3 will also use
 </summary>
 <pre><code class="python">def rm(self, relpath=&#34;.&#34;, recursive=False, missing_ok=False):
     logger.debug(&#34;REMOVE s3://%s/%s %s&#34;, self.bucket, self.path, relpath)
-
     prefix = str(self.path / relpath)
-    if missing_ok and not recursive:
-        # We don&#39;t need to list remote keys if we don&#39;t plan to
-        # check their existance
-        keys = [prefix]
-    else:
-        if recursive:
-            prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
-        resp = self.client.list_objects_v2(
-            Bucket=str(self.bucket), Prefix=prefix)
-        keys = [item[&#34;Key&#34;] for item in resp.get(&#34;Contents&#34;, [])]
+    if not recursive:
+        if missing_ok:
+            keys = [prefix]
+        else:
+            # We must make sure the key exists
+            it = self.ls_iter(prefix, limit=2, delimiter=&#34;&#34;)
+            keys = list(chain.from_iterable(it))
+            if not keys:
+                raise FileNotFoundError(f&#34;{relpath} not found&#34;)
 
-    if not recursive and len(keys) &gt; 1:
-        # We raise an OSError to mimic file based access
-        raise OSError(f&#34;{relpath} is not empty&#34;)
-    if not keys and not missing_ok:
-        raise FileNotFoundError(f&#34;{relpath} not found&#34;)
+        if len(keys) &gt; 1:
+            # We raise an OSError to mimic file based access
+            raise OSError(f&#34;{relpath} is not empty&#34;)
+        self._delete_keys([prefix])
+        return
 
-    try:
-        _ = self.client.delete_objects(
-            Bucket=str(self.bucket),
-            Delete={
-                &#34;Objects&#34;: [{&#34;Key&#34;: k} for k in keys],
-                &#34;Quiet&#34;: True,
-            },
-        )
-        # TODO check for error in response
-    except ClientError as err:
-        if err.response[&#34;Error&#34;][&#34;Code&#34;] != &#34;MalformedXML&#34;:
-            raise
-        # As of version 2.2.6, Moto doesn&#39;t support correctly
-        # delete_objects() calls, we fall back to delete_object()
-        for key in keys:
-            self.client.delete_object(
-                Bucket=str(self.bucket),
-                Key=key,
-            )</code></pre>
+    # Recursive case, we use ls_iter to loop on a potentially
+    # large number of files
+    prefix = &#34;&#34; if prefix in (&#34;.&#34;, &#34;&#34;) else prefix + &#34;/&#34;
+    files_found = False
+    for chunk in self.ls_iter(prefix, delimiter=&#34;&#34;):
+        if not chunk:
+            # can be empty
+            continue
+        files_found = True
+        self._delete_keys(chunk)
+
+    if not files_found and not missing_ok:
+        raise FileNotFoundError(f&#34;{relpath} not found&#34;)</code></pre>
 </details>
 </dd>
 <dt id="lakota.s3_pod.S3POD.write"><code class="name flex">
@@ -690,6 +752,7 @@ verifications. Please note that boto3 will also use
 <li><code><a title="lakota.s3_pod.S3POD.isdir" href="#lakota.s3_pod.S3POD.isdir">isdir</a></code></li>
 <li><code><a title="lakota.s3_pod.S3POD.isfile" href="#lakota.s3_pod.S3POD.isfile">isfile</a></code></li>
 <li><code><a title="lakota.s3_pod.S3POD.ls" href="#lakota.s3_pod.S3POD.ls">ls</a></code></li>
+<li><code><a title="lakota.s3_pod.S3POD.ls_iter" href="#lakota.s3_pod.S3POD.ls_iter">ls_iter</a></code></li>
 <li><code><a title="lakota.s3_pod.S3POD.mv" href="#lakota.s3_pod.S3POD.mv">mv</a></code></li>
 <li><code><a title="lakota.s3_pod.S3POD.protocol" href="#lakota.s3_pod.S3POD.protocol">protocol</a></code></li>
 <li><code><a title="lakota.s3_pod.S3POD.read" href="#lakota.s3_pod.S3POD.read">read</a></code></li>

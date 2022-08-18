@@ -64,7 +64,7 @@ class Settings:
     verify_ssl: bool = True
     embed_max_size: int = 1024
     page_len: int = 500_000
-    squash_max_chunk: int = 4  # Max number of small chunks in a series
+    defrag_max_chunk: int = 4  # Max number of small chunks in a series
     timeout: int = 600  # Max duration for a write batch (in seconds)
     max_threads: int = 10 # Size of the threadpool
 
@@ -1071,10 +1071,10 @@ def bisect(cls, nb_seconds):
 </dd>
 <dt id="lakota.utils.Settings"><code class="flex name class">
 <span>class <span class="ident">Settings</span></span>
-<span>(</span><span>threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</span>
+<span>(</span><span>threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, defrag_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Settings(threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, squash_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</p></div>
+<div class="desc"><p>Settings(threaded: bool = True, debug: bool = False, verify_ssl: bool = True, embed_max_size: int = 1024, page_len: int = 500000, defrag_max_chunk: int = 4, timeout: int = 600, max_threads: int = 10)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -1086,13 +1086,17 @@ class Settings:
     verify_ssl: bool = True
     embed_max_size: int = 1024
     page_len: int = 500_000
-    squash_max_chunk: int = 4  # Max number of small chunks in a series
+    defrag_max_chunk: int = 4  # Max number of small chunks in a series
     timeout: int = 600  # Max duration for a write batch (in seconds)
     max_threads: int = 10 # Size of the threadpool</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
 <dt id="lakota.utils.Settings.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="lakota.utils.Settings.defrag_max_chunk"><code class="name">var <span class="ident">defrag_max_chunk</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1105,10 +1109,6 @@ class Settings:
 <div class="desc"></div>
 </dd>
 <dt id="lakota.utils.Settings.page_len"><code class="name">var <span class="ident">page_len</span> : int</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="lakota.utils.Settings.squash_max_chunk"><code class="name">var <span class="ident">squash_max_chunk</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1203,10 +1203,10 @@ class Settings:
 <h4><code><a title="lakota.utils.Settings" href="#lakota.utils.Settings">Settings</a></code></h4>
 <ul class="two-column">
 <li><code><a title="lakota.utils.Settings.debug" href="#lakota.utils.Settings.debug">debug</a></code></li>
+<li><code><a title="lakota.utils.Settings.defrag_max_chunk" href="#lakota.utils.Settings.defrag_max_chunk">defrag_max_chunk</a></code></li>
 <li><code><a title="lakota.utils.Settings.embed_max_size" href="#lakota.utils.Settings.embed_max_size">embed_max_size</a></code></li>
 <li><code><a title="lakota.utils.Settings.max_threads" href="#lakota.utils.Settings.max_threads">max_threads</a></code></li>
 <li><code><a title="lakota.utils.Settings.page_len" href="#lakota.utils.Settings.page_len">page_len</a></code></li>
-<li><code><a title="lakota.utils.Settings.squash_max_chunk" href="#lakota.utils.Settings.squash_max_chunk">squash_max_chunk</a></code></li>
 <li><code><a title="lakota.utils.Settings.threaded" href="#lakota.utils.Settings.threaded">threaded</a></code></li>
 <li><code><a title="lakota.utils.Settings.timeout" href="#lakota.utils.Settings.timeout">timeout</a></code></li>
 <li><code><a title="lakota.utils.Settings.verify_ssl" href="#lakota.utils.Settings.verify_ssl">verify_ssl</a></code></li>

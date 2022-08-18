@@ -212,7 +212,7 @@ class Revision:
                 return payload
             else:
                 sleep(i / 10)
-        raise RuntimeError(&#34;Unable to read {self.path}&#34;)
+        raise RuntimeError(f&#34;Unable to read {self.path}&#34;)
 
     def commit(self, collection):
         &#34;&#34;&#34;
@@ -557,7 +557,7 @@ class Revision:
                 return payload
             else:
                 sleep(i / 10)
-        raise RuntimeError(&#34;Unable to read {self.path}&#34;)
+        raise RuntimeError(f&#34;Unable to read {self.path}&#34;)
 
     def commit(self, collection):
         &#34;&#34;&#34;
@@ -665,7 +665,7 @@ def path(self):
             return payload
         else:
             sleep(i / 10)
-    raise RuntimeError(&#34;Unable to read {self.path}&#34;)</code></pre>
+    raise RuntimeError(f&#34;Unable to read {self.path}&#34;)</code></pre>
 </details>
 </dd>
 </dl>

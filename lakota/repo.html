@@ -73,10 +73,11 @@ clct = repo / 'my_collection'
 </code></pre>
 <p>See <code><a title="lakota.collection" href="collection.html">lakota.collection</a></code> on how to manipulate collections</p>
 <h2 id="garbage-collection">Garbage Collection</h2>
-<p>After some times, some series can be overwritten, deleted, squashed or
-merged. Sooner or later some pieces of data will get dereferenced,
-those can be deleted to recover storage space. It is simply done with
-the <code>gc</code> method, which returns the number of deleted files.</p>
+<p>After some times, some series can be overwritten, deleted,
+defragmented or merged. Sooner or later some pieces of data will get
+dereferenced, those can be deleted to recover storage space. It is
+simply done with the <code>gc</code> method, which returns the number of deleted
+files.</p>
 <pre><code class="language-python">nb_hard_delete, nb_soft_delete = repo.gc()
 </code></pre>
 <p>Garbage collection is done in two-phases. On the first invocation,
@@ -164,10 +165,11 @@ See `lakota.collection` on how to manipulate collections
 
 ## Garbage Collection
 
-After some times, some series can be overwritten, deleted, squashed or
-merged. Sooner or later some pieces of data will get dereferenced,
-those can be deleted to recover storage space. It is simply done with
-the `gc` method, which returns the number of deleted files.
+After some times, some series can be overwritten, deleted,
+defragmented or merged. Sooner or later some pieces of data will get
+dereferenced, those can be deleted to recover storage space. It is
+simply done with the `gc` method, which returns the number of deleted
+files.
 
 ```python
 nb_hard_delete, nb_soft_delete = repo.gc()
@@ -464,7 +466,6 @@ class Repo:
 
             # Inactive file, check timestamp &amp; delete or re-enable it
             dig, ext = dig.split(&#34;.&#34;)
-
             if ext &gt; deadline:
                 # ext contains a ts created recently, we can not act on it yet
                 continue
@@ -488,11 +489,11 @@ class Repo:
         return nb_hard_del, nb_soft_del
 
     def _walk_folder(self, folder):
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         Return list of digests contained in the top folder (ignoring
         content deeper than 2 subfolders and so ignores changelog
         files)
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -580,7 +581,7 @@ class Repo:
 
         elif file_type == &#34;parquet&#34;:
             df = series.df()
-            data = df.to_parquet(compression=&#34;brotli&#34;)
+            data = df.to_parquet()
             pod.write(f&#34;{series.label}.parquet&#34;, data)
         else:
             exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
@@ -868,7 +869,6 @@ location</p>
 
             # Inactive file, check timestamp &amp; delete or re-enable it
             dig, ext = dig.split(&#34;.&#34;)
-
             if ext &gt; deadline:
                 # ext contains a ts created recently, we can not act on it yet
                 continue
@@ -892,11 +892,11 @@ location</p>
         return nb_hard_del, nb_soft_del
 
     def _walk_folder(self, folder):
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         Return list of digests contained in the top folder (ignoring
         content deeper than 2 subfolders and so ignores changelog
         files)
-        &#39;&#39;&#39;
+        &#34;&#34;&#34;
         digs = []
         pod = self.pod.cd(folder)
         for filename in pod.walk(max_depth=2):
@@ -984,7 +984,7 @@ location</p>
 
         elif file_type == &#34;parquet&#34;:
             df = series.df()
-            data = df.to_parquet(compression=&#34;brotli&#34;)
+            data = df.to_parquet()
             pod.write(f&#34;{series.label}.parquet&#34;, data)
         else:
             exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
@@ -1195,7 +1195,7 @@ location</p>
 
     elif file_type == &#34;parquet&#34;:
         df = series.df()
-        data = df.to_parquet(compression=&#34;brotli&#34;)
+        data = df.to_parquet()
         pod.write(f&#34;{series.label}.parquet&#34;, data)
     else:
         exit(f&#39;Unsupported file type &#34;{file_type}&#34;&#39;)</code></pre>
@@ -1252,7 +1252,6 @@ ones.</p></div>
 
         # Inactive file, check timestamp &amp; delete or re-enable it
         dig, ext = dig.split(&#34;.&#34;)
-
         if ext &gt; deadline:
             # ext contains a ts created recently, we can not act on it yet
             continue
