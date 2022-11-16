@@ -91,7 +91,8 @@ Date: 2020-12-14 15:03:10.961000
 Revision: 176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661929034-08d4cd873f7900d89d78e589acdbf54524da45c7*
 Date: 2020-12-14 15:06:03.828000
 
-$ lakota squash temperature # squash all revisions into one
+$ lakota defrag temperature  # Rewrite the timeseries into larger segments
+$ lakota trim temperature  # Remove older revs
 $ lakota rev temperature
 
 Revision: 00000000000-0000000000000000000000000000000000000000.176619478d1-425a9d4eaa62dad4e560875834ed79a17238c6a6*
@@ -111,11 +112,11 @@ timestamp,value
 <p>Built-in help:</p>
 <pre><code class="language-shell">$ lakota  --help
 usage: lakota [-h] [--repo REPO] [--timing] [--pretty] [--verbose]
-              {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+              {read,len,rev,ls,trim,defrag,push,pull,create,write,delete,truncate,gc,help,version}
               ...
 
 positional arguments:
-  {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+  {read,len,rev,ls,trim,defrag,push,pull,create,write,delete,truncate,gc,help,version}
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -300,7 +301,8 @@ Date: 2020-12-14 15:03:10.961000
 Revision: 176618fecf1-1b49944eecf9fd02fb13c0f0ac2e92f4e9d62620.17661929034-08d4cd873f7900d89d78e589acdbf54524da45c7*
 Date: 2020-12-14 15:06:03.828000
 
-$ lakota squash temperature # squash all revisions into one
+$ lakota defrag temperature  # Rewrite the timeseries into larger segments
+$ lakota trim temperature  # Remove older revs
 $ lakota rev temperature
 
 Revision: 00000000000-0000000000000000000000000000000000000000.176619478d1-425a9d4eaa62dad4e560875834ed79a17238c6a6*
@@ -326,11 +328,11 @@ Built-in help:
 ```shell
 $ lakota  --help
 usage: lakota [-h] [--repo REPO] [--timing] [--pretty] [--verbose]
-              {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+              {read,len,rev,ls,trim,defrag,push,pull,create,write,delete,truncate,gc,help,version}
               ...
 
 positional arguments:
-  {read,len,rev,ls,squash,push,pull,create,write,delete,truncate,gc,help,version}
+  {read,len,rev,ls,trim,defrag,push,pull,create,write,delete,truncate,gc,help,version}
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -843,19 +845,12 @@ def serve(args):
     server.run(repo_map, args.web_uri, debug=args.verbose)
 
 
-def deploy(args):
-    try:
-        from lakota.aws_utils import deploy_lambda
-    except ImportError:
-        exit(&#34;Please install boto3 and aws-wsgi to deploy lambda&#34;)
-    deploy_lambda(args.name, args.arn, args.lakota_package)
-
-
 def print_help(parser, args):
     cmd = args.help_cmd and globals().get(args.help_cmd)
     if cmd and cmd.__doc__:
         print(cmd.__doc__)
-    parser.parse_args([args.help_cmd, &#34;-h&#34;])
+    if cmd:
+        parser.parse_args([args.help_cmd, &#34;-h&#34;])
 
 
 def bool_like(v):
@@ -905,7 +900,7 @@ def run():
     parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
-        &#34;--greater-than&#34;,
+        &#34;--greater-than&#34;, # TODO rename into --ge (and provide proper --gt), get rid of --closed
         &#34;--gt&#34;,
         action=&#34;append&#34;,
         help=&#34;Keep rows where index is bigger the given value&#34;,
@@ -1071,17 +1066,6 @@ def run():
     )
     parser_serve.set_defaults(func=serve)
 
-    # Add deploy command
-    parser_deploy = subparsers.add_parser(&#34;deploy&#34;)
-    parser_deploy.add_argument(&#34;name&#34;, help=&#34;Lambda function name&#34;)
-    parser_deploy.add_argument(&#34;--arn&#34;, help=&#34;ARN of the role&#34;)
-    parser_deploy.add_argument(
-        &#34;--lakota-package&#34;,
-        help=&#34;Full path to clone (if not set use the offical package&#34;,
-        default=&#34;lakota&#34;,
-    )
-    parser_deploy.set_defaults(func=deploy)
-
     # Parse args
     args = parser.parse_args()
     if not args.command:
@@ -1235,23 +1219,6 @@ repo changelog.</p></div>
     else:
         clc = get_collection(repo, args.label)
         repo.delete(clc.label)</code></pre>
-</details>
-</dd>
-<dt id="lakota.cli.deploy"><code class="name flex">
-<span>def <span class="ident">deploy</span></span>(<span>args)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def deploy(args):
-    try:
-        from lakota.aws_utils import deploy_lambda
-    except ImportError:
-        exit(&#34;Please install boto3 and aws-wsgi to deploy lambda&#34;)
-    deploy_lambda(args.name, args.arn, args.lakota_package)</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.export"><code class="name flex">
@@ -1477,7 +1444,8 @@ $ lakota len my_collection/my_series
     cmd = args.help_cmd and globals().get(args.help_cmd)
     if cmd and cmd.__doc__:
         print(cmd.__doc__)
-    parser.parse_args([args.help_cmd, &#34;-h&#34;])</code></pre>
+    if cmd:
+        parser.parse_args([args.help_cmd, &#34;-h&#34;])</code></pre>
 </details>
 </dd>
 <dt id="lakota.cli.pull"><code class="name flex">
@@ -1730,7 +1698,7 @@ Total length: {sum(ci.length)}
     parser_read.add_argument(&#34;--before&#34;, &#34;-B&#34;, default=None, type=datetime_like)
     parser_read.add_argument(&#34;--mask&#34;, &#34;-m&#34;, type=str, default=None)
     parser_read.add_argument(
-        &#34;--greater-than&#34;,
+        &#34;--greater-than&#34;, # TODO rename into --ge (and provide proper --gt), get rid of --closed
         &#34;--gt&#34;,
         action=&#34;append&#34;,
         help=&#34;Keep rows where index is bigger the given value&#34;,
@@ -1896,17 +1864,6 @@ Total length: {sum(ci.length)}
     )
     parser_serve.set_defaults(func=serve)
 
-    # Add deploy command
-    parser_deploy = subparsers.add_parser(&#34;deploy&#34;)
-    parser_deploy.add_argument(&#34;name&#34;, help=&#34;Lambda function name&#34;)
-    parser_deploy.add_argument(&#34;--arn&#34;, help=&#34;ARN of the role&#34;)
-    parser_deploy.add_argument(
-        &#34;--lakota-package&#34;,
-        help=&#34;Full path to clone (if not set use the offical package&#34;,
-        default=&#34;lakota&#34;,
-    )
-    parser_deploy.set_defaults(func=deploy)
-
     # Parse args
     args = parser.parse_args()
     if not args.command:
@@ -2036,7 +1993,6 @@ repo changelog.</p></div>
 <li><code><a title="lakota.cli.datetime_like" href="#lakota.cli.datetime_like">datetime_like</a></code></li>
 <li><code><a title="lakota.cli.defrag" href="#lakota.cli.defrag">defrag</a></code></li>
 <li><code><a title="lakota.cli.delete" href="#lakota.cli.delete">delete</a></code></li>
-<li><code><a title="lakota.cli.deploy" href="#lakota.cli.deploy">deploy</a></code></li>
 <li><code><a title="lakota.cli.export" href="#lakota.cli.export">export</a></code></li>
 <li><code><a title="lakota.cli.gc" href="#lakota.cli.gc">gc</a></code></li>
 <li><code><a title="lakota.cli.get_collection" href="#lakota.cli.get_collection">get_collection</a></code></li>

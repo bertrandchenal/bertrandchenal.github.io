@@ -50,7 +50,8 @@ pass them as url arguments:</p>
 pod = POD.from_uri('s3:///bucket_name?key=KEY&amp;secret=SECRET')
 repo = Repo(pod=pod)
 </code></pre>
-<p>Similarly, you can use a compatible service through the <code>endpoint_url</code> parameter:</p>
+<p>Similarly, you can use a compatible service through the <code>endpoint_url</code>
+parameter:</p>
 <pre><code class="language-python">pod = POD.from_uri('s3:///bucket_name', endpoint_url='http://127.0.0.1:5300')
 repo = Repo(pod=pod)
 </code></pre>
@@ -131,7 +132,8 @@ pod = POD.from_uri(&#39;s3:///bucket_name?key=KEY&amp;secret=SECRET&#39;)
 repo = Repo(pod=pod)
 ```
 
-Similarly, you can use a compatible service through the `endpoint_url` parameter:
+Similarly, you can use a compatible service through the `endpoint_url`
+parameter:
 
 ```python
 pod = POD.from_uri(&#39;s3:///bucket_name&#39;, endpoint_url=&#39;http://127.0.0.1:5300&#39;)
@@ -238,8 +240,8 @@ class Repo:
             start = stop = None
         series = self.registry.series(namespace)
         frm = series.frame(start=start, stop=stop, closed=&#34;BOTH&#34;)
-        for l in frm[&#34;label&#34;]:
-            yield self.collection(l, frm)
+        for label in frm[&#34;label&#34;]:
+            yield self.collection(label, frm)
 
     def __truediv__(self, name):
         return self.collection(name)
@@ -287,24 +289,31 @@ class Repo:
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
             if label in current_labels:
                 if raise_if_exists:
-                    raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+                    msg = f&#34;Collection with label &#39;{label}&#39; already exists&#34;
+                    raise ValueError(msg)
                 else:
                     continue
             # Generate random digest
             digest = hexdigest(uuid4().bytes)
             folder, filename = hashed_path(digest)
             new_labels.append(label)
-            meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
+            meta.append({
+                &#34;path&#34;: str(folder / filename),
+                &#34;schema&#34;: schema_dump,
+            })
 
         if new_labels:
             series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
 
         # Return collections
-        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
-        frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
-            mask
-        )
-        res = [self.collection(l, from_frm=frm) for l in labels]
+        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(
+            f&#39;&#34;{l}&#34;&#39; for l in labels)
+        frm = series.frame(
+            start=min(labels),
+            stop=max(labels),
+            closed=&#34;BOTH&#34;,
+        ).mask(mask)
+        res = [self.collection(lbl, from_frm=frm) for lbl in labels]
         if len(labels) == 1:
             return res[0]
         return res
@@ -329,8 +338,8 @@ class Repo:
 
         &#34;&#34;&#34;
         to_remove = []
-        for l in labels:
-            clct = self.collection(l)
+        for lbl in labels:
+            clct = self.collection(lbl)
             if not clct:
                 continue
             to_remove.append(clct.changelog.pod)
@@ -370,14 +379,14 @@ class Repo:
         # Pull registry
         self.registry.pull(remote.registry, shallow=shallow)
         # Extract frames
-        local_cache = {l.label: l for l in self.search()}
-        remote_cache = {r.label: r for r in remote.search()}
+        local_cache = {loc.label: loc for loc in self.search()}
+        remote_cache = {rem.label: rem for rem in remote.search()}
         if not labels:
             labels = remote_cache.keys()
         for label in labels:
             logger.info(&#34;Sync collection: %s&#34;, label)
             r_clct = remote_cache[label]
-            if not label in local_cache:
+            if label not in local_cache:
                 l_clct = self.create_collection(r_clct.schema, label)
             else:
                 l_clct = local_cache[label]
@@ -414,7 +423,7 @@ class Repo:
         idx = idx[0]
         # rebuild label list
         labels = list(frm[&#34;label&#34;])
-        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
+        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1:]
         # Re-order frame
         frm = frm.sorted()
 
@@ -456,7 +465,7 @@ class Repo:
         # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
         inactive = all_dig - active_digests
         for dig in inactive:
-            if not &#34;.&#34; in dig:
+            if &#34;.&#34; not in dig:
                 # Disable digest
                 folder, filename = hashed_path(dig)
                 path = str(folder / filename)
@@ -546,7 +555,8 @@ class Repo:
             srs = collection / stem
             srs.write(df)
         else:
-            raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)
+            msg = f&#34;Unable to load {filename}, extension not supported&#34;
+            raise ValueError(msg)
 
     def export_collections(self, dest, collections=None, file_type=&#34;csv&#34;):
         if not isinstance(dest, POD):
@@ -641,8 +651,8 @@ location</p>
             start = stop = None
         series = self.registry.series(namespace)
         frm = series.frame(start=start, stop=stop, closed=&#34;BOTH&#34;)
-        for l in frm[&#34;label&#34;]:
-            yield self.collection(l, frm)
+        for label in frm[&#34;label&#34;]:
+            yield self.collection(label, frm)
 
     def __truediv__(self, name):
         return self.collection(name)
@@ -690,24 +700,31 @@ location</p>
                 raise ValueError(f&#34;Invalid label: {label}&#34;)
             if label in current_labels:
                 if raise_if_exists:
-                    raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+                    msg = f&#34;Collection with label &#39;{label}&#39; already exists&#34;
+                    raise ValueError(msg)
                 else:
                     continue
             # Generate random digest
             digest = hexdigest(uuid4().bytes)
             folder, filename = hashed_path(digest)
             new_labels.append(label)
-            meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
+            meta.append({
+                &#34;path&#34;: str(folder / filename),
+                &#34;schema&#34;: schema_dump,
+            })
 
         if new_labels:
             series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
 
         # Return collections
-        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
-        frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
-            mask
-        )
-        res = [self.collection(l, from_frm=frm) for l in labels]
+        mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(
+            f&#39;&#34;{l}&#34;&#39; for l in labels)
+        frm = series.frame(
+            start=min(labels),
+            stop=max(labels),
+            closed=&#34;BOTH&#34;,
+        ).mask(mask)
+        res = [self.collection(lbl, from_frm=frm) for lbl in labels]
         if len(labels) == 1:
             return res[0]
         return res
@@ -732,8 +749,8 @@ location</p>
 
         &#34;&#34;&#34;
         to_remove = []
-        for l in labels:
-            clct = self.collection(l)
+        for lbl in labels:
+            clct = self.collection(lbl)
             if not clct:
                 continue
             to_remove.append(clct.changelog.pod)
@@ -773,14 +790,14 @@ location</p>
         # Pull registry
         self.registry.pull(remote.registry, shallow=shallow)
         # Extract frames
-        local_cache = {l.label: l for l in self.search()}
-        remote_cache = {r.label: r for r in remote.search()}
+        local_cache = {loc.label: loc for loc in self.search()}
+        remote_cache = {rem.label: rem for rem in remote.search()}
         if not labels:
             labels = remote_cache.keys()
         for label in labels:
             logger.info(&#34;Sync collection: %s&#34;, label)
             r_clct = remote_cache[label]
-            if not label in local_cache:
+            if label not in local_cache:
                 l_clct = self.create_collection(r_clct.schema, label)
             else:
                 l_clct = local_cache[label]
@@ -817,7 +834,7 @@ location</p>
         idx = idx[0]
         # rebuild label list
         labels = list(frm[&#34;label&#34;])
-        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
+        frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1:]
         # Re-order frame
         frm = frm.sorted()
 
@@ -859,7 +876,7 @@ location</p>
         # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
         inactive = all_dig - active_digests
         for dig in inactive:
-            if not &#34;.&#34; in dig:
+            if &#34;.&#34; not in dig:
                 # Disable digest
                 folder, filename = hashed_path(dig)
                 path = str(folder / filename)
@@ -949,7 +966,8 @@ location</p>
             srs = collection / stem
             srs.write(df)
         else:
-            raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)
+            msg = f&#34;Unable to load {filename}, extension not supported&#34;
+            raise ValueError(msg)
 
     def export_collections(self, dest, collections=None, file_type=&#34;csv&#34;):
         if not isinstance(dest, POD):
@@ -1084,24 +1102,31 @@ location</p>
             raise ValueError(f&#34;Invalid label: {label}&#34;)
         if label in current_labels:
             if raise_if_exists:
-                raise ValueError(f&#34;Collection with label &#39;{label}&#39; already exists&#34;)
+                msg = f&#34;Collection with label &#39;{label}&#39; already exists&#34;
+                raise ValueError(msg)
             else:
                 continue
         # Generate random digest
         digest = hexdigest(uuid4().bytes)
         folder, filename = hashed_path(digest)
         new_labels.append(label)
-        meta.append({&#34;path&#34;: str(folder / filename), &#34;schema&#34;: schema_dump})
+        meta.append({
+            &#34;path&#34;: str(folder / filename),
+            &#34;schema&#34;: schema_dump,
+        })
 
     if new_labels:
         series.write({&#34;label&#34;: new_labels, &#34;meta&#34;: meta})
 
     # Return collections
-    mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(f&#39;&#34;{l}&#34;&#39; for l in labels)
-    frm = series.frame(start=min(labels), stop=max(labels), closed=&#34;BOTH&#34;).mask(
-        mask
-    )
-    res = [self.collection(l, from_frm=frm) for l in labels]
+    mask = &#34;(isin self.label (list %s))&#34; % &#34; &#34;.join(
+        f&#39;&#34;{l}&#34;&#39; for l in labels)
+    frm = series.frame(
+        start=min(labels),
+        stop=max(labels),
+        closed=&#34;BOTH&#34;,
+    ).mask(mask)
+    res = [self.collection(lbl, from_frm=frm) for lbl in labels]
     if len(labels) == 1:
         return res[0]
     return res</code></pre>
@@ -1129,8 +1154,8 @@ location</p>
 
     &#34;&#34;&#34;
     to_remove = []
-    for l in labels:
-        clct = self.collection(l)
+    for lbl in labels:
+        clct = self.collection(lbl)
         if not clct:
             continue
         to_remove.append(clct.changelog.pod)
@@ -1242,7 +1267,7 @@ ones.</p></div>
     # Soft-Delete (&#34;bury&#34;) files on fs not in changelogs
     inactive = all_dig - active_digests
     for dig in inactive:
-        if not &#34;.&#34; in dig:
+        if &#34;.&#34; not in dig:
             # Disable digest
             folder, filename = hashed_path(dig)
             path = str(folder / filename)
@@ -1341,7 +1366,8 @@ collections to load (all collection are loaded if not set).</p></div>
         srs = collection / stem
         srs.write(df)
     else:
-        raise ValueError(f&#34;Unable to load {filename}, extension not supported&#34;)</code></pre>
+        msg = f&#34;Unable to load {filename}, extension not supported&#34;
+        raise ValueError(msg)</code></pre>
 </details>
 </dd>
 <dt id="lakota.repo.Repo.ls"><code class="name flex">
@@ -1404,14 +1430,14 @@ or deleted concurrently.</p></div>
     # Pull registry
     self.registry.pull(remote.registry, shallow=shallow)
     # Extract frames
-    local_cache = {l.label: l for l in self.search()}
-    remote_cache = {r.label: r for r in remote.search()}
+    local_cache = {loc.label: loc for loc in self.search()}
+    remote_cache = {rem.label: rem for rem in remote.search()}
     if not labels:
         labels = remote_cache.keys()
     for label in labels:
         logger.info(&#34;Sync collection: %s&#34;, label)
         r_clct = remote_cache[label]
-        if not label in local_cache:
+        if label not in local_cache:
             l_clct = self.create_collection(r_clct.schema, label)
         else:
             l_clct = local_cache[label]
@@ -1505,7 +1531,7 @@ or deleted concurrently.</p></div>
     idx = idx[0]
     # rebuild label list
     labels = list(frm[&#34;label&#34;])
-    frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1 :]
+    frm[&#34;label&#34;] = labels[:idx] + [to_label] + labels[idx + 1:]
     # Re-order frame
     frm = frm.sorted()
 
@@ -1533,8 +1559,8 @@ or deleted concurrently.</p></div>
         start = stop = None
     series = self.registry.series(namespace)
     frm = series.frame(start=start, stop=stop, closed=&#34;BOTH&#34;)
-    for l in frm[&#34;label&#34;]:
-        yield self.collection(l, frm)</code></pre>
+    for label in frm[&#34;label&#34;]:
+        yield self.collection(label, frm)</code></pre>
 </details>
 </dd>
 </dl>

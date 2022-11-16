@@ -131,6 +131,7 @@ class S3POD(POD):
         except ClientError as err:
             if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
                 raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+            raise
 
         return resp[&#34;Body&#34;].read()
 
@@ -371,6 +372,7 @@ verifications. Please note that boto3 will also use
         except ClientError as err:
             if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
                 raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+            raise
 
         return resp[&#34;Body&#34;].read()
 
@@ -651,6 +653,7 @@ compatibility reason with the other pods.</p></div>
     except ClientError as err:
         if err.response[&#34;Error&#34;][&#34;Code&#34;] == &#34;NoSuchKey&#34;:
             raise FileNotFoundError(f&#39;Key &#34;{relpath}&#34; not found&#39;)
+        raise
 
     return resp[&#34;Body&#34;].read()</code></pre>
 </details>
